@@ -1,0 +1,35 @@
+# PHPStorm & andere IDE's
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Composer
+/vendor/
+composer.lock
+
+# OS gegenereerde bestanden
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# PHPUnit
+/phpunit.xml
+.phpunit.result.cache
+/coverage/
+
+# Build bestanden
+/build/
+
+# Cache en logs
+/storage/*.key
+/storage/logs/*
+*.log
+
+# Local development bestanden
+.env
+.env.backup

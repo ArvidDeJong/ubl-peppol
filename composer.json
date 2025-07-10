@@ -1,0 +1,41 @@
+{
+    "name": "darvis/ubl-peppol",
+    "description": "UBL/PEPPOL service voor het genereren van facturen volgens de UBL/PEPPOL standaard",
+    "type": "library",
+    "license": "MIT",
+    "version": "1.0.0",
+    "keywords": ["ubl", "peppol", "e-facturatie", "factuur", "invoice", "xml", "laravel"],
+    "homepage": "https://github.com/darviscommerce/ubl-peppol",
+    "authors": [
+        {
+            "name": "Darvis Commerce",
+            "email": "info@darviscommerce.nl",
+            "homepage": "https://darviscommerce.nl",
+            "role": "Developer"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "php": "^8.2",
+        "ext-dom": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Darvis\\UblPeppol\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Darvis\\UblPeppol\\UblPeppolServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "support": {
+        "issues": "https://github.com/darviscommerce/ubl-peppol/issues",
+        "source": "https://github.com/darviscommerce/ubl-peppol"
+    }
+}
