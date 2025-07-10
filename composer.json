@@ -5,12 +5,12 @@
     "license": "MIT",
     "version": "1.0.0",
     "keywords": ["ubl", "peppol", "e-facturatie", "factuur", "invoice", "xml", "laravel"],
-    "homepage": "https://github.com/darviscommerce/ubl-peppol",
+    "homepage": "https://github.com/ArvidDeJong/ubl-peppol",
     "authors": [
         {
-            "name": "Darvis Commerce",
-            "email": "info@darviscommerce.nl",
-            "homepage": "https://darviscommerce.nl",
+            "name": "ARVID.NL",
+            "email": "info@arvid.nl",
+            "homepage": "https://arvid.nl",
             "role": "Developer"
         }
     ],
@@ -35,7 +35,7 @@
         "sort-packages": true
     },
     "support": {
-        "issues": "https://github.com/darviscommerce/ubl-peppol/issues",
-        "source": "https://github.com/darviscommerce/ubl-peppol"
+        "issues": "https://github.com/ArvidDeJong/ubl-peppol/issues",
+        "source": "https://github.com/ArvidDeJong/ubl-peppol"
     }
 }
