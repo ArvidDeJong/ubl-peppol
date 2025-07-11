@@ -1,17 +1,17 @@
 # Changelog
 
-Alle belangrijke wijzigingen in deze package worden in dit bestand gedocumenteerd.
+All notable changes to this package will be documented in this file.
 
 ## [Unreleased]
 
 ## [1.0.1] - 2025-07-11
-### Gewijzigd
-- Dubbele examples map verwijderd (src/examples)
-- Auteursnaam bijgewerkt in composer.json
+### Changed
+- Removed duplicate examples directory (src/examples)
+- Updated author name in composer.json
 
 ## [1.0.0] - 2025-07-10
-### Toegevoegd
-- Eerste publieke release van de package
-- Functionaliteit voor het genereren van UBL/PEPPOL-facturen
+### Added
+- Initial public release of the package
+- Functionality for generating UBL/PEPPOL invoices
 - Laravel Service Provider
-- Voorbeeldcode
+- Example code
