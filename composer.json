@@ -3,12 +3,12 @@
     "description": "UBL/PEPPOL service voor het genereren van facturen volgens de UBL/PEPPOL standaard",
     "type": "library",
     "license": "MIT",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "keywords": ["ubl", "peppol", "e-facturatie", "factuur", "invoice", "xml", "laravel"],
     "homepage": "https://github.com/ArvidDeJong/ubl-peppol",
     "authors": [
         {
-            "name": "ARVID.NL",
+            "name": "Arvid De Jong",
             "email": "info@arvid.nl",
             "homepage": "https://arvid.nl",
             "role": "Developer"
