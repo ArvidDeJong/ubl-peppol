@@ -1,76 +1,76 @@
-# UBL PEPPOL Generator voor PHP
+# UBL PEPPOL Generator for PHP
 
-Een eenvoudig te gebruiken PHP-pakket voor het genereren van UBL XML-documenten die voldoen aan de PEPPOL BIS Billing 3.0 standaard, specifiek toegespitst op de Belgische implementatie (EN 16931).
+An easy-to-use PHP package for generating UBL XML documents that comply with the PEPPOL BIS Billing 3.0 standard, specifically tailored for the Belgian implementation (EN 16931).
 
-## Doelstelling
+## Objective
 
-Dit pakket stelt ontwikkelaars in staat om eenvoudig UBL-documenten te genereren die voldoen aan de PEPPOL-standaarden, zonder dat er uitgebreide kennis van de UBL-specificatie nodig is.
+This package enables developers to easily generate UBL documents that comply with PEPPOL standards, without requiring in-depth knowledge of the UBL specification.
 
-## Belangrijkste functionaliteiten
+## Key Features
 
-- **Ondersteunde documenten**:
-  - Facturen
-  - Creditnota's
-  - Correctiefacturen
-  - Factuurlijsten
+- **Supported Documents**:
+  - Invoices
+  - Credit Notes
+  - Corrective Invoices
+  - Invoice Lists
 
-- **Validatie**:
-  - Controle op verplichte velden
-  - Validatie van datums (formaat `YYYY-MM-DD`)
-  - Controle op numerieke waarden en valuta-formaten
-  - Validatie van BTW-nummers volgens Belgische regels
+- **Validation**:
+  - Required field validation
+  - Date format validation (`YYYY-MM-DD`)
+  - Numeric and currency format validation
+  - VAT number validation according to Belgian rules
 
-- **Kenmerken**:
-  - Eenvoudige, intuïtieve API
-  - Uitgebreide foutmeldingen
-  - Ondersteuning voor meerdere valuta's
-  - Flexibele toevoeging van extra UBL-elementen
+- **Features**:
+  - Simple, intuitive API
+  - Comprehensive error messages
+  - Support for multiple currencies
+  - Flexible addition of extra UBL elements
 
-## Snel aan de slag
+## Quick Start
 
-1. Installeer het pakket via Composer:
+1. Install the package via Composer:
    ```bash
    composer require darvis/ubl-peppol
    ```
 
-2. Basisvoorbeeld:
+2. Basic Example:
    ```php
    use Darvis\UblPeppol\UblService;
    
    $ubl = new UblService();
    $xml = $ubl->createInvoice([
        'supplier' => [
-           'name' => 'Leverancier BV',
+           'name' => 'Supplier BV',
            'vat_number' => 'BE0123456789',
-           // ... andere vereiste velden
+           // ... other required fields
        ],
-       // ... andere factuurgegevens
+       // ... other invoice data
    ]);
    
-   file_put_contents('factuur.xml', $xml);
+   file_put_contents('invoice.xml', $xml);
    ```
 
-## Documentatie
+## Documentation
 
-- `src/UblService.php` - Hoofdklasse voor het genereren van UBL-documenten
-- `examples/` - Voorbeeldbestanden ter referentie
-  - `base-example.xml` - Basis UBL-factuur
-  - `creditnote-example.xml` - Voorbeeld creditnota
-  - `allowance-example.xml` - Voorbeeld met kortingen
+- `src/UblService.php` - Main class for generating UBL documents
+- `examples/` - Example files for reference
+  - `base-example.xml` - Basic UBL invoice
+  - `creditnote-example.xml` - Credit note example
+  - `allowance-example.xml` - Example with allowances
 
-## Vereisten
+## Requirements
 
-- PHP 8.1 of hoger
-- PHP-extensies: DOM, SimpleXML, XMLWriter
+- PHP 8.1 or higher
+- PHP extensions: DOM, SimpleXML, XMLWriter
 
-## Licentie
+## License
 
-Dit project is gelicentieerd onder de MIT-licentie. Zie het [LICENSE](LICENSE) bestand voor meer informatie.
+This package is available under the [MIT License](LICENSE). See the [LICENSE](LICENSE) file for more information.
 
-## Bijdragen
+## Contributions
 
-Bijdragen zijn welkom! Bij het indienen van pull requests, zorg ervoor dat je code voldoet aan de PSR-12 standaarden en vergeet niet om tests toe te voegen voor nieuwe functionaliteit.
+Contributions are welcome! When submitting pull requests, ensure that your code adheres to the PSR-12 standards and don't forget to add tests for new functionality.
 
-## Ondersteuning
+## Support
 
-Voor vragen of problemen, open een issue in de GitHub repository of neem contact op met de onderhouders.
+For questions or issues, please open an issue in the GitHub repository or contact the maintainers.
