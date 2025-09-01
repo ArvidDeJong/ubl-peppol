@@ -212,7 +212,7 @@ class UblBeBis3Service
         $customizationIDElement = $this->createElement(
             'cbc',
             'CustomizationID',
-            'urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0'
+            'urn:cen.eu:en16931:2017#conformant#urn:UBL.BE:1.0.0.20180214'
         );
         $this->rootElement->appendChild($customizationIDElement);
 
@@ -336,1202 +336,412 @@ class UblBeBis3Service
         $docRef = $this->addChildElement($this->rootElement, 'cac', 'AdditionalDocumentReference');
         $this->addChildElement($docRef, 'cbc', 'ID', $id);
 
-
-        return $this;
-    }
-
-    /**
-     * Voeg AccountingSupplierParty (verkooppartij) toe
-     * 
-     * @param string $endpointId Unieke identificatie van de leverancier (bijv. KVK nummer)
-     * @param string $endpointSchemeID Het schema van de endpoint ID (bijv. '0106' voor KVK)
-     * @param string $partyId Interne identificatie van de partij
-     * @param string $partyName Naam van de leverancier
-     * @param string $street Straatnaam en huisnummer
-     * @param string $postalCode Postcode
-     * @param string $city Plaatsnaam
-     * @param string $countryCode Landcode (2 letters, bijv. 'NL')
-     * @param string $companyId BTW-nummer of ander fiscaal identificatienummer
-     * @param string|null $additionalStreet Toevoeging adres (optioneel)
-     * @return self
-     * @throws \InvalidArgumentException Bij ongeldige invoer
-     */
-    public function addAccountingSupplierParty(
-        string $endpointId,
-        string $endpointSchemeID,
-        string $partyId,
-        string $partyName,
-        string $street,
-        string $postalCode,
-        string $city,
-        string $countryCode,
-        string $companyId,
-        ?string $additionalStreet = null
-    ): self {
-        // AccountingSupplierParty container
-        $accountingSupplierParty = $this->createElement('cac', 'AccountingSupplierParty');
-        $accountingSupplierParty = $this->rootElement->appendChild($accountingSupplierParty);
-
-        // Party container
-        $party = $this->createElement('cac', 'Party');
-        $party = $accountingSupplierParty->appendChild($party);
-
-        // Valideer invoer
-        $errors = [];
-
-        // Verzamel alle validatiefouten
-        if (empty(trim($endpointId ?? ''))) {
-            $errors[] = 'Endpoint ID (bijv. KVK-nummer) is verplicht';
-        }
-        if (empty(trim($endpointSchemeID ?? ''))) {
-            $errors[] = 'Endpoint Scheme ID (bijv. "0106" voor KVK) is verplicht';
-        }
-        if (empty(trim($partyId ?? ''))) {
-            $errors[] = 'Interne partij ID is verplicht';
-        }
-        if (empty(trim($partyName ?? ''))) {
-            $errors[] = 'Bedrijfsnaam is verplicht';
-        }
-        if (empty(trim($street ?? ''))) {
-            $errors[] = 'Straat en huisnummer zijn verplicht';
-        }
-        if (empty(trim($postalCode ?? ''))) {
-            $errors[] = 'Postcode is verplicht';
-        }
-        if (empty(trim($city ?? ''))) {
-            $errors[] = 'Plaatsnaam is verplicht';
-        }
-        if (empty(trim($countryCode ?? ''))) {
-            $errors[] = 'Landcode is verplicht';
-        } elseif (strlen(trim($countryCode)) !== 2) {
-            $errors[] = 'Landcode moet uit precies 2 tekens bestaan (bijv. "NL")';
-        }
-        if (empty(trim($companyId ?? ''))) {
-            $errors[] = 'BTW-nummer of fiscaal identificatienummer is verplicht';
-        }
-
-        // Gooi een uitzondering met alle validatiefouten
-        if (!empty($errors)) {
-            $errorMessage = "Validatiefout(en) in addAccountingSupplierParty():\n" .
-                implode("\n- ", array_merge([''], $errors));
-            throw new \InvalidArgumentException($errorMessage);
-        }
-
-        // EndpointID
-        $endpointIDElement = $this->createElement('cbc', 'EndpointID', $endpointId, ['schemeID' => $endpointSchemeID]);
-        $party->appendChild($endpointIDElement);
-
-        // PartyIdentification
-        $partyIdentification = $this->createElement('cac', 'PartyIdentification');
-        $partyIdentification = $party->appendChild($partyIdentification);
-
-        $idElement = $this->createElement('cbc', 'ID', $partyId);
-        $partyIdentification->appendChild($idElement);
-
-        // PartyName
-        $partyNameElement = $this->createElement('cac', 'PartyName');
-        $partyNameElement = $party->appendChild($partyNameElement);
-
-        $nameElement = $this->createElement('cbc', 'Name', $partyName);
-        $partyNameElement->appendChild($nameElement);
-
-        // PostalAddress
-        $postalAddress = $this->createElement('cac', 'PostalAddress');
-        $postalAddress = $party->appendChild($postalAddress);
-
-        $streetNameElement = $this->createElement('cbc', 'StreetName', $street);
-        $postalAddress->appendChild($streetNameElement);
-
-        if ($additionalStreet !== null) {
-            $additionalStreetNameElement = $this->createElement('cbc', 'AdditionalStreetName', $additionalStreet);
-            $postalAddress->appendChild($additionalStreetNameElement);
-        }
-
-        $cityNameElement = $this->createElement('cbc', 'CityName', $city);
-        $postalAddress->appendChild($cityNameElement);
-
-        $postalZoneElement = $this->createElement('cbc', 'PostalZone', $postalCode);
-        $postalAddress->appendChild($postalZoneElement);
-
-        // Country - moet als laatste element binnen PostalAddress komen
-        $country = $this->createElement('cac', 'Country');
-        $country = $postalAddress->appendChild($country);
-
-        $identificationCodeElement = $this->createElement('cbc', 'IdentificationCode', strtoupper($countryCode));
-        $country->appendChild($identificationCodeElement);
-
-        // PartyTaxScheme
-        $partyTaxScheme = $this->createElement('cac', 'PartyTaxScheme');
-        $partyTaxScheme = $party->appendChild($partyTaxScheme);
-
-        $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId);
-        $partyTaxScheme->appendChild($companyIDElement);
-
-        $taxScheme = $this->createElement('cac', 'TaxScheme');
-        $taxScheme = $partyTaxScheme->appendChild($taxScheme);
-
-        $taxSchemeIDElement = $this->createElement('cbc', 'ID', 'VAT');
-        $taxScheme->appendChild($taxSchemeIDElement);
-
-        // PartyLegalEntity
-        $partyLegalEntity = $this->createElement('cac', 'PartyLegalEntity');
-        $partyLegalEntity = $party->appendChild($partyLegalEntity);
-
-        $registrationNameElement = $this->createElement('cbc', 'RegistrationName', 'SupplierOfficialName Ltd');
-        $partyLegalEntity->appendChild($registrationNameElement);
-
-        // Add CompanyID with schemeID for Dutch legal entity identifier (KVK)
-        $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId, ['schemeID' => '0106']);
-        $partyLegalEntity->appendChild($companyIDElement);
-
-        return $this;
-    }
-
-    /**
-     * Add AccountingCustomerParty (customer information)
-     * 
-     * @param string $endpointId Customer's unique identifier (e.g., VAT number)
-     * @param string $endpointSchemeID Scheme of the endpoint ID (e.g., '0002' for GLN)
-     * @param string $partyId Internal party ID
-     * @param string $partyName Customer's company name
-     * @param string $street Street name and number
-     * @param string $postalCode Postal code
-     * @param string $city City name
-     * @param string $countryCode Country code (2 letters, e.g., 'NL')
-     * @param string|null $additionalStreet Additional address line (optional)
-     * @param string|null $companyId Company registration number (optional)
-     * @return self
-     * @throws \InvalidArgumentException On invalid input
-     */
-    public function addAccountingCustomerParty(
-        string $endpointId,
-        string $endpointSchemeID,
-        string $partyId,
-        string $partyName,
-        string $street,
-        string $postalCode,
-        string $city,
-        string $countryCode,
-        ?string $additionalStreet = null,
-        ?string $companyId = null,
-        ?string $contactName = null,
-        ?string $contactPhone = null,
-        ?string $contactEmail = null,
-        string $taxSchemeId = 'VAT'
-    ): self {
-        if (empty(trim($endpointId))) {
-            throw new \InvalidArgumentException('Endpoint ID is required');
-        }
-
-        // Validate VAT number format (if provided) - must start with a valid ISO 3166-1 alpha-2 country code
-        if (!empty($companyId)) {
-            $iso3166Alpha2Codes = [
-                '1A',
-                'AD',
-                'AE',
-                'AF',
-                'AG',
-                'AI',
-                'AL',
-                'AM',
-                'AO',
-                'AQ',
-                'AR',
-                'AS',
-                'AT',
-                'AU',
-                'AW',
-                'AX',
-                'AZ',
-                'BA',
-                'BB',
-                'BD',
-                'BE',
-                'BF',
-                'BG',
-                'BH',
-                'BI',
-                'BJ',
-                'BL',
-                'BM',
-                'BN',
-                'BO',
-                'BQ',
-                'BR',
-                'BS',
-                'BT',
-                'BV',
-                'BW',
-                'BY',
-                'BZ',
-                'CA',
-                'CC',
-                'CD',
-                'CF',
-                'CG',
-                'CH',
-                'CI',
-                'CK',
-                'CL',
-                'CM',
-                'CN',
-                'CO',
-                'CR',
-                'CU',
-                'CV',
-                'CW',
-                'CX',
-                'CY',
-                'CZ',
-                'DE',
-                'DJ',
-                'DK',
-                'DM',
-                'DO',
-                'DZ',
-                'EC',
-                'EE',
-                'EG',
-                'EH',
-                'EL',
-                'ER',
-                'ES',
-                'ET',
-                'FI',
-                'FJ',
-                'FK',
-                'FM',
-                'FO',
-                'FR',
-                'GA',
-                'GB',
-                'GD',
-                'GE',
-                'GF',
-                'GG',
-                'GH',
-                'GI',
-                'GL',
-                'GM',
-                'GN',
-                'GP',
-                'GQ',
-                'GR',
-                'GS',
-                'GT',
-                'GU',
-                'GW',
-                'GY',
-                'HK',
-                'HM',
-                'HN',
-                'HR',
-                'HT',
-                'HU',
-                'ID',
-                'IE',
-                'IL',
-                'IM',
-                'IN',
-                'IO',
-                'IQ',
-                'IR',
-                'IS',
-                'IT',
-                'JE',
-                'JM',
-                'JO',
-                'JP',
-                'KE',
-                'KG',
-                'KH',
-                'KI',
-                'KM',
-                'KN',
-                'KP',
-                'KR',
-                'KW',
-                'KY',
-                'KZ',
-                'LA',
-                'LB',
-                'LC',
-                'LI',
-                'LK',
-                'LR',
-                'LS',
-                'LT',
-                'LU',
-                'LV',
-                'LY',
-                'MA',
-                'MC',
-                'MD',
-                'ME',
-                'MF',
-                'MG',
-                'MH',
-                'MK',
-                'ML',
-                'MM',
-                'MN',
-                'MO',
-                'MP',
-                'MQ',
-                'MR',
-                'MS',
-                'MT',
-                'MU',
-                'MV',
-                'MW',
-                'MX',
-                'MY',
-                'MZ',
-                'NA',
-                'NC',
-                'NE',
-                'NF',
-                'NG',
-                'NI',
-                'NL',
-                'NO',
-                'NP',
-                'NR',
-                'NU',
-                'NZ',
-                'OM',
-                'PA',
-                'PE',
-                'PF',
-                'PG',
-                'PH',
-                'PK',
-                'PL',
-                'PM',
-                'PN',
-                'PR',
-                'PS',
-                'PT',
-                'PW',
-                'PY',
-                'QA',
-                'RE',
-                'RO',
-                'RS',
-                'RU',
-                'RW',
-                'SA',
-                'SB',
-                'SC',
-                'SD',
-                'SE',
-                'SG',
-                'SH',
-                'SI',
-                'SJ',
-                'SK',
-                'SL',
-                'SM',
-                'SN',
-                'SO',
-                'SR',
-                'SS',
-                'ST',
-                'SV',
-                'SX',
-                'SY',
-                'SZ',
-                'TC',
-                'TD',
-                'TF',
-                'TG',
-                'TH',
-                'TJ',
-                'TK',
-                'TL',
-                'TM',
-                'TN',
-                'TO',
-                'TR',
-                'TT',
-                'TV',
-                'TW',
-                'TZ',
-                'UA',
-                'UG',
-                'UM',
-                'US',
-                'UY',
-                'UZ',
-                'VA',
-                'VC',
-                'VE',
-                'VG',
-                'VI',
-                'VN',
-                'VU',
-                'WF',
-                'WS',
-                'XI',
-                'YE',
-                'YT',
-                'ZA',
-                'ZM',
-                'ZW'
-            ];
-
-            $countryCode = strtoupper(substr($companyId, 0, 2));
-            if (!in_array($countryCode, $iso3166Alpha2Codes, true)) {
-                throw new \InvalidArgumentException(sprintf('Invalid VAT number format. Must start with a valid ISO 3166-1 alpha-2 country code. Got: %s', $countryCode));
-            }
-        }
-        $errors = [];
-
-        // Validate required fields
-        $requiredFields = [
-            'Endpoint ID' => $endpointId,
-            'Endpoint Scheme ID' => $endpointSchemeID,
-            'Party ID' => $partyId,
-            'Party name' => $partyName,
-            'Street' => $street,
-            'Postal code' => $postalCode,
-            'City' => $city,
-            'Country code' => $countryCode
-        ];
-
-        foreach ($requiredFields as $field => $value) {
-            if (empty(trim($value ?? ''))) {
-                $errors[] = "$field is required";
-            }
-        }
-
-        // Validate country code format
-        if (!empty($countryCode) && strlen(trim($countryCode)) !== 2) {
-            $errors[] = 'Country code must be exactly 2 characters (e.g., "NL")';
-        }
-
-        // Validate email format if provided
-        if (!empty($contactEmail) && !filter_var($contactEmail, FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Invalid email format for contact email';
-        }
-
-        // Validate phone number if provided (basic validation)
-        if (!empty($contactPhone) && !preg_match('/^[+0-9\s\-\(\)]{6,20}$/', $contactPhone)) {
-            $errors[] = 'Invalid phone number format. Only numbers, +, -, spaces and parentheses are allowed';
-        }
-
-        // Throw exception with all validation errors
-        if (!empty($errors)) {
-            $errorMessage = "Validation error(s) in customer information:\n" .
-                implode("\n- ", array_merge([''], $errors));
-            throw new \InvalidArgumentException($errorMessage);
-        }
-
-        // AccountingCustomerParty container
-        $accountingCustomerParty = $this->createElement('cac', 'AccountingCustomerParty');
-        $accountingCustomerParty = $this->rootElement->appendChild($accountingCustomerParty);
-
-        // Party container
-        $party = $this->createElement('cac', 'Party');
-        $party = $accountingCustomerParty->appendChild($party);
-
-        // For Dutch customers, ensure we use the correct scheme ID (0106 for KVK or 0190 for OIN)
-        // instead of the Italian Tax Code (0210)
-        $effectiveSchemeID = (strtoupper($countryCode) === 'NL' && $endpointSchemeID === '0210') ? '0106' : $endpointSchemeID;
-
-        // EndpointID
-        $endpointIDElement = $this->createElement('cbc', 'EndpointID', $endpointId, ['schemeID' => $effectiveSchemeID]);
-        $party->appendChild($endpointIDElement);
-
-        // PartyIdentification
-        $partyIdentification = $this->createElement('cac', 'PartyIdentification');
-        $partyIdentification = $party->appendChild($partyIdentification);
-
-        $idElement = $this->createElement('cbc', 'ID', $partyId, ['schemeID' => $effectiveSchemeID]);
-        $partyIdentification->appendChild($idElement);
-
-        // PartyName
-        $partyNameElement = $this->createElement('cac', 'PartyName');
-        $partyNameElement = $party->appendChild($partyNameElement);
-
-        $nameElement = $this->createElement('cbc', 'Name', $partyName);
-        $partyNameElement->appendChild($nameElement);
-
-        // PostalAddress
-        $postalAddress = $this->createElement('cac', 'PostalAddress');
-        $postalAddress = $party->appendChild($postalAddress);
-
-        $streetNameElement = $this->createElement('cbc', 'StreetName', $street);
-        $postalAddress->appendChild($streetNameElement);
-
-        if ($additionalStreet !== null) {
-            $additionalStreetNameElement = $this->createElement('cbc', 'AdditionalStreetName', $additionalStreet);
-            $postalAddress->appendChild($additionalStreetNameElement);
-        }
-
-        $cityNameElement = $this->createElement('cbc', 'CityName', $city);
-        $postalAddress->appendChild($cityNameElement);
-
-        $postalZoneElement = $this->createElement('cbc', 'PostalZone', $postalCode);
-        $postalAddress->appendChild($postalZoneElement);
-
-        // Country - must be the last element within PostalAddress
-        $country = $this->createElement('cac', 'Country');
-        $country = $postalAddress->appendChild($country);
-
-        $countryCodeElement = $this->createElement('cbc', 'IdentificationCode', strtoupper($countryCode));
-        $country->appendChild($countryCodeElement);
-
-        // PartyTaxScheme
-        $partyTaxScheme = $this->createElement('cac', 'PartyTaxScheme');
-        $partyTaxScheme = $party->appendChild($partyTaxScheme);
-
-        if ($companyId) {
-            $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId);
-            $partyTaxScheme->appendChild($companyIDElement);
-
-            $taxScheme = $this->createElement('cac', 'TaxScheme');
-            $taxScheme = $partyTaxScheme->appendChild($taxScheme);
-
-            $taxSchemeIDElement = $this->createElement('cbc', 'ID', $taxSchemeId);
-            $taxScheme->appendChild($taxSchemeIDElement);
-        }
-
-        // PartyLegalEntity
-        $partyLegalEntity = $this->createElement('cac', 'PartyLegalEntity');
-        $partyLegalEntity = $party->appendChild($partyLegalEntity);
-
-        $registrationNameElement = $this->createElement('cbc', 'RegistrationName', $partyName);
-        $partyLegalEntity->appendChild($registrationNameElement);
-
-        if ($companyId) {
-            // Add CompanyID with schemeID for Dutch legal entity identifier (KVK)
-            $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId, ['schemeID' => '0106']);
-            $partyLegalEntity->appendChild($companyIDElement);
-        }
-
-        // Alleen een Contact element toevoegen als er minstens één contactgegeven is opgegeven
-        if ($contactName || $contactPhone || $contactEmail) {
-            $contact = $this->createElement('cac', 'Contact');
-            $contact = $party->appendChild($contact);
-
-            if ($contactName) {
-                $nameElement = $this->createElement('cbc', 'Name', $contactName);
-                $contact->appendChild($nameElement);
-            }
-
-            if ($contactPhone) {
-                $telephoneElement = $this->createElement('cbc', 'Telephone', $contactPhone);
-                $contact->appendChild($telephoneElement);
-            }
-
-            if ($contactEmail) {
-                $electronicMailElement = $this->createElement('cbc', 'ElectronicMail', $contactEmail);
-                $contact->appendChild($electronicMailElement);
-            }
+        if ($documentType) {
+            $this->addChildElement($docRef, 'cbc', 'DocumentDescription', $documentType);
         }
 
         return $this;
     }
 
     /**
-     * Add delivery information
+     * Add AccountingSupplierParty to the UBL document
      *
-     * @param string $deliveryDate Delivery date (required)
-     * @param string|null $locationId Unique ID for the delivery location (optional)
-     * @param string $locationSchemeId Scheme ID for the location (optional, default: '0088' for GLN)
-     * @param string|null $street Street name (optional)
-     * @param string|null $additionalStreet Additional street information (optional)
-     * @param string|null $city City (optional)
-     * @param string|null $postalCode Postal code (optional)
-     * @param string|null $countryCode Country code (2 letters) (optional)
-     * @param string|null $partyName Name of the receiving party (optional)
+     * @param string $endpointId
+     * @param string $endpointScheme
+     * @param string $partyId
+     * @param string $name
+     * @param string $street
+     * @param string $postalCode
+     * @param string $city
+     * @param string $country
+     * @param string $vatNumber
+     * @param string|null $additionalStreet
      * @return self
      */
-    public function addDelivery(
-        string $deliveryDate,
-        ?string $locationId = null,
-        string $locationSchemeId = '0088',
-        ?string $street = null,
-        ?string $additionalStreet = null,
-        ?string $city = null,
-        ?string $postalCode = null,
-        ?string $countryCode = null,
-        ?string $partyName = null
-    ): self {
-        // Delivery container
-        $delivery = $this->createElement('cac', 'Delivery');
-        $delivery = $this->rootElement->appendChild($delivery);
-
-        // ActualDeliveryDate
-        $actualDeliveryDateElement = $this->createElement('cbc', 'ActualDeliveryDate', $deliveryDate);
-        $delivery->appendChild($actualDeliveryDateElement);
-
-        // Only add DeliveryLocation if there is location data
-        if ($locationId !== null || $street !== null || $city !== null) {
-            $deliveryLocation = $this->createElement('cac', 'DeliveryLocation');
-            $deliveryLocation = $delivery->appendChild($deliveryLocation);
-
-            // Only add ID if it's provided
-            if ($locationId !== null) {
-                $idElement = $this->createElement('cbc', 'ID', $locationId, ['schemeID' => $locationSchemeId]);
-                $deliveryLocation->appendChild($idElement);
-            }
-
-            // Add address if there is address data
-            if ($street !== null || $city !== null || $postalCode !== null || $countryCode !== null) {
-                $address = $this->createElement('cac', 'Address');
-                $address = $deliveryLocation->appendChild($address);
-
-                if ($street !== null) {
-                    $streetNameElement = $this->createElement('cbc', 'StreetName', $street);
-                    $address->appendChild($streetNameElement);
-                }
-
-                if ($additionalStreet !== null) {
-                    $additionalStreetElement = $this->createElement('cbc', 'AdditionalStreetName', $additionalStreet);
-                    $address->appendChild($additionalStreetElement);
-                }
-
-                if ($city !== null) {
-                    $cityNameElement = $this->createElement('cbc', 'CityName', $city);
-                    $address->appendChild($cityNameElement);
-                }
-
-                if ($postalCode !== null) {
-                    $postalZoneElement = $this->createElement('cbc', 'PostalZone', $postalCode);
-                    $address->appendChild($postalZoneElement);
-                }
-
-                if ($countryCode !== null) {
-                    $country = $this->createElement('cac', 'Country');
-                    $country = $address->appendChild($country);
-
-                    $identificationCodeElement = $this->createElement('cbc', 'IdentificationCode', strtoupper($countryCode));
-                    $country->appendChild($identificationCodeElement);
-                }
-            }
-        }
-
-        // Only add DeliveryParty if a party name is provided
-        if ($partyName !== null) {
-            $deliveryParty = $this->createElement('cac', 'DeliveryParty');
-            $deliveryParty = $delivery->appendChild($deliveryParty);
-
-            $partyNameElement = $this->createElement('cac', 'PartyName');
-            $partyNameElement = $deliveryParty->appendChild($partyNameElement);
-
-            $nameElement = $this->createElement('cbc', 'Name', $partyName);
-            $partyNameElement->appendChild($nameElement);
-        }
-
-        return $this;
-    }
-
     /**
-     * Validate IBAN (International Bank Account Number)
-     * 
-     * @param string $iban The IBAN to validate
-     * @return bool True if the IBAN is valid, false otherwise
-     */
-    private function isValidIban(string $iban): bool
-    {
-        // Normalize IBAN (remove spaces and convert to uppercase)
-        $iban = strtoupper(str_replace(' ', '', $iban));
-
-        // Check length is at least 2 characters (country code + check digits)
-        if (strlen($iban) < 4) {
-            return false;
-        }
-
-        // Move first 4 characters to the end
-        $moved = substr($iban, 4) . substr($iban, 0, 4);
-
-        // Convert letters to numbers (A=10, B=11, ..., Z=35)
-        $converted = '';
-        foreach (str_split($moved) as $char) {
-            if (ctype_alpha($char)) {
-                $converted .= (ord($char) - 55);
-            } else {
-                $converted .= $char;
-            }
-        }
-
-        // Check if the number is valid using modulo 97
-        return (int)bcmod($converted, '97') === 1;
-    }
-
-    /**
-     * Add payment means (betalingsgegevens) to the invoice
+     * Add AccountingCustomerParty to the UBL document
      *
-     * @param string $paymentMeansCode Payment means code (e.g., '30' for credit transfer)
-     * @param string $paymentMeansName Payment means name (e.g., 'Credit transfer')
-     * @param string $paymentId Payment reference or ID
-     * @param string $accountId Bank account number (IBAN)
-     * @param string $accountName Name on the bank account
-     * @param string $financialInstitutionId BIC/SWIFT code of the financial institution
-     * @param string|null $paymentChannelCode Payment channel code (optional)
-     * @param string|null $paymentDueDate Payment due date in YYYY-MM-DD format (optional)
+     * @param string $endpointId
+     * @param string $endpointScheme
+     * @param string $partyId
+     * @param string $name
+     * @param string $street
+     * @param string $postalCode
+     * @param string $city
+     * @param string $country
+     * @param string|null $additionalStreet
+     * @param string|null $registrationNumber
+     * @param string|null $contactName
+     * @param string|null $contactPhone
+     * @param string|null $contactEmail
      * @return self
      */
-    public function addPaymentMeans(
-        string $paymentMeansCode = '30',
-        string $paymentMeansName = 'Credit transfer',
-        ?string $paymentId = null,
-        ?string $accountId = null,
-        ?string $accountName = null,
-        ?string $financialInstitutionId = null,
-        ?string $paymentChannelCode = null,
-        ?string $paymentDueDate = null
-    ): self {
-        // Validate payment means code (should be a valid UNCL4461 code)
-        if (!preg_match('/^[0-9]+$/', $paymentMeansCode)) {
-            throw new \InvalidArgumentException('Payment means code must be a numeric value');
-        }
-
-        // Validate IBAN if provided
-        if ($accountId !== null && !$this->isValidIban($accountId)) {
-            throw new \InvalidArgumentException('Invalid IBAN format');
-        }
-
-        // Validate BIC/SWIFT if provided
-        if ($financialInstitutionId !== null && !preg_match('/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/', $financialInstitutionId)) {
-            throw new \InvalidArgumentException('Invalid BIC/SWIFT code format');
-        }
-
-        // Create payment means element
-        $paymentMeans = $this->createElement('cac', 'PaymentMeans');
-
-        // Add payment means code with name
-        $this->addChildElement($paymentMeans, 'cbc', 'PaymentMeansCode', $paymentMeansCode);
-
-        // Add payment ID if provided
-        if ($paymentId !== null) {
-            $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $paymentId);
-        }
-
-        // PaymentChannelCode is not included as per UBL-CR-413
-        // PaymentDueDate is not included as per UBL-CR-412 (must be at invoice level)
-
-        // Add payee financial account if account ID is provided
-        if ($accountId !== null) {
-            $payeeFinancialAccount = $this->createElement('cac', 'PayeeFinancialAccount');
-
-            // Add account ID (IBAN)
-            $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $accountId);
-
-            // Add financial institution branch (BIC/SWIFT) if provided
-            if ($financialInstitutionId !== null) {
-                $financialInstitutionBranch = $this->createElement('cac', 'FinancialInstitutionBranch');
-                $this->addChildElement($financialInstitutionBranch, 'cbc', 'ID', $financialInstitutionId);
-                $payeeFinancialAccount->appendChild($financialInstitutionBranch);
-            }
-
-            $paymentMeans->appendChild($payeeFinancialAccount);
-        }
-
-        $this->rootElement->appendChild($paymentMeans);
-
-        return $this;
-    }
-
     /**
-     * Add payment terms to the invoice
-     * 
-     * @param string|null $note The payment terms (e.g., 'Payment within 30 days, 2% discount if paid within 10 days')
-     * @param string|null $settlementDiscountPercent The discount percentage for early payment (e.g., '2.00')
-     * @param string|null $settlementDiscountAmount The discount amount for early payment (e.g., '10.00')
-     * @param string|null $settlementDiscountDate Due date for the discount (e.g., '2025-10-15')
+     * Add Delivery to the UBL document
+     *
+     * @param string $date
+     * @param string $location_id
+     * @param string $location_scheme
+     * @param string $street
+     * @param string|null $additional_street
+     * @param string $city
+     * @param string $postal_code
+     * @param string $country
+     * @param string|null $party_name
      * @return self
-     * @throws \InvalidArgumentException For missing or invalid values
-     */
-    public function addPaymentTerms(?string $note = null): self
-    {
-        if (empty($note)) {
-            throw new \InvalidArgumentException('Payment terms note is required and cannot be empty');
-        }
-
-        $paymentTerms = $this->createElement('cac', 'PaymentTerms');
-        $paymentTerms = $this->rootElement->appendChild($paymentTerms);
-
-        $noteElement = $this->createElement('cbc', 'Note', $note);
-        $paymentTerms->appendChild($noteElement);
-
-        return $this;
-    }
-
-
-
-    /**
-     * Add an allowance or charge to the invoice
-     * 
-     * @param bool $isCharge True for a charge, false for an allowance
-     * @param float $amount The amount of the allowance or charge
-     * @param string $reason Reason for the allowance/charge (e.g., 'Insurance', 'Freight', 'Discount')
-     * @param string $taxCategoryId Tax category ID (e.g., 'S' for standard rate, 'Z' for zero rate)
-     * @param float $taxPercent Tax percentage (e.g., 21.0 for 21%)
-     * @param string $currency Currency code (default: 'EUR')
-     * @return self
-     * @throws \InvalidArgumentException For invalid input values
-     */
-    public function addAllowanceCharge(
-        bool $isCharge = true,
-        float $amount = 0.0,
-        string $reason = '',
-        string $taxCategoryId = 'S',
-        float $taxPercent = 0.0,
-        string $currency = 'EUR'
-    ): self {
-        // Validate input values
-        if ($amount < 0) {
-            throw new \InvalidArgumentException('Amount cannot be negative');
-        }
-
-        if (empty($reason)) {
-            throw new \InvalidArgumentException('Reason for allowance/charge is required');
-        }
-
-        if ($taxPercent < 0 || $taxPercent > 100) {
-            throw new \InvalidArgumentException('Tax percentage must be between 0 and 100');
-        }
-
-        if (strlen($currency) !== 3) {
-            throw new \InvalidArgumentException('Currency code must be 3 characters long');
-        }
-
-        // Create AllowanceCharge container
-        $allowanceCharge = $this->createElement('cac', 'AllowanceCharge');
-        $allowanceCharge = $this->rootElement->appendChild($allowanceCharge);
-
-        // Add charge/allowance indicator
-        $chargeIndicatorElement = $this->createElement('cbc', 'ChargeIndicator', $isCharge ? 'true' : 'false');
-        $allowanceCharge->appendChild($chargeIndicatorElement);
-
-        // Add reason for the allowance/charge
-        $allowanceChargeReasonElement = $this->createElement('cbc', 'AllowanceChargeReason', $reason);
-        $allowanceCharge->appendChild($allowanceChargeReasonElement);
-
-        // Add amount with currency
-        $amountElement = $this->createElement('cbc', 'Amount', (string)number_format($amount, 2, '.', ''), ['currencyID' => $currency]);
-        $allowanceCharge->appendChild($amountElement);
-
-        // Add tax information if tax percentage is greater than 0
-        if ($taxPercent > 0) {
-            // TaxCategory
-            $taxCategory = $this->createElement('cac', 'TaxCategory');
-            $taxCategory = $allowanceCharge->appendChild($taxCategory);
-
-            // Tax category ID (e.g., 'S' for standard rate, 'Z' for zero rate)
-            $idElement = $this->createElement('cbc', 'ID', $taxCategoryId);
-            $taxCategory->appendChild($idElement);
-
-            // Tax percentage
-            $percentElement = $this->createElement('cbc', 'Percent', (string)number_format($taxPercent, 2, '.', ''));
-            $taxCategory->appendChild($percentElement);
-
-            // Tax scheme (always VAT for this implementation)
-            $taxScheme = $this->createElement('cac', 'TaxScheme');
-            $taxScheme = $taxCategory->appendChild($taxScheme);
-
-            $taxSchemeIDElement = $this->createElement('cbc', 'ID', 'VAT');
-            $taxScheme->appendChild($taxSchemeIDElement);
-        }
-
-        return $this;
-    }
-
-    /**
-     * Add tax total information to the invoice
-     * 
-     * @param array $taxes Array of tax entries with the following structure:
-     *   [
-     *     [
-     *       'taxable_amount' => 1000.00, // Required: Amount subject to tax (must be >= 0)
-     *       'tax_amount' => 210.00,      // Required: Tax amount (must be >= 0)
-     *       'currency' => 'EUR',         // Required: Currency code (3 letters)
-     *       'tax_category_id' => 'S',    // Required: Tax category ID (e.g., 'S' for standard rate)
-     *       'tax_category_name' => 'Standard rated', // Optional: The name of the tax category
-     *       'tax_percent' => 21.0,       // Required: Tax percentage (0-100)
-     *       'tax_scheme_id' => 'VAT'     // Required: Tax scheme ID (e.g., 'VAT')
-     *     ]
-     *   ]
-     * @return self
-     * @throws \InvalidArgumentException For invalid or missing required fields
-     */
-    public function addTaxTotal(array $taxes): self
-    {
-        if (empty($taxes)) {
-            throw new \InvalidArgumentException('At least one tax entry is required');
-        }
-
-        // Validate each tax entry
-        $totalTaxAmount = 0;
-        $entryNumber = 0;
-
-        foreach ($taxes as $tax) {
-            $entryNumber++;
-            $errorPrefix = "Tax entry #{$entryNumber}: ";
-
-            // Check required fields
-            $requiredFields = [
-                'taxable_amount' => 'Taxable amount is required and must be a non-negative number',
-                'tax_amount' => 'Tax amount is required and must be a non-negative number',
-                'currency' => 'Currency code is required and must be 3 characters long',
-                'tax_category_id' => 'Tax category ID is required',
-                'tax_percent' => 'Tax percentage is required and must be between 0 and 100',
-                'tax_scheme_id' => 'Tax scheme ID is required'
-            ];
-
-            foreach ($requiredFields as $field => $errorMessage) {
-                if (!array_key_exists($field, $tax)) {
-                    throw new \InvalidArgumentException($errorPrefix . $errorMessage);
-                }
-            }
-
-            // Validate field types and values
-            if (!is_numeric($tax['taxable_amount']) || $tax['taxable_amount'] < 0) {
-                throw new \InvalidArgumentException($errorPrefix . 'Taxable amount must be a non-negative number');
-            }
-
-            if (!is_numeric($tax['tax_amount']) || $tax['tax_amount'] < 0) {
-                throw new \InvalidArgumentException($errorPrefix . 'Tax amount must be a non-negative number');
-            }
-
-            if (!is_string($tax['tax_category_id']) || empty(trim($tax['tax_category_id']))) {
-                throw new \InvalidArgumentException($errorPrefix . 'Tax category ID must be a non-empty string');
-            }
-
-            if (!is_numeric($tax['tax_percent']) || $tax['tax_percent'] < 0 || $tax['tax_percent'] > 100) {
-                throw new \InvalidArgumentException($errorPrefix . 'Tax percentage must be a number between 0 and 100');
-            }
-
-            if (!is_string($tax['currency']) || strlen($tax['currency']) !== 3) {
-                throw new \InvalidArgumentException($errorPrefix . 'Currency code must be exactly 3 characters long');
-            }
-
-            if (!is_string($tax['tax_scheme_id']) || empty(trim($tax['tax_scheme_id']))) {
-                throw new \InvalidArgumentException($errorPrefix . 'Tax scheme ID must be a non-empty string');
-            }
-
-            $totalTaxAmount += (float)$tax['tax_amount'];
-        }
-
-        // Create TaxTotal container
-        $taxTotal = $this->createElement('cac', 'TaxTotal');
-        $taxTotal = $this->rootElement->appendChild($taxTotal);
-
-        // Add total tax amount using the currency from the first tax entry
-        $firstTaxCurrency = $taxes[0]['currency'];
-        $totalTaxAmountElement = $this->createElement(
-            'cbc',
-            'TaxAmount',
-            number_format($totalTaxAmount, 2, '.', ''),
-            ['currencyID' => $firstTaxCurrency]
-        );
-        $taxTotal->appendChild($totalTaxAmountElement);
-
-        // Add tax subtotals for each tax category
-        foreach ($taxes as $tax) {
-            $taxCurrency = $tax['currency'];
-
-            // Create TaxSubtotal element
-            $taxSubtotal = $this->createElement('cac', 'TaxSubtotal');
-            $taxSubtotal = $taxTotal->appendChild($taxSubtotal);
-
-            // Add taxable amount
-            $taxableAmountElement = $this->createElement(
-                'cbc',
-                'TaxableAmount',
-                number_format($tax['taxable_amount'], 2, '.', ''),
-                ['currencyID' => $taxCurrency]
-            );
-            $taxSubtotal->appendChild($taxableAmountElement);
-
-            // Add tax amount
-            $taxAmountElement = $this->createElement(
-                'cbc',
-                'TaxAmount',
-                number_format($tax['tax_amount'], 2, '.', ''),
-                ['currencyID' => $taxCurrency]
-            );
-            $taxSubtotal->appendChild($taxAmountElement);
-
-            // Add tax category
-            $taxCategory = $this->createElement('cac', 'TaxCategory');
-            $taxCategory = $taxSubtotal->appendChild($taxCategory);
-
-            // Add tax category ID
-            $idElement = $this->createElement('cbc', 'ID', $tax['tax_category_id']);
-            $taxCategory->appendChild($idElement);
-
-            // Add tax percentage
-            $percentElement = $this->createElement(
-                'cbc',
-                'Percent',
-                number_format($tax['tax_percent'], 2, '.', '')
-            );
-            $taxCategory->appendChild($percentElement);
-
-            // Add tax scheme
-            $taxScheme = $this->createElement('cac', 'TaxScheme');
-            $taxScheme = $taxCategory->appendChild($taxScheme);
-
-            $taxSchemeIDElement = $this->createElement('cbc', 'ID', $tax['tax_scheme_id'] ?? 'VAT');
-            $taxScheme->appendChild($taxSchemeIDElement);
-        }
-
-        return $this;
-    }
-
-    /**
-     * Add LegalMonetaryTotal (financial totals) to the invoice
-     * 
-     * @param array $amounts Associative array containing the following required keys:
-     *   - line_extension_amount: Total of all invoice lines excluding tax
-     *   - tax_exclusive_amount: Amount excluding tax (line_extension_amount + charges - allowances)
-     *   - tax_inclusive_amount: Amount including tax
-     *   - charge_total_amount: Total of all charges
-     *   - payable_amount: Total amount to be paid (should equal tax_inclusive_amount)
-     * @param string $currency Currency code (3 letters, e.g., 'EUR')
-     * @return self
-     * @throws \InvalidArgumentException For missing or invalid parameters
-     */
-    public function addLegalMonetaryTotal(array $amounts, string $currency = 'EUR'): self
-    {
-        // Validate required fields
-        $requiredFields = [
-            'line_extension_amount' => 'Line extension amount is required',
-            'tax_exclusive_amount' => 'Tax exclusive amount is required',
-            'tax_inclusive_amount' => 'Tax inclusive amount is required',
-            'charge_total_amount' => 'Charge total amount is required',
-            'payable_amount' => 'Payable amount is required'
-        ];
-
-        foreach ($requiredFields as $field => $errorMessage) {
-            if (!array_key_exists($field, $amounts) || !is_numeric($amounts[$field])) {
-                throw new \InvalidArgumentException($errorMessage);
-            }
-        }
-
-        // Validate currency
-        if (strlen($currency) !== 3) {
-            throw new \InvalidArgumentException('Currency code must be exactly 3 characters long');
-        }
-
-        // Format amounts to 2 decimal places
-        $formattedAmounts = [];
-        foreach ($amounts as $key => $value) {
-            $formattedAmounts[$key] = number_format((float)$value, 2, '.', '');
-        }
-
-        // Create LegalMonetaryTotal container
-        $legalMonetaryTotal = $this->createElement('cac', 'LegalMonetaryTotal');
-        $legalMonetaryTotal = $this->rootElement->appendChild($legalMonetaryTotal);
-
-        // Add all monetary amounts with currency
-        $elements = [
-            'LineExtensionAmount' => $formattedAmounts['line_extension_amount'],
-            'TaxExclusiveAmount' => $formattedAmounts['tax_exclusive_amount'],
-            'TaxInclusiveAmount' => $formattedAmounts['tax_inclusive_amount'],
-            'ChargeTotalAmount' => $formattedAmounts['charge_total_amount'],
-            'PayableAmount' => $formattedAmounts['payable_amount']
-        ];
-
-        foreach ($elements as $elementName => $amount) {
-            $element = $this->createElement(
-                'cbc',
-                $elementName,
-                $amount,
-                ['currencyID' => $currency]
-            );
-            $legalMonetaryTotal->appendChild($element);
-        }
-
-        return $this;
-    }
-
-
-    /**
-     * Add an invoice line to the document
-     * 
-     * @param array $lineData Array containing the invoice line data
-     * @return self
-     * @throws \InvalidArgumentException For missing or invalid parameters
      */
     /**
-     * Add an invoice line to the document
-     * 
-     * @param array $lineData Array containing the invoice line data
+     * Add PaymentMeans to the UBL document
+     *
+     * @param string $means_code
+     * @param string|null $means_name
+     * @param string $payment_id
+     * @param string $account_iban
+     * @param string|null $account_name
+     * @param string|null $bic
+     * @param string|null $channel_code
+     * @param string|null $due_date
      * @return self
-     * @throws \InvalidArgumentException For missing or invalid parameters
+     */
+    /**
+     * Add PaymentTerms to the UBL document
+     *
+     * @param string|null $note
+     * @param float|null $discount_percent
+     * @param float|null $discount_amount
+     * @param string|null $discount_date
+     * @return self
+     */
+    /**
+     * Add AllowanceCharge to the UBL document
+     *
+     * @param bool $isCharge
+     * @param float $amount
+     * @param string $reason
+     * @param string $taxCategoryId
+     * @param float $taxPercent
+     * @param string $currency
+     * @return self
+     */
+    /**
+     * Add TaxTotal to the UBL document
+     *
+     * @param array $taxTotals
+     * @return self
+     */
+    /**
+     * Add LegalMonetaryTotal to the UBL document
+     *
+     * @param array $totals
+     * @param string $currency
+     * @return self
+     */
+    /**
+     * Add InvoiceLine to the UBL document
+     *
+     * @param array $lineData
+     * @return self
      */
     public function addInvoiceLine(array $lineData): self
     {
-        // Set default values
-        $lineData = array_merge([
-            'tax_category_id' => 'S',
-            'tax_percent' => '21.00',
-        ], $lineData);
+        $invoiceLine = $this->addChildElement($this->rootElement, 'cac', 'InvoiceLine');
 
-        // Create InvoiceLine container
-        $invoiceLine = $this->createElement('cac', 'InvoiceLine');
-        $this->rootElement->appendChild($invoiceLine);
-
-        // Add ID
         $this->addChildElement($invoiceLine, 'cbc', 'ID', $lineData['id']);
+        $this->addChildElement($invoiceLine, 'cbc', 'InvoicedQuantity', $this->formatAmount((float)$lineData['quantity']), ['unitCode' => $lineData['unit_code']]);
+        $this->addChildElement($invoiceLine, 'cbc', 'LineExtensionAmount', $this->formatAmount((float)$lineData['line_extension_amount']), ['currencyID' => $lineData['currency']]);
 
-        // Add InvoicedQuantity
-        $this->addChildElement(
-            $invoiceLine,
-            'cbc',
-            'InvoicedQuantity',
-            number_format((float)$lineData['quantity'], 2, '.', ''),
-            ['unitCode' => $lineData['unit_code']]
-        );
-
-        // Add LineExtensionAmount
-        $baseQuantity = $lineData['base_quantity'] ?? 1;
-        if ($baseQuantity == 0) {
-            $baseQuantity = 1;
-        } // Prevent division by zero
-        $lineExtensionAmountValue = $lineData['quantity'] * ($lineData['price_amount'] / $baseQuantity);
-        $this->addChildElement($invoiceLine, 'cbc', 'LineExtensionAmount', $this->formatAmount($lineExtensionAmountValue), ['currencyID' => $lineData['currency']]);
-
-        // AccountingCost
-        if (isset($lineData['accounting_cost'])) {
+        if (!empty($lineData['accounting_cost'])) {
             $this->addChildElement($invoiceLine, 'cbc', 'AccountingCost', $lineData['accounting_cost']);
         }
 
-        // OrderLineReference
-        if (isset($lineData['order_line_id'])) {
-            $orderLineReference = $this->createElement('cac', 'OrderLineReference');
-            $invoiceLine->appendChild($orderLineReference);
+        if (!empty($lineData['order_line_id'])) {
+            $orderLineReference = $this->addChildElement($invoiceLine, 'cac', 'OrderLineReference');
             $this->addChildElement($orderLineReference, 'cbc', 'LineID', $lineData['order_line_id']);
         }
 
-        // Item
-        $item = $this->createElement('cac', 'Item');
-        $invoiceLine->appendChild($item);
-
+        $item = $this->addChildElement($invoiceLine, 'cac', 'Item');
         $this->addChildElement($item, 'cbc', 'Description', $lineData['description']);
         $this->addChildElement($item, 'cbc', 'Name', $lineData['name']);
 
-        // Item > ClassifiedTaxCategory
-        $classifiedTaxCategory = $this->createElement('cac', 'ClassifiedTaxCategory');
-        $item->appendChild($classifiedTaxCategory);
+        $classifiedTaxCategory = $this->addChildElement($item, 'cac', 'ClassifiedTaxCategory');
         $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $lineData['tax_category_id']);
-        $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', $this->formatAmount($lineData['tax_percent']));
+        if (!empty($lineData['tax_category_name'])) {
+            $this->addChildElement($classifiedTaxCategory, 'cbc', 'Name', $lineData['tax_category_name']);
+        }
+        $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', $this->formatAmount((float)$lineData['tax_percent']));
         $taxScheme = $this->addChildElement($classifiedTaxCategory, 'cac', 'TaxScheme');
+        $this->addChildElement($taxScheme, 'cbc', 'ID', $lineData['tax_scheme_id']);
+
+        $taxTotal = $this->addChildElement($invoiceLine, 'cac', 'TaxTotal');
+        $taxAmount = ($lineData['line_extension_amount'] * $lineData['tax_percent']) / 100;
+        $this->addChildElement($taxTotal, 'cbc', 'TaxAmount', $this->formatAmount($taxAmount), ['currencyID' => $lineData['currency']]);
+
+        $price = $this->addChildElement($invoiceLine, 'cac', 'Price');
+        $this->addChildElement($price, 'cbc', 'PriceAmount', $this->formatAmount((float)$lineData['price_amount']), ['currencyID' => $lineData['currency']]);
+        $this->addChildElement($price, 'cbc', 'BaseQuantity', '1', ['unitCode' => $lineData['unit_code']]);
+
+        return $this;
+    }
+
+    public function addLegalMonetaryTotal(array $totals, string $currency): self
+    {
+        $monetaryTotal = $this->addChildElement($this->rootElement, 'cac', 'LegalMonetaryTotal');
+
+        $this->addChildElement($monetaryTotal, 'cbc', 'LineExtensionAmount', $this->formatAmount((float)$totals['line_extension_amount']), ['currencyID' => $currency]);
+        $this->addChildElement($monetaryTotal, 'cbc', 'TaxExclusiveAmount', $this->formatAmount((float)$totals['tax_exclusive_amount']), ['currencyID' => $currency]);
+        $this->addChildElement($monetaryTotal, 'cbc', 'TaxInclusiveAmount', $this->formatAmount((float)$totals['tax_inclusive_amount']), ['currencyID' => $currency]);
+        $this->addChildElement($monetaryTotal, 'cbc', 'ChargeTotalAmount', $this->formatAmount((float)$totals['charge_total_amount']), ['currencyID' => $currency]);
+        $this->addChildElement($monetaryTotal, 'cbc', 'PayableAmount', $this->formatAmount((float)$totals['payable_amount']), ['currencyID' => $currency]);
+
+        return $this;
+    }
+
+    public function addTaxTotal(array $taxTotals): self
+    {
+        // Find and remove existing TaxTotal to prevent duplicates
+        $existingTaxTotals = $this->dom->getElementsByTagName('TaxTotal');
+        while ($existingTaxTotals->length > 0) {
+            $existingTaxTotals->item(0)->parentNode->removeChild($existingTaxTotals->item(0));
+        }
+
+        $totalTaxAmount = 0;
+        foreach ($taxTotals as $tax) {
+            $totalTaxAmount += (float)$tax['tax_amount'];
+        }
+
+        $monetaryTotal = $this->dom->getElementsByTagName('LegalMonetaryTotal')->item(0);
+
+        $taxTotalElement = $this->createElement('cac', 'TaxTotal');
+        if ($monetaryTotal) {
+            $this->rootElement->insertBefore($taxTotalElement, $monetaryTotal);
+        } else {
+            $this->rootElement->appendChild($taxTotalElement);
+        }
+        $this->addChildElement($taxTotalElement, 'cbc', 'TaxAmount', $this->formatAmount($totalTaxAmount), ['currencyID' => $taxTotals[0]['currency'] ?? 'EUR']);
+
+        foreach ($taxTotals as $tax) {
+            $taxSubtotal = $this->addChildElement($taxTotalElement, 'cac', 'TaxSubtotal');
+            $this->addChildElement($taxSubtotal, 'cbc', 'TaxableAmount', $this->formatAmount((float)$tax['taxable_amount']), ['currencyID' => $tax['currency']]);
+            $this->addChildElement($taxSubtotal, 'cbc', 'TaxAmount', $this->formatAmount((float)$tax['tax_amount']), ['currencyID' => $tax['currency']]);
+
+            $taxCategory = $this->addChildElement($taxSubtotal, 'cac', 'TaxCategory');
+            $this->addChildElement($taxCategory, 'cbc', 'ID', $tax['tax_category_id']);
+            if ($tax['tax_category_id'] === 'S') {
+                $this->addChildElement($taxCategory, 'cbc', 'Name', 'Standard rated');
+            } elseif (!empty($tax['tax_category_name'])) {
+                $this->addChildElement($taxCategory, 'cbc', 'Name', $tax['tax_category_name']);
+            }
+            $this->addChildElement($taxCategory, 'cbc', 'Percent', $this->formatAmount((float)$tax['tax_percent']));
+            $taxScheme = $this->addChildElement($taxCategory, 'cac', 'TaxScheme');
+            $this->addChildElement($taxScheme, 'cbc', 'ID', $tax['tax_scheme_id']);
+        }
+
+        return $this;
+    }
+
+    public function addAllowanceCharge(
+        bool $isCharge,
+        float $amount,
+        string $reason,
+        string $taxCategoryId,
+        float $taxPercent,
+        string $currency
+    ): self {
+        $allowanceCharge = $this->addChildElement($this->rootElement, 'cac', 'AllowanceCharge');
+        $this->addChildElement($allowanceCharge, 'cbc', 'ChargeIndicator', $isCharge ? 'true' : 'false');
+        $this->addChildElement($allowanceCharge, 'cbc', 'AllowanceChargeReason', $reason);
+        $this->addChildElement($allowanceCharge, 'cbc', 'Amount', $this->formatAmount($amount), ['currencyID' => $currency]);
+
+        $taxCategory = $this->addChildElement($allowanceCharge, 'cac', 'TaxCategory');
+        $this->addChildElement($taxCategory, 'cbc', 'ID', $taxCategoryId);
+        $this->addChildElement($taxCategory, 'cbc', 'Percent', $this->formatAmount($taxPercent));
+        $taxScheme = $this->addChildElement($taxCategory, 'cac', 'TaxScheme');
         $this->addChildElement($taxScheme, 'cbc', 'ID', 'VAT');
 
-        // Price
-        $price = $this->createElement('cac', 'Price');
-        $invoiceLine->appendChild($price);
+        return $this;
+    }
 
-        $this->addChildElement($price, 'cbc', 'PriceAmount', $this->formatAmount($lineData['price_amount']), ['currencyID' => $lineData['currency']]);
+    public function addPaymentTerms(
+        ?string $note,
+        ?float $discount_percent,
+        ?float $discount_amount,
+        ?string $discount_date
+    ): self {
+        $paymentTerms = $this->addChildElement($this->rootElement, 'cac', 'PaymentTerms');
+        if ($note) {
+            $this->addChildElement($paymentTerms, 'cbc', 'Note', $note);
+        }
 
-        $baseQuantityValue = $lineData['base_quantity'] ?? 1;
-        $this->addChildElement($price, 'cbc', 'BaseQuantity', number_format((float)$baseQuantityValue, 2, '.', ''), ['unitCode' => $lineData['unit_code']]);
+        return $this;
+    }
+
+    public function addPaymentMeans(
+        string $means_code,
+        ?string $means_name,
+        string $payment_id,
+        string $account_iban,
+        ?string $account_name,
+        ?string $bic,
+        ?string $channel_code,
+        ?string $due_date
+    ): self {
+        $paymentMeans = $this->addChildElement($this->rootElement, 'cac', 'PaymentMeans');
+        $this->addChildElement($paymentMeans, 'cbc', 'PaymentMeansCode', $means_code, $means_name ? ['name' => $means_name] : []);
+        $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $payment_id);
+
+        $payeeFinancialAccount = $this->addChildElement($paymentMeans, 'cac', 'PayeeFinancialAccount');
+        $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $account_iban);
+        if ($account_name) {
+            $this->addChildElement($payeeFinancialAccount, 'cbc', 'Name', $account_name);
+        }
+        if ($bic) {
+            $financialInstitutionBranch = $this->addChildElement($payeeFinancialAccount, 'cac', 'FinancialInstitutionBranch');
+            $this->addChildElement($financialInstitutionBranch, 'cbc', 'ID', $bic);
+        }
+
+        return $this;
+    }
+
+    public function addDelivery(
+        string $date,
+        string $location_id,
+        string $location_scheme,
+        string $street,
+        ?string $additional_street,
+        string $city,
+        string $postal_code,
+        string $country,
+        ?string $party_name = null
+    ): self {
+        $delivery = $this->addChildElement($this->rootElement, 'cac', 'Delivery');
+        $this->addChildElement($delivery, 'cbc', 'ActualDeliveryDate', $date);
+
+        $deliveryLocation = $this->addChildElement($delivery, 'cac', 'DeliveryLocation');
+        $this->addChildElement($deliveryLocation, 'cbc', 'ID', $location_id, ['schemeID' => $location_scheme]);
+
+        $address = $this->addChildElement($deliveryLocation, 'cac', 'Address');
+        $this->addChildElement($address, 'cbc', 'StreetName', $street);
+        if ($additional_street) {
+            $this->addChildElement($address, 'cbc', 'AdditionalStreetName', $additional_street);
+        }
+        $this->addChildElement($address, 'cbc', 'CityName', $city);
+        $this->addChildElement($address, 'cbc', 'PostalZone', $postal_code);
+        $countryElement = $this->addChildElement($address, 'cac', 'Country');
+        $this->addChildElement($countryElement, 'cbc', 'IdentificationCode', $country);
+
+        if ($party_name) {
+            $deliveryParty = $this->addChildElement($delivery, 'cac', 'DeliveryParty');
+            $partyName = $this->addChildElement($deliveryParty, 'cac', 'PartyName');
+            $this->addChildElement($partyName, 'cbc', 'Name', $party_name);
+        }
+
+        return $this;
+    }
+
+    public function addAccountingCustomerParty(
+        string $endpointId,
+        string $endpointScheme,
+        string $partyId,
+        string $name,
+        string $street,
+        string $postalCode,
+        string $city,
+        string $country,
+        ?string $additionalStreet = null,
+        ?string $registrationNumber = null,
+        ?string $contactName = null,
+        ?string $contactPhone = null,
+        ?string $contactEmail = null
+    ): self {
+        $customerParty = $this->addChildElement($this->rootElement, 'cac', 'AccountingCustomerParty');
+        $party = $this->addChildElement($customerParty, 'cac', 'Party');
+
+        $this->addChildElement($party, 'cbc', 'EndpointID', $endpointId, ['schemeID' => $endpointScheme]);
+
+        $partyIdentification = $this->addChildElement($party, 'cac', 'PartyIdentification');
+        $this->addChildElement($partyIdentification, 'cbc', 'ID', $partyId);
+
+        $partyName = $this->addChildElement($party, 'cac', 'PartyName');
+        $this->addChildElement($partyName, 'cbc', 'Name', $name);
+
+        $postalAddress = $this->addChildElement($party, 'cac', 'PostalAddress');
+        $this->addChildElement($postalAddress, 'cbc', 'StreetName', $street);
+        if ($additionalStreet) {
+            $this->addChildElement($postalAddress, 'cbc', 'AdditionalStreetName', $additionalStreet);
+        }
+        $this->addChildElement($postalAddress, 'cbc', 'CityName', $city);
+        $this->addChildElement($postalAddress, 'cbc', 'PostalZone', $postalCode);
+        $countryElement = $this->addChildElement($postalAddress, 'cac', 'Country');
+        $this->addChildElement($countryElement, 'cbc', 'IdentificationCode', $country);
+
+        $partyLegalEntity = $this->addChildElement($party, 'cac', 'PartyLegalEntity');
+        $this->addChildElement($partyLegalEntity, 'cbc', 'RegistrationName', $name);
+        if ($registrationNumber) {
+            $this->addChildElement($partyLegalEntity, 'cbc', 'CompanyID', $registrationNumber);
+        }
+
+        if ($contactName || $contactPhone || $contactEmail) {
+            $contact = $this->addChildElement($party, 'cac', 'Contact');
+            if ($contactName) {
+                $this->addChildElement($contact, 'cbc', 'Name', $contactName);
+            }
+            if ($contactPhone) {
+                $this->addChildElement($contact, 'cbc', 'Telephone', $contactPhone);
+            }
+            if ($contactEmail) {
+                $this->addChildElement($contact, 'cbc', 'ElectronicMail', $contactEmail);
+            }
+        }
+
+        return $this;
+    }
+
+    public function addAccountingSupplierParty(
+        string $endpointId,
+        string $endpointScheme,
+        string $partyId,
+        string $name,
+        string $street,
+        string $postalCode,
+        string $city,
+        string $country,
+        string $vatNumber,
+        ?string $additionalStreet = null
+    ): self {
+        $supplierParty = $this->addChildElement($this->rootElement, 'cac', 'AccountingSupplierParty');
+        $party = $this->addChildElement($supplierParty, 'cac', 'Party');
+
+        // EndpointID
+        $this->addChildElement($party, 'cbc', 'EndpointID', $endpointId, ['schemeID' => $endpointScheme]);
+
+        // PartyIdentification
+        $partyIdentification = $this->addChildElement($party, 'cac', 'PartyIdentification');
+        $this->addChildElement($partyIdentification, 'cbc', 'ID', $partyId);
+
+        // PartyName
+        $partyName = $this->addChildElement($party, 'cac', 'PartyName');
+        $this->addChildElement($partyName, 'cbc', 'Name', $name);
+
+        // PostalAddress
+        $postalAddress = $this->addChildElement($party, 'cac', 'PostalAddress');
+        $this->addChildElement($postalAddress, 'cbc', 'StreetName', $street);
+        if ($additionalStreet) {
+            $this->addChildElement($postalAddress, 'cbc', 'AdditionalStreetName', $additionalStreet);
+        }
+        $this->addChildElement($postalAddress, 'cbc', 'CityName', $city);
+        $this->addChildElement($postalAddress, 'cbc', 'PostalZone', $postalCode);
+        $countryElement = $this->addChildElement($postalAddress, 'cac', 'Country');
+        $this->addChildElement($countryElement, 'cbc', 'IdentificationCode', $country);
+
+        // PartyTaxScheme
+        $partyTaxScheme = $this->addChildElement($party, 'cac', 'PartyTaxScheme');
+        $this->addChildElement($partyTaxScheme, 'cbc', 'CompanyID', $vatNumber);
+        $taxScheme = $this->addChildElement($partyTaxScheme, 'cac', 'TaxScheme');
+        $this->addChildElement($taxScheme, 'cbc', 'ID', 'VAT');
+
+        // PartyLegalEntity
+        $partyLegalEntity = $this->addChildElement($party, 'cac', 'PartyLegalEntity');
+        $this->addChildElement($partyLegalEntity, 'cbc', 'RegistrationName', $name);
 
         return $this;
     }

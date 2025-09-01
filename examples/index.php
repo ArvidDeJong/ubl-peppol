@@ -98,9 +98,9 @@
         <h2>1. Generate Basic Invoice BE</h2>
         <p>A simple example showing how to generate a basic UBL invoice with multiple line items and automatic tax calculation.</p>
         <div class="btn-group">
-            <a href="generate_invoice_be.php" class="btn btn-view">View Example</a>
-            <a href="generate_invoice_be.php?download" class="btn btn-download">Download XML</a>
-            <a href="view-source:generate_invoice_be.php" class="btn btn-source">View Source</a>
+            <a href="be/generate_invoice_be.php" class="btn btn-view">View Example</a>
+            <a href="be/generate_invoice_be.php?download" class="btn btn-download">Download XML</a>
+            <a href="view-source:be/generate_invoice_be.php" class="btn btn-source">View Source</a>
         </div>
     </div>
 
@@ -108,29 +108,13 @@
         <h2>1. Generate Basic Invoice NL</h2>
         <p>A simple example showing how to generate a basic UBL invoice with multiple line items and automatic tax calculation.</p>
         <div class="btn-group">
-            <a href="generate_invoice_nl.php" class="btn btn-view">View Example</a>
-            <a href="generate_invoice_nl.php?download" class="btn btn-download">Download XML</a>
-            <a href="view-source:generate_invoice_nl.php" class="btn btn-source">View Source</a>
+            <a href="nl/generate_invoice_nl.php" class="btn btn-view">View Example</a>
+            <a href="nl/generate_invoice_nl.php?download" class="btn btn-download">Download XML</a>
+            <a href="view-source:nl/generate_invoice_nl.php" class="btn btn-source">View Source</a>
         </div>
     </div>
 
-    <div class="example">
-        <h2>2. Complete Invoice Example</h2>
-        <p>A comprehensive example showing all available UBL invoice components including supplier/customer information, delivery details, payment terms, and more.</p>
-        <div class="btn-group">
-            <a href="CompleteInvoiceExample.php" class="btn btn-view">View Example</a>
-            <a href="CompleteInvoiceExample.php?download" class="btn btn-download">Download XML</a>
-            <a href="view-source:CompleteInvoiceExample.php" class="btn btn-source">View Source</a>
-        </div>
-    </div>
 
-    <div class="example">
-        <h2>3. View Base Example XML</h2>
-        <p>View the base example XML file that this implementation is based on.</p>
-        <div class="btn-group">
-            <a href="base-example.xml" class="btn btn-view">View XML</a>
-        </div>
-    </div>
 
     <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee;">
         <h3>Documentation</h3>

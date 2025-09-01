@@ -1,14 +1,14 @@
 <?php
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
 
-use Darvis\UblPeppol\UblNlBis3Service;
+use Darvis\UblPeppol\UblBeBis3Service;
 
-include 'test_data.php';
+include '../test_data.php';
 
 try {
     // Initialize UBL service
-    $ubl = new UblNlBis3Service();
+    $ubl = new UblBeBis3Service();
 
     // Create the document and add all components
     $ubl->createDocument()
@@ -19,8 +19,7 @@ try {
         )
         ->addBuyerReference($invoice['header']['buyer_reference'])
         ->addOrderReference($invoice['header']['order_reference'])
-        ->addAdditionalDocumentReference($invoice['header']['invoice_number'], 'Invoice')
-        ->addAdditionalDocumentReference('PreviousInvoice123', 'PreviousInvoice')
+        ->addAdditionalDocumentReference('UBL.BE', 'CommercialInvoice')
         ->addAccountingSupplierParty(
             $invoice['supplier']['endpoint_id'],
             $invoice['supplier']['endpoint_scheme'],
@@ -168,18 +167,26 @@ try {
     // Generate and output the XML
     $xml = $ubl->generateXml();
 
-    // Handle download if requested
-    if (isset($_GET['download'])) {
-        header('Content-Type: application/xml');
-        header('Content-Disposition: attachment; filename="nl-invoice-' . date('Y-m-d His') . '.xml"');
-        header('Content-Length: ' . strlen($xml));
-        echo $xml;
-        exit;
-    }
+    // Handle SAPI type: command line saves file, browser interaction serves XML
+    if (php_sapi_name() === 'cli') {
+        // Save the XML to a file when run from CLI
+        $outputFile = __DIR__ . '/invoice.xml';
+        file_put_contents($outputFile, $xml);
+        echo "Invoice XML generated and saved to: " . $outputFile . "\n";
+    } else {
+        // Handle download if requested via browser
+        if (isset($_GET['download'])) {
+            header('Content-Type: application/xml');
+            header('Content-Disposition: attachment; filename="be-invoice-' . date('Y-m-d_His') . '.xml"');
+            header('Content-Length: ' . strlen($xml));
+            echo $xml;
+            exit;
+        }
 
-    // Output to browser with proper content type
-    header('Content-Type: application/xml');
-    echo $xml;
+        // Output to browser with proper content type
+        header('Content-Type: application/xml');
+        echo $xml;
+    }
 } catch (\InvalidArgumentException $e) {
     header('Content-Type: text/plain');
     die('Validation error: ' . $e->getMessage());

@@ -1,14 +1,14 @@
 <?php
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
 
-use Darvis\UblPeppol\UblBeBis3Service;
+use Darvis\UblPeppol\UblNlBis3Service;
 
-include 'test_data.php';
+include '../test_data.php';
 
 try {
     // Initialize UBL service
-    $ubl = new UblBeBis3Service();
+    $ubl = new UblNlBis3Service();
 
     // Create the document and add all components
     $ubl->createDocument()
@@ -171,7 +171,7 @@ try {
     // Handle download if requested
     if (isset($_GET['download'])) {
         header('Content-Type: application/xml');
-        header('Content-Disposition: attachment; filename="be-invoice-' . date('Y-m-d His') . '.xml"');
+        header('Content-Disposition: attachment; filename="nl-invoice-' . date('Y-m-d His') . '.xml"');
         header('Content-Length: ' . strlen($xml));
         echo $xml;
         exit;
