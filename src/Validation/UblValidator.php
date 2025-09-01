@@ -25,20 +25,48 @@ class UblValidator
      */
     public static function isValidClassificationScheme(string $schemeId): bool
     {
-        // List of valid classification schemes from UNTDID 7143 plus PEPPOL specific ones
+        // List of valid classification schemes from UNTDID 7143
         $validSchemes = [
             'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM', 'AN', 'AO', 'AP', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AV', 'AW', 'AX', 'AY', 'AZ',
             'BA', 'BB', 'BC', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BK', 'BL', 'BM', 'BN', 'BO', 'BP', 'BQ', 'BR', 'BS', 'BT', 'BU', 'BV', 'BW', 'BX', 'BY', 'BZ',
-            'CC', 'CG', 'CL', 'CPV', 'CR', 'CV', 'DR', 'DW', 'EC', 'EF', 'EMD', 'EN', 'FS', 'GB', 'GN', 'GMN', 'GS', 'HS', 'IB', 'IN', 'IS', 'IT', 'IZ', 'MA', 'MF', 'MN', 'MP',
+            'CC', 'CG', 'CL', 'CR', 'CV', 'DR', 'DW', 'EC', 'EF', 'EMD', 'EN', 'FS', 'GB', 'GN', 'GMN', 'GS', 'HS', 'IB', 'IN', 'IS', 'IT', 'IZ', 'MA', 'MF', 'MN', 'MP',
             'NB', 'ON', 'PD', 'PL', 'PO', 'PPI', 'PV', 'QS', 'RC', 'RN', 'RU', 'RY', 'SA', 'SG', 'SK', 'SN', 'SRS', 'SRT', 'SRU', 'SRV', 'SRW', 'SRX', 'SRY', 'SRZ',
             'SS', 'SSA', 'SSB', 'SSC', 'SSD', 'SSE', 'SSF', 'SSG', 'SSH', 'SSI', 'SSJ', 'SSK', 'SSL', 'SSM', 'SSN', 'SSO', 'SSP', 'SSQ', 'SSR', 'SSS', 'SST', 'SSU', 'SSV', 'SSW', 'SSX', 'SSY', 'SSZ',
             'ST', 'STA', 'STB', 'STC', 'STD', 'STE', 'STF', 'STG', 'STH', 'STI', 'STJ', 'STK', 'STL', 'STM', 'STN', 'STO', 'STP', 'STQ', 'STR', 'STS', 'STT', 'STU', 'STV', 'STW', 'STX', 'STY', 'STZ',
             'SUA', 'SUB', 'SUC', 'SUD', 'SUE', 'SUF', 'SUG', 'SUH', 'SUI', 'SUJ', 'SUK', 'SUL', 'SUM', 'TG', 'TSN', 'TSO', 'TSP', 'TSQ', 'TSR', 'TSS', 'TST', 'TSU',
-            'UA', 'UP', 'VN', 'VP', 'VS', 'VX', 'ZZZ', 'CPV', 'SRV'  // Added CPV and SRV as they are commonly used in PEPPOL
+            'UA', 'UP', 'VN', 'VP', 'VS', 'VX', 'ZZZ'
+        ];
+
+        // PEPPOL specific schemes
+        $peppolSchemes = [
+            'CPV' => 'Common Procurement Vocabulary',
+            'SRV' => 'Service Type Code'
         ];
 
         $schemeId = strtoupper(trim($schemeId));
-        return in_array($schemeId, $validSchemes, true);
+        
+        // Check if it's a standard UNTDID 7143 scheme or a PEPPOL specific scheme
+        return in_array($schemeId, $validSchemes, true) || array_key_exists($schemeId, $peppolSchemes);
+    }
+    
+    /**
+     * Gets the description of a classification scheme
+     *
+     * @param string $schemeId The scheme ID
+     * @return string The scheme description or empty string if not found
+     */
+    public static function getClassificationSchemeDescription(string $schemeId): string
+    {
+        $descriptions = [
+            'CPV' => 'Common Procurement Vocabulary',
+            'SRV' => 'Service Type Code',
+            'STD' => 'Standard',
+            'HS' => 'Harmonized System',
+            'GS1' => 'GS1 Global Trade Item Number'
+            // Add more scheme descriptions as needed
+        ];
+        
+        return $descriptions[strtoupper($schemeId)] ?? '';
     }
 
     /**

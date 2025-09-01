@@ -1292,15 +1292,24 @@ class UblService
      *     'tax_category_id' => 'S',                  // Optional: Tax category ID (default: 'S' for standard rate)
      *     'tax_percent' => '21.00',                  // Optional: Tax percentage (default: '21.00')
      *     'tax_scheme_id' => 'VAT',                  // Optional: Tax scheme ID (default: 'VAT')
-     *     'item_type_code' => '1000',                // Optional: Item classification code (CPV)
+     *     'item_type_code' => '1000',                // Optional: Item classification code
      *     'item_type_scheme' => 'STD',               // Optional: Item classification scheme (default: 'STD' for Standard)
-     *     'item_type_description' => 'Product'        // Optional: Item type description
+     *     'item_type_name' => 'Product Type'          // Optional: Item type name
      *   ]
      * @return self
      * @throws \InvalidArgumentException For missing or invalid parameters
      */
     public function addInvoiceLine(array $lineData): self
     {
+        // Set default values
+        $lineData = array_merge([
+            'tax_category_id' => 'S',
+            'tax_percent' => '21.00',
+            'tax_scheme_id' => 'VAT',
+            'item_type_scheme' => 'STD',
+            'item_type_name' => 'Product'
+        ], $lineData);
+
         // Validate required fields
         $requiredFields = [
             'id' => 'Line ID is required',
@@ -1323,16 +1332,17 @@ class UblService
         $numericFields = [
             'quantity' => 'Quantity must be a number',
             'line_extension_amount' => 'Line extension amount must be a number',
-            'price_amount' => 'Price amount must be a number'
+            'price_amount' => 'Price amount must be a number',
+            'tax_percent' => 'Tax percent must be a number'
         ];
 
         foreach ($numericFields as $field => $errorMessage) {
-            if (!is_numeric($lineData[$field])) {
+            if (isset($lineData[$field]) && !is_numeric($lineData[$field])) {
                 throw new \InvalidArgumentException($errorMessage);
             }
         }
 
-        // Validate unit code against UN/ECE Recommendation 20 with Rec 21 extension
+        // Validate unit code
         if (!UblValidator::isValidUnitCode($lineData['unit_code'])) {
             throw new \InvalidArgumentException(sprintf(
                 'Invalid unit code: %s. Must be a valid UN/ECE Recommendation 20 with Rec 21 extension unit code.',
@@ -1341,166 +1351,138 @@ class UblService
         }
 
         // Validate classification scheme if provided
-        if (isset($lineData['item_type_code']) && !empty($lineData['item_type_scheme'] ?? '')) {
-            if (!UblValidator::isValidClassificationScheme($lineData['item_type_scheme'])) {
-                throw new \InvalidArgumentException(sprintf(
-                    'Invalid classification scheme: %s. Must be a valid UNTDID 7143 scheme.',
-                    $lineData['item_type_scheme']
-                ));
-            }
+        if (!empty($lineData['item_type_scheme']) && !UblValidator::isValidClassificationScheme($lineData['item_type_scheme'])) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid classification scheme: %s. Must be a valid UNTDID 7143 scheme.',
+                $lineData['item_type_scheme']
+            ));
         }
-
-        // Set default values for optional fields
-        $lineData = array_merge([
-            'tax_category_id' => 'S',
-            'tax_percent' => '21.00',
-            'tax_scheme_id' => 'VAT',
-            'item_type_code' => '1000',
-            'item_type_description' => 'Product'
-        ], $lineData);
-
-        // Format numeric values
-        $formattedAmounts = [
-            'line_extension_amount' => number_format((float)$lineData['line_extension_amount'], 2, '.', ''),
-            'price_amount' => number_format((float)$lineData['price_amount'], 2, '.', ''),
-            'tax_percent' => number_format((float)$lineData['tax_percent'], 2, '.', '')
-        ];
 
         // Create InvoiceLine container
         $invoiceLine = $this->createElement('cac', 'InvoiceLine');
-        $invoiceLine = $this->rootElement->appendChild($invoiceLine);
+        $this->rootElement->appendChild($invoiceLine);
 
         // Add required elements
-        $elements = [
-            'ID' => $lineData['id'],
-            'InvoicedQuantity' => [
-                'value' => $lineData['quantity'],
-                'attributes' => ['unitCode' => $lineData['unit_code']]
-            ],
-            'LineExtensionAmount' => [
-                'value' => $formattedAmounts['line_extension_amount'],
-                'attributes' => ['currencyID' => $lineData['currency']]
-            ]
-        ];
-
-        foreach ($elements as $elementName => $data) {
-            $element = is_array($data)
-                ? $this->createElement('cbc', $elementName, $data['value'], $data['attributes'] ?? [])
-                : $this->createElement('cbc', $elementName, $data);
-            $invoiceLine->appendChild($element);
-        }
+        $this->addChildElement($invoiceLine, 'cbc', 'ID', $lineData['id']);
+        
+        // Add InvoicedQuantity with unit code
+        $this->addChildElement(
+            $invoiceLine,
+            'cbc',
+            'InvoicedQuantity',
+            number_format((float)$lineData['quantity'], 2, '.', ''),
+            ['unitCode' => $lineData['unit_code']]
+        );
+        
+        // Add LineExtensionAmount
+        $this->addChildElement(
+            $invoiceLine,
+            'cbc',
+            'LineExtensionAmount',
+            number_format((float)$lineData['line_extension_amount'], 2, '.', ''),
+            ['currencyID' => $lineData['currency']]
+        );
 
         // Add optional accounting cost
         if (!empty($lineData['accounting_cost'])) {
-            $accountingCostElement = $this->createElement('cbc', 'AccountingCost', $lineData['accounting_cost']);
-            $invoiceLine->appendChild($accountingCostElement);
+            $this->addChildElement($invoiceLine, 'cbc', 'AccountingCost', $lineData['accounting_cost']);
         }
 
         // Add order line reference if provided
         if (!empty($lineData['order_line_id'])) {
-            $orderLineReference = $this->createElement('cac', 'OrderLineReference');
-            $orderLineReference = $invoiceLine->appendChild($orderLineReference);
-            $lineIdElement = $this->createElement('cbc', 'LineID', $lineData['order_line_id']);
-            $orderLineReference->appendChild($lineIdElement);
+            $orderLineRef = $this->createElement('cac', 'OrderLineReference');
+            $this->addChildElement($orderLineRef, 'cbc', 'LineID', $lineData['order_line_id']);
+            $invoiceLine->appendChild($orderLineRef);
         }
 
         // Create Item section
         $item = $this->createElement('cac', 'Item');
-        $item = $invoiceLine->appendChild($item);
+        $invoiceLine->appendChild($item);
 
         // Add item details
-        $itemElements = [
-            'Description' => $lineData['description'],
-            'Name' => $lineData['name']
-        ];
-
-        foreach ($itemElements as $elementName => $value) {
-            $element = $this->createElement('cbc', $elementName, $value);
-            $item->appendChild($element);
-        }
+        $this->addChildElement($item, 'cbc', 'Description', $lineData['description']);
+        $this->addChildElement($item, 'cbc', 'Name', $lineData['name']);
 
         // Add standard item identification if provided
         if (!empty($lineData['standard_item_id'])) {
-            $standardItemIdentification = $this->createElement('cac', 'StandardItemIdentification');
-            $standardItemIdentification = $item->appendChild($standardItemIdentification);
-            $idElement = $this->createElement('cbc', 'ID', $lineData['standard_item_id'], ['schemeID' => '0088']);
-            $standardItemIdentification->appendChild($idElement);
+            $stdItemId = $this->createElement('cac', 'StandardItemIdentification');
+            $idElement = $this->createElement('cbc', 'ID', $lineData['standard_item_id']);
+            $idElement->setAttribute('schemeID', 'GTIN');
+            $stdItemId->appendChild($idElement);
+            $item->appendChild($stdItemId);
         }
 
         // Add origin country if provided
         if (!empty($lineData['origin_country'])) {
-            $originCountryElement = $this->createElement('cac', 'OriginCountry');
-            $originCountryElement = $item->appendChild($originCountryElement);
-            $identificationCodeElement = $this->createElement('cbc', 'IdentificationCode', $lineData['origin_country']);
-            $originCountryElement->appendChild($identificationCodeElement);
+            $originCountry = $this->createElement('cac', 'OriginCountry');
+            $this->addChildElement($originCountry, 'cbc', 'IdentificationCode', $lineData['origin_country']);
+            $item->appendChild($originCountry);
         }
 
-        // Add commodity classification
-        $commodityClassification = $this->createElement('cac', 'CommodityClassification');
-        $commodityClassification = $item->appendChild($commodityClassification);
-        $itemClassificationCode = $this->createElement('cbc', 'ItemClassificationCode', $lineData['item_type_code'], ['listID' => 'CPV']);
-        $commodityClassification->appendChild($itemClassificationCode);
+        // Add commodity classification if type code is provided
+        if (!empty($lineData['item_type_code'])) {
+            $commodityClassification = $this->createElement('cac', 'CommodityClassification');
+            $itemClassificationCode = $this->createElement('cbc', 'ItemClassificationCode', $lineData['item_type_code']);
+            $itemClassificationCode->setAttribute('listID', $lineData['item_type_scheme']);
+            $commodityClassification->appendChild($itemClassificationCode);
+            $item->appendChild($commodityClassification);
+        }
+
+        // Add ClassifiedTaxCategory (required for PEPPOL)
+        $classifiedTaxCategory = $this->createElement('cac', 'ClassifiedTaxCategory');
+        $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $lineData['tax_category_id']);
+        $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', number_format((float)$lineData['tax_percent'], 2, '.', ''));
+        
+        $taxScheme = $this->createElement('cac', 'TaxScheme');
+        $this->addChildElement($taxScheme, 'cbc', 'ID', $lineData['tax_scheme_id']);
+        $classifiedTaxCategory->appendChild($taxScheme);
+        
+        $item->appendChild($classifiedTaxCategory);
 
         // Add price information
         $price = $this->createElement('cac', 'Price');
-        $price = $invoiceLine->appendChild($price);
-        
-        // Add PriceAmount element
-        $priceAmountElement = $this->createElement(
-            'cbc',
-            'PriceAmount',
-            $formattedAmounts['price_amount'],
-            ['currencyID' => $lineData['currency']]
-        );
-        $price->appendChild($priceAmountElement);
+        $priceAmount = $this->createElement('cbc', 'PriceAmount', number_format((float)$lineData['price_amount'], 2, '.', ''));
+        $priceAmount->setAttribute('currencyID', $lineData['currency']);
+        $price->appendChild($priceAmount);
+        $invoiceLine->appendChild($price);
 
-        // Add tax information
+        // Add tax total
         $taxTotal = $this->createElement('cac', 'TaxTotal');
-        $taxTotal = $invoiceLine->appendChild($taxTotal);
-
-        $taxAmount = (float)$lineData['price_amount'] * (float)$lineData['quantity'] * ((float)$lineData['tax_percent'] / 100);
+        
+        // Calculate tax amount
+        $taxAmount = (float)$lineData['line_extension_amount'] * ((float)$lineData['tax_percent'] / 100);
         $formattedTaxAmount = number_format($taxAmount, 2, '.', '');
-
-        $taxAmountElement = $this->createElement(
-            'cbc',
-            'TaxAmount',
-            $formattedTaxAmount,
-            ['currencyID' => $lineData['currency']]
-        );
+        $formattedTaxableAmount = number_format((float)$lineData['line_extension_amount'], 2, '.', '');
+        
+        // Add TaxAmount to TaxTotal
+        $taxAmountElement = $this->createElement('cbc', 'TaxAmount', $formattedTaxAmount);
+        $taxAmountElement->setAttribute('currencyID', $lineData['currency']);
         $taxTotal->appendChild($taxAmountElement);
-
+        
+        // Create TaxSubtotal
         $taxSubtotal = $this->createElement('cac', 'TaxSubtotal');
-        $taxSubtotal = $taxTotal->appendChild($taxSubtotal);
-
-        $taxableAmount = (float)$lineData['price_amount'] * (float)$lineData['quantity'];
-        $formattedTaxableAmount = number_format($taxableAmount, 2, '.', '');
-
+        
         // Add TaxableAmount to TaxSubtotal
-        $taxableAmountElement = $this->createElement(
-            'cbc',
-            'TaxableAmount',
-            $formattedTaxableAmount,
-            ['currencyID' => $lineData['currency']]
-        );
+        $taxableAmountElement = $this->createElement('cbc', 'TaxableAmount', $formattedTaxableAmount);
+        $taxableAmountElement->setAttribute('currencyID', $lineData['currency']);
         $taxSubtotal->appendChild($taxableAmountElement);
         
-        // Add TaxAmount to TaxSubtotal (required by BR-46)
-        $taxAmountElement = $this->createElement(
-            'cbc',
-            'TaxAmount',
-            $formattedTaxAmount,
-            ['currencyID' => $lineData['currency']]
-        );
+        // Add TaxAmount to TaxSubtotal
+        $taxAmountElement = $this->createElement('cbc', 'TaxAmount', $formattedTaxAmount);
+        $taxAmountElement->setAttribute('currencyID', $lineData['currency']);
         $taxSubtotal->appendChild($taxAmountElement);
         
+        // Create and configure TaxCategory
         $taxCategory = $this->createElement('cac', 'TaxCategory');
-        $taxCategory->appendChild($this->createElement('cbc', 'ID', $lineData['tax_category_id']));
-        $taxCategory->appendChild($this->createElement('cbc', 'Percent', number_format($lineData['tax_percent'], 2, '.', '')));
+        $this->addChildElement($taxCategory, 'cbc', 'ID', $lineData['tax_category_id']);
+        $this->addChildElement($taxCategory, 'cbc', 'Percent', number_format((float)$lineData['tax_percent'], 2, '.', ''));
         
+        // Create and configure TaxScheme
         $taxScheme = $this->createElement('cac', 'TaxScheme');
-        $taxScheme->appendChild($this->createElement('cbc', 'ID', 'VAT'));
-        $taxCategory->appendChild($taxScheme);
+        $this->addChildElement($taxScheme, 'cbc', 'ID', $lineData['tax_scheme_id']);
         
+        // Build the hierarchy
+        $taxCategory->appendChild($taxScheme);
         $taxSubtotal->appendChild($taxCategory);
         $taxTotal->appendChild($taxSubtotal);
         $invoiceLine->appendChild($taxTotal);
