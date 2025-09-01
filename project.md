@@ -12,7 +12,11 @@ https://docs.peppol.eu/poacc/billing/3.0/
 
 ## Test location online
 
-https://peppol-tools.ademico-software.com/ui/document-validator
+###Nederland
+https://test.peppolautoriteit.nl/validate
+
+###Belgie
+https://ecosio.com/en/peppol-and-xml-document-validator/
 
 ## Key Features
 
