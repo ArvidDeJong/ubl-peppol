@@ -19,6 +19,8 @@ try {
         )
         ->addBuyerReference($invoice['header']['buyer_reference'])
         ->addOrderReference($invoice['header']['order_reference'])
+        ->addAdditionalDocumentReference($invoice['header']['invoice_number'], 'Invoice')
+        ->addAdditionalDocumentReference('PreviousInvoice123', 'PreviousInvoice')
         ->addAccountingSupplierParty(
             $invoice['supplier']['endpoint_id'],
             $invoice['supplier']['endpoint_scheme'],
@@ -121,6 +123,7 @@ try {
             'tax_amount' => number_format($totalTax, 2, '.', ''),
             'currency' => 'EUR',
             'tax_category_id' => 'S',     // Standard rate
+            'tax_category_name' => 'Standard rated', // Belgian requirement
             'tax_percent' => 21.0,        // 21% VAT
             'tax_scheme_id' => 'VAT',     // VAT tax scheme
         ]
@@ -154,6 +157,7 @@ try {
             'accounting_cost' => $line['accounting_cost'] ?? null,
             'order_line_id' => $line['order_line_id'] ?? null,
             'tax_category_id' => $line['tax_category_id'] ?? 'S',
+            'tax_category_name' => $line['tax_category_name'] ?? null,
             'tax_percent' => $line['tax_percent'],
             'tax_scheme_id' => $line['tax_scheme_id'] ?? 'VAT',
         ];

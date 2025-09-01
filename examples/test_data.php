@@ -52,6 +52,7 @@ $invoice = [
             'description' => 'Sample product',
             'name' => 'Product A',
             'price_amount' => '100.00',
+            'base_quantity' => '1',
             'tax_percent' => '21.00',
             'currency' => 'EUR',
             'accounting_cost' => 'PROJ-001',              // Optional: accounting cost center
@@ -59,6 +60,7 @@ $invoice = [
             'standard_item_id' => null,  // Optioneel: standaard item ID (bijv. GTIN)
             'origin_country' => 'NL',    // Optioneel: land van herkomst (2-letterige code)
             'tax_category_id' => 'S',    // BTW categorie (S = standaardtarief)
+            'tax_category_name' => 'Standard rated',
             'tax_scheme_id' => 'VAT',    // BTW-schema (VAT = BTW)
             'item_type_code' => '1000',   // Product category code
             'item_type_scheme' => 'STD',  // Standard classification scheme (from UNTDID 7143 list)
@@ -71,10 +73,13 @@ $invoice = [
             'description' => 'Consulting services',
             'name' => 'Consulting hours',
             'price_amount' => '75.00',
+            'base_quantity' => '1',
             'tax_percent' => '21.00',
             'currency' => 'EUR',
             'accounting_cost' => 'PROJ-001',        // Optional: project code
             'order_line_id' => 'PO-2023-456',       // Optional: purchase order line reference
+            'tax_category_id' => 'S',
+            'tax_category_name' => 'Standard rated',
         ]
     ],
 
