@@ -6,13 +6,11 @@ An easy-to-use PHP package for generating UBL XML documents that comply with the
 
 This package enables developers to easily generate UBL documents that comply with PEPPOL standards, without requiring in-depth knowledge of the UBL specification.
 
-## Richtlijnen overheid
 
-https://docs.peppol.eu/poacc/billing/3.0/bis/
 
-## Test location
+## Test location online
 
-https://test.peppolautoriteit.nl/validate
+https://peppol-tools.ademico-software.com/ui/document-validator
 
 ## Key Features
 

@@ -34,3 +34,4 @@ Thumbs.db
 .env
 .env.backup
 generated_invoice.xml
+examples/be/invoice.xml

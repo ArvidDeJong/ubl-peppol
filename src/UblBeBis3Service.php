@@ -459,6 +459,11 @@ class UblBeBis3Service
             $this->addChildElement($orderLineReference, 'cbc', 'LineID', $lineData['order_line_id']);
         }
 
+        // Voor België: TaxTotal moet direct na OrderLineReference komen (ubl-BE-14)
+        $taxTotal = $this->addChildElement($invoiceLine, 'cac', 'TaxTotal');
+        $taxAmount = ($lineData['line_extension_amount'] * $lineData['tax_percent']) / 100;
+        $this->addChildElement($taxTotal, 'cbc', 'TaxAmount', $this->formatAmount($taxAmount), ['currencyID' => $lineData['currency']]);
+
         $item = $this->addChildElement($invoiceLine, 'cac', 'Item');
         $this->addChildElement($item, 'cbc', 'Description', $lineData['description']);
         $this->addChildElement($item, 'cbc', 'Name', $lineData['name']);
@@ -471,10 +476,6 @@ class UblBeBis3Service
         $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', $this->formatAmount((float)$lineData['tax_percent']));
         $taxScheme = $this->addChildElement($classifiedTaxCategory, 'cac', 'TaxScheme');
         $this->addChildElement($taxScheme, 'cbc', 'ID', $lineData['tax_scheme_id']);
-
-        $taxTotal = $this->addChildElement($invoiceLine, 'cac', 'TaxTotal');
-        $taxAmount = ($lineData['line_extension_amount'] * $lineData['tax_percent']) / 100;
-        $this->addChildElement($taxTotal, 'cbc', 'TaxAmount', $this->formatAmount($taxAmount), ['currencyID' => $lineData['currency']]);
 
         $price = $this->addChildElement($invoiceLine, 'cac', 'Price');
         $this->addChildElement($price, 'cbc', 'PriceAmount', $this->formatAmount((float)$lineData['price_amount']), ['currencyID' => $lineData['currency']]);
@@ -527,7 +528,7 @@ class UblBeBis3Service
             $taxCategory = $this->addChildElement($taxSubtotal, 'cac', 'TaxCategory');
             $this->addChildElement($taxCategory, 'cbc', 'ID', $tax['tax_category_id']);
             if ($tax['tax_category_id'] === 'S') {
-                $this->addChildElement($taxCategory, 'cbc', 'Name', 'Standard rated');
+                $this->addChildElement($taxCategory, 'cbc', 'Name', 'Standaardtarief');
             } elseif (!empty($tax['tax_category_name'])) {
                 $this->addChildElement($taxCategory, 'cbc', 'Name', $tax['tax_category_name']);
             }

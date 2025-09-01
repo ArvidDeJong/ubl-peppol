@@ -20,6 +20,7 @@ try {
         ->addBuyerReference($invoice['header']['buyer_reference'])
         ->addOrderReference($invoice['header']['order_reference'])
         ->addAdditionalDocumentReference('UBL.BE', 'CommercialInvoice')
+        ->addAdditionalDocumentReference('PEPPOL', 'PEPPOLInvoice')
         ->addAccountingSupplierParty(
             $invoice['supplier']['endpoint_id'],
             $invoice['supplier']['endpoint_scheme'],
