@@ -7,17 +7,24 @@ use DOMDocument;
 use DOMElement;
 
 /**
- * UBL Service voor het genereren van UBL/PEPPOL facturen
+ * UBL Service for generating UBL/PEPPOL invoices
  * 
- * Deze versie is volledig herschreven om de exacte XML structuur van de PEPPOL-standaard
- * te volgen volgens het base-example.xml voorbeeld.
+ * This version has been completely rewritten to follow the exact XML structure 
+ * of the PEPPOL standard according to the base-example.xml reference.
  */
 class UblService
 {
+    /**
+     * @var DOMDocument The main XML document instance
+     */
     protected DOMDocument $dom;
+
+    /**
+     * @var DOMElement The root element of the UBL document
+     */
     protected DOMElement $rootElement;
 
-    // Namespace URI's
+    // Namespace URIs
     protected string $ns_cac_uri = 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2';
     protected string $ns_cbc_uri = 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2';
     protected string $ns_invoice_uri = 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2';
@@ -27,45 +34,45 @@ class UblService
     protected string $ns_prefix_cbc = 'cbc';
 
     /**
-     * Constructor
+     * Constructor - Initializes a new UBL document
      */
     public function __construct()
     {
-        // Maak nieuw DOMDocument
+        // Create new DOMDocument with UTF-8 encoding
         $this->dom = new DOMDocument('1.0', 'UTF-8');
         $this->dom->formatOutput = true;
     }
 
     /**
-     * Creëer het basis XML document
+     * Create the base XML document structure
      * 
      * @return self
-     * @throws \RuntimeException bij dubbele initialisatie
+     * @throws \RuntimeException When document is already initialized
      */
     public function createDocument(): self
     {
-        // Voorkom dubbele initialisatie van het rootElement
+        // Prevent double initialization of the document
         if (isset($this->rootElement)) {
-            throw new \RuntimeException('Document is al geïnitialiseerd. Voorkom dubbele initialisatie van het document.');
+            throw new \RuntimeException('Document is already initialized. Avoid initializing the document multiple times.');
         }
 
-        // Opnieuw DOM document initialiseren voor het geval dat
-        $this->dom = new DOMDocument('1.0', 'UTF-8');
-        $this->dom->formatOutput = true;
-
-        // Voeg root element toe (Invoice)
+        // Create root element (Invoice)
         $this->rootElement = $this->dom->createElementNS($this->ns_invoice_uri, 'Invoice');
         $this->rootElement->setAttribute('xmlns:cac', $this->ns_cac_uri);
         $this->rootElement->setAttribute('xmlns:cbc', $this->ns_cbc_uri);
-        $this->rootElement = $this->dom->appendChild($this->rootElement);
+        $this->rootElement->setAttribute('xmlns', $this->ns_invoice_uri);
+        
+        // Add root element to the document
+        $this->dom->appendChild($this->rootElement);
 
         return $this;
     }
 
     /**
-     * Genereer de XML string
+     * Generate the XML string
      * 
-     * @return string
+     * @return string The generated XML as a string
+     * @throws \RuntimeException If the document is not initialized
      */
     public function generateXml(): string
     {
@@ -73,37 +80,37 @@ class UblService
     }
 
     /**
-     * Helper methode voor het aanmaken van XML elementen zonder namespace herhaling
+     * Helper method for creating XML elements without namespace repetition
      * 
-     * @param string $prefix Namespace prefix (cbc of cac)
-     * @param string $name Element naam
-     * @param string|null $value Element waarde
-     * @param array $attributes Optionele attributen
+     * @param string $prefix Namespace prefix (cbc or cac)
+     * @param string $name Element name
+     * @param string|null $value Element value
+     * @param array $attributes Optional attributes
      * @return \DOMElement
-     * @throws \RuntimeException als het document niet is geïnitialiseerd
+     * @throws \RuntimeException If the document is not initialized
      */
     protected function createElement(string $prefix, string $name, ?string $value = null, array $attributes = []): \DOMElement
     {
-        // Controleer of het DOM document bestaat
+        // Check if the DOM document exists
         if (!isset($this->dom)) {
-            throw new \RuntimeException('DOM document is niet geïnitialiseerd. Roep createDocument() aan voordat je elementen toevoegt.');
+            throw new \RuntimeException('DOM document is not initialized. Call createDocument() before adding elements.');
         }
 
-        // Controleer of het rootElement bestaat
+        // Check if the rootElement exists
         if (!isset($this->rootElement)) {
-            throw new \RuntimeException('Root element is niet geïnitialiseerd. Roep createDocument() aan voordat je elementen toevoegt.');
+            throw new \RuntimeException('Root element is not initialized. Call createDocument() before adding elements.');
         }
 
-        // Maak element zonder namespace declaratie (gebruikt geërfde namespace)
+        // Create element without namespace declaration (uses inherited namespace)
         $element = $this->dom->createElement($prefix . ':' . $name);
 
-        // Voeg waarde toe indien niet null
+        // Add value if not null
         if ($value !== null) {
             $textNode = $this->dom->createTextNode($value);
             $element->appendChild($textNode);
         }
 
-        // Voeg attributen toe indien aanwezig
+        // Add attributes if present
         foreach ($attributes as $attrName => $attrValue) {
             $element->setAttribute($attrName, $attrValue);
         }
@@ -111,56 +118,54 @@ class UblService
         return $element;
     }
 
-    /**
-     * Maak een compleet UBL factuur document aan volgens het base-example.xml
-     *
-     * @return self
-     * @throws \RuntimeException als er een fout optreedt bij de initialisatie
-     */
-    public function createExampleInvoice(): self
-    {
-        try {
-            // Belangrijk: Initialiseer eerst het document en rootElement
-            // Dit moet altijd als eerste gebeuren voordat andere methoden worden aangeroepen
-            $this->createDocument();
 
-            // Voeg nu alle onderdelen toe in de juiste volgorde volgens PEPPOL standaard
-            $this->addInvoiceHeader();
-            $this->addBuyerReference('0150abc'); // Conform base-example.xml
-            // OrderReference zou hier moeten staan indien nodig
-            $this->addAccountingSupplierParty();
-            $this->addAccountingCustomerParty();
-            $this->addDelivery();
-            $this->addPaymentMeans();
-            $this->addPaymentTerms();
-            $this->addAllowanceCharge();
-            $this->addTaxTotal();
-            $this->addLegalMonetaryTotal();
-            $this->addInvoiceLines();
-        } catch (\RuntimeException $e) {
-            throw new \RuntimeException('Fout bij het aanmaken van UBL document: ' . $e->getMessage());
+    /**
+     * Add the invoice header
+     *
+     * @param string $invoiceNumber Invoice number (required, cannot be empty)
+     * @param string|\DateTime $issueDate Invoice date (required, format: YYYY-MM-DD)
+     * @param string|\DateTime $dueDate Due date (required, must be after invoice date)
+     * @return self
+     * @throws \InvalidArgumentException On invalid input
+     */
+    public function addInvoiceHeader(string $invoiceNumber, $issueDate, $dueDate): self
+    {
+        // Validate invoice number
+        if (empty(trim($invoiceNumber))) {
+            throw new \InvalidArgumentException('Invoice number is required and cannot be empty');
         }
 
-        return $this;
-    }
-
-    /**
-     * Voeg de invoice header toe
-     *
-     * @param string $invoiceNumber Factuurnummer
-     * @param string|\DateTime $issueDate Factuurdatum (format: Y-m-d)
-     * @param string|\DateTime $dueDate Vervaldatum (format: Y-m-d)
-     * @return self
-     */
-    public function addInvoiceHeader(string $invoiceNumber = 'Snippet1', $issueDate = '2017-11-13', $dueDate = '2017-12-01'): self
-    {
-        // Converteer datums naar juiste format indien nodig
+        // Convert and validate invoice date
+        $issueDateObj = null;
         if ($issueDate instanceof \DateTime) {
+            $issueDateObj = $issueDate;
             $issueDate = $issueDate->format('Y-m-d');
+        } elseif (is_string($issueDate)) {
+            $issueDateObj = \DateTime::createFromFormat('Y-m-d', $issueDate);
+            if (!$issueDateObj || $issueDateObj->format('Y-m-d') !== $issueDate) {
+                throw new \InvalidArgumentException('Invalid invoice date. Use YYYY-MM-DD format');
+            }
+        } else {
+            throw new \InvalidArgumentException('Invoice date must be a string (YYYY-MM-DD) or DateTime object');
         }
 
+        // Convert and validate due date
+        $dueDateObj = null;
         if ($dueDate instanceof \DateTime) {
+            $dueDateObj = $dueDate;
             $dueDate = $dueDate->format('Y-m-d');
+        } elseif (is_string($dueDate)) {
+            $dueDateObj = \DateTime::createFromFormat('Y-m-d', $dueDate);
+            if (!$dueDateObj || $dueDateObj->format('Y-m-d') !== $dueDate) {
+                throw new \InvalidArgumentException('Invalid due date. Use YYYY-MM-DD format');
+            }
+        } else {
+            throw new \InvalidArgumentException('Due date must be a string (YYYY-MM-DD) or DateTime object');
+        }
+
+        // Check if due date is after invoice date
+        if ($dueDateObj <= $issueDateObj) {
+            throw new \InvalidArgumentException('Due date must be after the invoice date');
         }
 
         // CustomizationID - PEPPOL profile
@@ -689,49 +694,6 @@ class UblService
         return $this;
     }
 
-    /**
-     * Voeg InvoiceLines (factuurregels) toe
-     * 
-     * @return self
-     */
-    public function addInvoiceLines(): self
-    {
-        // Eerste factuurregel
-        $this->addInvoiceLine(
-            '1',
-            '7',
-            'DAY',
-            '2800',
-            'Description of item',
-            'item name',
-            '400',
-            'Konteringsstreng',
-            '123',
-            '21382183120983',
-            'NO',
-            'S',
-            '25.0'
-        );
-
-        // Tweede factuurregel (negatief bedrag)
-        $this->addInvoiceLine(
-            '2',
-            '-3',
-            'DAY',
-            '-1500',
-            'Description 2',
-            'item name 2',
-            '500',
-            null,
-            '123',
-            '21382183120983',
-            'NO',
-            'S',
-            '25.0'
-        );
-
-        return $this;
-    }
 
     /**
      * Voeg een enkele InvoiceLine (factuurregel) toe
@@ -751,7 +713,7 @@ class UblService
      * @param string $taxPercent BTW percentage
      * @return self
      */
-    protected function addInvoiceLine(
+    public function addInvoiceLine(
         string $id,
         string $quantity,
         string $unitCode,
