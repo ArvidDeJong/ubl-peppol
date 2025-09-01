@@ -614,58 +614,95 @@ class UblService
     }
 
     /**
-     * Voeg Delivery informatie toe
-     * 
+     * Add delivery information
+     *
+     * @param string $deliveryDate Delivery date (required)
+     * @param string|null $locationId Unique ID for the delivery location (optional)
+     * @param string $locationSchemeId Scheme ID for the location (optional, default: '0088' for GLN)
+     * @param string|null $street Street name (optional)
+     * @param string|null $additionalStreet Additional street information (optional)
+     * @param string|null $city City (optional)
+     * @param string|null $postalCode Postal code (optional)
+     * @param string|null $countryCode Country code (2 letters) (optional)
+     * @param string|null $partyName Name of the receiving party (optional)
      * @return self
      */
-    public function addDelivery(): self
-    {
+    public function addDelivery(
+        string $deliveryDate,
+        ?string $locationId = null,
+        string $locationSchemeId = '0088',
+        ?string $street = null,
+        ?string $additionalStreet = null,
+        ?string $city = null,
+        ?string $postalCode = null,
+        ?string $countryCode = null,
+        ?string $partyName = null
+    ): self {
         // Delivery container
         $delivery = $this->createElement('cac', 'Delivery');
         $delivery = $this->rootElement->appendChild($delivery);
 
         // ActualDeliveryDate
-        $actualDeliveryDateElement = $this->createElement('cbc', 'ActualDeliveryDate', '2017-11-01');
+        $actualDeliveryDateElement = $this->createElement('cbc', 'ActualDeliveryDate', $deliveryDate);
         $delivery->appendChild($actualDeliveryDateElement);
 
-        // DeliveryLocation
-        $deliveryLocation = $this->createElement('cac', 'DeliveryLocation');
-        $deliveryLocation = $delivery->appendChild($deliveryLocation);
+        // Only add DeliveryLocation if there is location data
+        if ($locationId !== null || $street !== null || $city !== null) {
+            $deliveryLocation = $this->createElement('cac', 'DeliveryLocation');
+            $deliveryLocation = $delivery->appendChild($deliveryLocation);
 
-        $idElement = $this->createElement('cbc', 'ID', '9483759475923478', ['schemeID' => '0088']);
-        $deliveryLocation->appendChild($idElement);
+            // Only add ID if it's provided
+            if ($locationId !== null) {
+                $idElement = $this->createElement('cbc', 'ID', $locationId, ['schemeID' => $locationSchemeId]);
+                $deliveryLocation->appendChild($idElement);
+            }
 
-        // Address within DeliveryLocation
-        $address = $this->createElement('cac', 'Address');
-        $address = $deliveryLocation->appendChild($address);
+            // Add address if there is address data
+            if ($street !== null || $city !== null || $postalCode !== null || $countryCode !== null) {
+                $address = $this->createElement('cac', 'Address');
+                $address = $deliveryLocation->appendChild($address);
 
-        $streetNameElement = $this->createElement('cbc', 'StreetName', 'Delivery street 2');
-        $address->appendChild($streetNameElement);
+                if ($street !== null) {
+                    $streetNameElement = $this->createElement('cbc', 'StreetName', $street);
+                    $address->appendChild($streetNameElement);
+                }
 
-        $additionalStreetNameElement = $this->createElement('cbc', 'AdditionalStreetName', 'Building 56');
-        $address->appendChild($additionalStreetNameElement);
+                if ($additionalStreet !== null) {
+                    $additionalStreetElement = $this->createElement('cbc', 'AdditionalStreetName', $additionalStreet);
+                    $address->appendChild($additionalStreetElement);
+                }
 
-        $cityNameElement = $this->createElement('cbc', 'CityName', 'Stockholm');
-        $address->appendChild($cityNameElement);
+                if ($city !== null) {
+                    $cityNameElement = $this->createElement('cbc', 'CityName', $city);
+                    $address->appendChild($cityNameElement);
+                }
 
-        $postalZoneElement = $this->createElement('cbc', 'PostalZone', '21234');
-        $address->appendChild($postalZoneElement);
+                if ($postalCode !== null) {
+                    $postalZoneElement = $this->createElement('cbc', 'PostalZone', $postalCode);
+                    $address->appendChild($postalZoneElement);
+                }
 
-        $country = $this->createElement('cac', 'Country');
-        $country = $address->appendChild($country);
+                if ($countryCode !== null) {
+                    $country = $this->createElement('cac', 'Country');
+                    $country = $address->appendChild($country);
 
-        $identificationCodeElement = $this->createElement('cbc', 'IdentificationCode', 'SE');
-        $country->appendChild($identificationCodeElement);
+                    $identificationCodeElement = $this->createElement('cbc', 'IdentificationCode', strtoupper($countryCode));
+                    $country->appendChild($identificationCodeElement);
+                }
+            }
+        }
 
-        // DeliveryParty
-        $deliveryParty = $this->createElement('cac', 'DeliveryParty');
-        $deliveryParty = $delivery->appendChild($deliveryParty);
+        // Only add DeliveryParty if a party name is provided
+        if ($partyName !== null) {
+            $deliveryParty = $this->createElement('cac', 'DeliveryParty');
+            $deliveryParty = $delivery->appendChild($deliveryParty);
 
-        $partyName = $this->createElement('cac', 'PartyName');
-        $partyName = $deliveryParty->appendChild($partyName);
+            $partyNameElement = $this->createElement('cac', 'PartyName');
+            $partyNameElement = $deliveryParty->appendChild($partyNameElement);
 
-        $nameElement = $this->createElement('cbc', 'Name', 'Delivery party Name');
-        $partyName->appendChild($nameElement);
+            $nameElement = $this->createElement('cbc', 'Name', $partyName);
+            $partyNameElement->appendChild($nameElement);
+        }
 
         return $this;
     }

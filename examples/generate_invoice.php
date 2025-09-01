@@ -71,6 +71,19 @@ $invoice = [
         ]
     ],
 
+    // Delivery information
+    'delivery' => [
+        'date' => date('Y-m-d', strtotime('+1 day')), // Leveringsdatum (morgen)
+        'location_id' => 'DELIVERY-' . uniqid(),     // Uniek ID voor de leveringslocatie
+        'location_scheme' => '0088',                 // 0088 = GLN
+        'street' => 'Aambeeld 20',              // Straatnaam
+        'additional_street' => 'Tav. Ontvangst',     // Aanvullende straatinformatie
+        'city' => 'Medemblik',                       // Stad
+        'postal_code' => '1011 AA',                  // Postcode
+        'country' => 'NL',                           // Landcode (2 letters)
+        'party_name' => 'ARVID.NL B.V.'              // Naam ontvangende partij
+    ],
+
     // Payment information
     'payment' => [
         'means_code' => '30',                       // 30 = Credit transfer
@@ -114,6 +127,17 @@ try {
             $invoice['customer']['country'],
             $invoice['customer']['additional_street'],
             $invoice['customer']['registration_number']
+        )
+        ->addDelivery(
+            $invoice['delivery']['date'],
+            $invoice['delivery']['location_id'],
+            $invoice['delivery']['location_scheme'],
+            $invoice['delivery']['street'],
+            $invoice['delivery']['additional_street'],
+            $invoice['delivery']['city'],
+            $invoice['delivery']['postal_code'],
+            $invoice['delivery']['country'],
+            $invoice['delivery']['party_name']
         )
         ->addPaymentMeans($invoice['payment']['means_code'])
         ->addPaymentTerms($invoice['payment']['terms']);

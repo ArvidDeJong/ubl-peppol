@@ -58,7 +58,17 @@ try {
             '12345678'              // Company registration number (optional)
         )
         // 7. Add delivery information
-        ->addDelivery()
+        ->addDelivery(
+            '2025-09-15',                           // Leveringsdatum (verplicht)
+            'DELIVERY-12345',                       // Uniek ID voor de leveringslocatie
+            '0088',                                 // Schema ID (0088 = GLN)
+            'Bezorgstraat 10',                      // Straatnaam
+            'Tweede verdieping',                    // Aanvullende straatinformatie
+            'Amsterdam',                            // Stad
+            '1011 AB',                              // Postcode
+            'NL',                                   // Landcode (2 letters)
+            'ARVID.NL B.V.'                         // Naam ontvangende partij
+        )
         // 8. Add payment means (defaults to SEPA credit transfer)
         ->addPaymentMeans('30') // 30 = Credit transfer
         // 9. Add payment terms
