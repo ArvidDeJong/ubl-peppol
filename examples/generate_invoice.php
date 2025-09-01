@@ -25,13 +25,14 @@ $invoice = [
         'postal_code' => '1787DA',                 // Postal code
         'city' => 'Den Helder',                        // City
         'country' => 'NL',                          // Country code (2 letters)
-        'vat_number' => 'NL87654321B01',            // VAT number
+        'vat_number' => 'NL853848932B01',            // VAT number
         'additional_street' => null,                // Optional: additional address line
     ],
 
     // Customer information
     'customer' => [
-        'endpoint_id' => 'DE123456789',             // e.g., VAT number
+        'vat_number' => '853848932B01',              // Customer VAT number without country code
+        'endpoint_id' => 'NL853848932B01',           // VAT number with country code
         'endpoint_scheme' => '0210',                // 0210 for VAT
         'party_id' => 'CUST-' . uniqid(),           // Internal reference
         'name' => 'ARVID.NL B.V.',                  // Company name
@@ -40,7 +41,7 @@ $invoice = [
         'city' => 'Amsterdam',                      // City
         'country' => 'NL',                          // Country code (2 letters)
         'additional_street' => 'Tweede verdieping', // Optional: additional address line
-        'registration_number' => '12345678',        // Optional: company registration number
+        'registration_number' => 'NL853848932B01',        // Optional: company registration number
         'contact_name' => 'John Doe',               // Contact person name
         'contact_phone' => '+31 20 123 4567',       // Contact phone number
         'contact_email' => 'john.doe@example.com',  // Contact email
@@ -51,14 +52,21 @@ $invoice = [
         [
             'id' => '1',
             'quantity' => '2',
-            'unit_code' => 'PCE',                   // UN/ECE rec 20 unit code
+            'unit_code' => 'C62',                   // UN/ECE rec 20 unit code for 'piece'
             'description' => 'Sample product',
             'name' => 'Product A',
-            'price' => '100.00',
+            'price_amount' => '100.00',
             'tax_percent' => '21.00',
             'currency' => 'EUR',
-            'accounting_cost' => null,              // Optional: accounting cost center
-            'order_line_id' => null,                // Optional: reference to order line
+            'accounting_cost' => 'PROJ-001',              // Optional: accounting cost center
+            'order_line_id' => 'PO-2023-123',       // Optional: reference to order line
+            'standard_item_id' => null,  // Optioneel: standaard item ID (bijv. GTIN)
+            'origin_country' => 'NL',    // Optioneel: land van herkomst (2-letterige code)
+            'tax_category_id' => 'S',    // BTW categorie (S = standaardtarief)
+            'tax_scheme_id' => 'VAT',    // BTW-schema (VAT = BTW)
+            'item_type_code' => '1000',   // Product category code
+            'item_type_scheme' => 'STD',  // Standard classification scheme (from UNTDID 7143 list)
+            'item_type_description' => 'Product' // Product type description
         ],
         [
             'id' => '2',
@@ -66,7 +74,7 @@ $invoice = [
             'unit_code' => 'HUR',                   // Hours
             'description' => 'Consulting services',
             'name' => 'Consulting hours',
-            'price' => '75.00',
+            'price_amount' => '75.00',
             'tax_percent' => '21.00',
             'currency' => 'EUR',
             'accounting_cost' => 'PROJ-001',        // Optional: project code
@@ -92,9 +100,9 @@ $invoice = [
         'means_code' => '30',                       // 30 = Credit transfer
         'means_name' => 'Credit transfer via SEPA', // Payment method description
         'payment_id' => 'INV-' . date('Y') . '-123', // Payment reference
-        'account_iban' => 'NL71ABNA0607005106',     // IBAN
+        'account_iban' => 'NL32RABO0180732595',     // IBAN
         'account_name' => 'Darvis ALU',             // Account holder name
-        'bic' => 'ABNANL2A',                        // BIC/SWIFT code
+        'bic' => 'RABONL22',                        // BIC/SWIFT code
         'channel_code' => 'IBAN',                   // Payment channel
         'due_date' => date('Y-m-d', strtotime('+30 days')), // Payment due date
         'terms' => [
@@ -176,7 +184,7 @@ try {
 
     // Add invoice lines
     foreach ($invoice['lines'] as $line) {
-        $lineTotal = bcmul($line['quantity'], $line['price'], 2);
+        $lineTotal = bcmul($line['quantity'], $line['price_amount'], 2);
 
         $lineData = [
             'id' => $line['id'],
@@ -185,7 +193,7 @@ try {
             'line_extension_amount' => $lineTotal,
             'description' => $line['description'],
             'name' => $line['name'],
-            'price_amount' => $line['price'],
+            'price_amount' => $line['price_amount'],
             'currency' => 'EUR',
             'accounting_cost' => $line['accounting_cost'],
             'order_line_id' => $line['order_line_id'],
@@ -194,8 +202,9 @@ try {
             'tax_category_id' => 'S',    // BTW categorie (S = standaardtarief)
             'tax_percent' => $line['tax_percent'],
             'tax_scheme_id' => 'VAT',    // BTW-schema (VAT = BTW)
-            'item_type_code' => '1000',   // Productcategorie code (CPV)
-            'item_type_description' => 'Product' // Producttype omschrijving
+            'item_type_code' => '1000',   // Product category code
+            'item_type_scheme' => 'STD',  // Standard classification scheme (from UNTDID 7143 list)
+            'item_type_description' => 'Product' // Product type description
         ];
 
         $ubl->addInvoiceLine($lineData);
@@ -211,27 +220,67 @@ try {
         'EUR'                           // currency
     );
 
-    // Add tax and total calculations
-    $lineTotal = 100.00;  // Sum of all line items before tax
-    $taxAmount = 21.00;   // 21% of 100
-    $chargeAmount = 25.00; // Total charges
+    // Calculate line totals and taxes
+    $lineTotal = 0;
+    $taxAmount = 0;
+    $chargeAmount = 25.00; // Fixed charge amount
+    
+    // Calculate totals from invoice lines
+    foreach ($invoice['lines'] as $line) {
+        $lineQuantity = (float)$line['quantity'];
+        $linePrice = (float)$line['price_amount'];
+        $lineTaxRate = (float)$line['tax_percent'] / 100;
+        
+        $lineTotal += $linePrice * $lineQuantity;
+        $taxAmount += $linePrice * $lineQuantity * $lineTaxRate;
+    }
+    
+    // Calculate charge and its tax
+    $chargeTax = $chargeAmount * 0.21; // 21% VAT on charge
+    $totalTax = $taxAmount + $chargeTax;
+    
+    // Calculate taxable amounts
+    $taxableBase = $lineTotal + $chargeAmount;
 
+    // Add tax subtotals with proper breakdown
     $ubl->addTaxTotal([
         [
-            'taxable_amount' => $lineTotal,
-            'tax_amount' => $taxAmount,
+            'taxable_amount' => $taxableBase,
+            'tax_amount' => $totalTax,
             'currency' => 'EUR',
             'tax_category_id' => 'S',     // Standard rate
             'tax_percent' => 21.0,        // 21% VAT
-            'tax_scheme_id' => 'VAT'      // VAT tax scheme
+            'tax_scheme_id' => 'VAT',     // VAT tax scheme
+            'tax_exemption_reason_code' => null,
+            'tax_exemption_reason' => null
         ]
-    ])->addLegalMonetaryTotal(
+    ]);
+
+    // Ensure TaxableAmount is set for each line item
+    foreach ($invoice['lines'] as &$line) {
+        $lineTaxableAmount = (float)$line['price_amount'] * (float)$line['quantity'];
+        $lineTaxAmount = $lineTaxableAmount * ((float)$line['tax_percent'] / 100);
+
+        // Update line with tax information
+        $line['taxable_amount'] = $lineTaxableAmount;
+        $line['tax_amount'] = $lineTaxAmount;
+    }
+    unset($line); // Break the reference
+
+    // Calculate amounts with proper rounding for monetary values
+    $lineExtensionAmount = round($lineTotal, 2);
+    $taxExclusiveAmount = round($lineTotal + $chargeAmount, 2);
+    $taxInclusiveAmount = round($taxExclusiveAmount + $totalTax, 2);
+    $payableAmount = round($taxInclusiveAmount, 2);
+    
+    // Add legal monetary total with properly rounded values
+    $ubl->addLegalMonetaryTotal(
         [
-            'line_extension_amount' => $lineTotal,
-            'tax_exclusive_amount' => $lineTotal + $chargeAmount,
-            'tax_inclusive_amount' => $lineTotal + $chargeAmount + $taxAmount,
-            'charge_total_amount' => $chargeAmount,
-            'payable_amount' => $lineTotal + $chargeAmount + $taxAmount
+            'line_extension_amount' => number_format($lineExtensionAmount, 2, '.', ''),
+            'tax_exclusive_amount' => number_format($taxExclusiveAmount, 2, '.', ''),
+            'tax_inclusive_amount' => number_format($taxInclusiveAmount, 2, '.', ''),
+            'charge_total_amount' => number_format($chargeAmount, 2, '.', ''),
+            'payable_amount' => number_format($payableAmount, 2, '.', '')
         ],
         'EUR'
     );

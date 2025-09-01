@@ -5,6 +5,7 @@ namespace Darvis\UblPeppol;
 use Carbon\Carbon;
 use DOMDocument;
 use DOMElement;
+use Darvis\UblPeppol\Validation\UblValidator;
 
 /**
  * UBL Service for generating UBL/PEPPOL invoices
@@ -80,13 +81,30 @@ class UblService
     }
 
     /**
-     * Helper method for creating XML elements without namespace repetition
+     * Helper method to create and append a child element
      * 
-     * @param string $prefix Namespace prefix (cbc or cac)
-     * @param string $name Element name
-     * @param string|null $value Element value
-     * @param array $attributes Optional attributes
-     * @return \DOMElement
+     * @param \DOMElement $parent The parent element
+     * @param string $prefix The namespace prefix (e.g., 'cbc' or 'cac')
+     * @param string $name The element name
+     * @param string|null $value The element value (optional)
+     * @param array $attributes Associative array of attributes (optional)
+     * @return \DOMElement The created and appended element
+     */
+    protected function addChildElement(\DOMElement $parent, string $prefix, string $name, ?string $value = null, array $attributes = []): \DOMElement
+    {
+        $element = $this->createElement($prefix, $name, $value, $attributes);
+        $parent->appendChild($element);
+        return $element;
+    }
+
+    /**
+     * Create an XML element with the given prefix, name, value, and attributes
+     *
+     * @param string $prefix The namespace prefix (e.g., 'cbc' or 'cac')
+     * @param string $name The element name
+     * @param string|null $value The element value (optional)
+     * @param array $attributes Associative array of attributes (optional)
+     * @return \DOMElement The created DOMElement
      * @throws \RuntimeException If the document is not initialized
      */
     protected function createElement(string $prefix, string $name, ?string $value = null, array $attributes = []): \DOMElement
@@ -485,6 +503,46 @@ class UblService
         ?string $contactEmail = null,
         string $taxSchemeId = 'VAT'
     ): self {
+        if (empty(trim($endpointId))) {
+            throw new \InvalidArgumentException('Endpoint ID is required');
+        }
+        
+        // Validate VAT number format (if provided) - must start with a valid ISO 3166-1 alpha-2 country code
+        if (!empty($companyId)) {
+            $iso3166Alpha2Codes = [
+                '1A', 'AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ',
+                'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS', 'BT', 'BV', 'BW', 'BY', 'BZ',
+                'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN', 'CO', 'CR', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ',
+                'DE', 'DJ', 'DK', 'DM', 'DO', 'DZ',
+                'EC', 'EE', 'EG', 'EH', 'EL', 'ER', 'ES', 'ET',
+                'FI', 'FJ', 'FK', 'FM', 'FO', 'FR',
+                'GA', 'GB', 'GD', 'GE', 'GF', 'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GS', 'GT', 'GU', 'GW', 'GY',
+                'HK', 'HM', 'HN', 'HR', 'HT', 'HU',
+                'ID', 'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IT',
+                'JE', 'JM', 'JO', 'JP',
+                'KE', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY', 'KZ',
+                'LA', 'LB', 'LC', 'LI', 'LK', 'LR', 'LS', 'LT', 'LU', 'LV', 'LY',
+                'MA', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MK', 'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MU', 'MV', 'MW', 'MX', 'MY', 'MZ',
+                'NA', 'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NO', 'NP', 'NR', 'NU', 'NZ',
+                'OM',
+                'PA', 'PE', 'PF', 'PG', 'PH', 'PK', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PW', 'PY',
+                'QA',
+                'RE', 'RO', 'RS', 'RU', 'RW',
+                'SA', 'SB', 'SC', 'SD', 'SE', 'SG', 'SH', 'SI', 'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SR', 'SS', 'ST', 'SV', 'SX', 'SY', 'SZ',
+                'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ',
+                'UA', 'UG', 'UM', 'US', 'UY', 'UZ',
+                'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU',
+                'WF', 'WS',
+                'XI',
+                'YE', 'YT',
+                'ZA', 'ZM', 'ZW'
+            ];
+            
+            $countryCode = strtoupper(substr($companyId, 0, 2));
+            if (!in_array($countryCode, $iso3166Alpha2Codes, true)) {
+                throw new \InvalidArgumentException(sprintf('Invalid VAT number format. Must start with a valid ISO 3166-1 alpha-2 country code. Got: %s', $countryCode));
+            }
+        }
         $errors = [];
 
         // Validate required fields
@@ -794,68 +852,54 @@ class UblService
             throw new \InvalidArgumentException('Invalid BIC/SWIFT code format');
         }
 
-        // Validate payment due date format if provided
-        if ($paymentDueDate !== null && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $paymentDueDate)) {
-            throw new \InvalidArgumentException('Payment due date must be in YYYY-MM-DD format');
-        }
-        // PaymentMeans container
+        // Create payment means element
         $paymentMeans = $this->createElement('cac', 'PaymentMeans');
-        $paymentMeans = $this->rootElement->appendChild($paymentMeans);
-
-        // PaymentMeansCode with name attribute
-        $paymentMeansCodeElement = $this->createElement(
-            'cbc',
-            'PaymentMeansCode',
-            $paymentMeansCode,
-            ['name' => $paymentMeansName]
-        );
-        $paymentMeans->appendChild($paymentMeansCodeElement);
-
-        // Add PaymentID if provided
+        
+        // Add payment means code with name
+        $this->addChildElement($paymentMeans, 'cbc', 'PaymentMeansCode', $paymentMeansCode, ['name' => $paymentMeansName]);
+        
+        // Add payment ID if provided
         if ($paymentId !== null) {
-            $paymentIDElement = $this->createElement('cbc', 'PaymentID', $paymentId);
-            $paymentMeans->appendChild($paymentIDElement);
+            $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $paymentId);
         }
-
-        // Add PaymentDueDate if provided
-        if ($paymentDueDate !== null) {
-            $paymentDueDateElement = $this->createElement('cbc', 'PaymentDueDate', $paymentDueDate);
-            $paymentMeans->appendChild($paymentDueDateElement);
-        }
-
-        // Add PaymentChannelCode if provided
+        
+        // Add payment channel code if provided
         if ($paymentChannelCode !== null) {
-            $paymentChannelElement = $this->createElement('cbc', 'PaymentChannelCode', $paymentChannelCode);
-            $paymentMeans->appendChild($paymentChannelElement);
+            $this->addChildElement($paymentMeans, 'cbc', 'PaymentChannelCode', $paymentChannelCode);
         }
-
-        // Only add PayeeFinancialAccount if account details are provided
-        if ($accountId !== null || $accountName !== null) {
+        
+        // Add payee financial account if account ID is provided
+        if ($accountId !== null) {
             $payeeFinancialAccount = $this->createElement('cac', 'PayeeFinancialAccount');
             $payeeFinancialAccount = $paymentMeans->appendChild($payeeFinancialAccount);
-
+            
             // Add account ID (IBAN)
-            if ($accountId !== null) {
-                $idElement = $this->createElement('cbc', 'ID', $accountId);
-                $payeeFinancialAccount->appendChild($idElement);
-            }
-
-            // Add account name
+            $idElement = $this->createElement('cbc', 'ID', $accountId);
+            $payeeFinancialAccount->appendChild($idElement);
+            
+            // Add account name if provided
             if ($accountName !== null) {
                 $nameElement = $this->createElement('cbc', 'Name', $accountName);
                 $payeeFinancialAccount->appendChild($nameElement);
             }
-
+            
             // Add financial institution (BIC/SWIFT) if provided
             if ($financialInstitutionId !== null) {
                 $financialInstitutionBranch = $this->createElement('cac', 'FinancialInstitutionBranch');
                 $financialInstitutionBranch = $payeeFinancialAccount->appendChild($financialInstitutionBranch);
-
+                
                 $bicElement = $this->createElement('cbc', 'ID', $financialInstitutionId);
                 $financialInstitutionBranch->appendChild($bicElement);
             }
         }
-
+        
+        $this->rootElement->appendChild($paymentMeans);
+        
+        // Add payment due date to the root level if provided
+        if ($paymentDueDate !== null) {
+            $this->addChildElement($this->rootElement, 'cbc', 'PaymentDueDate', $paymentDueDate);
+        }
+        
         return $this;
     }
 
@@ -1235,7 +1279,7 @@ class UblService
      *   [
      *     'id' => '1',                               // Required: Line item ID
      *     'quantity' => '2',                         // Required: Quantity
-     *     'unit_code' => 'PCS',                      // Required: Unit of measure code (e.g., 'PCS', 'DAY')
+     *     'unit_code' => 'PCE',                      // Required: Unit of measure code (e.g., 'PCE' for piece, 'HUR' for hour)
      *     'line_extension_amount' => '100.00',       // Required: Line total amount excluding tax
      *     'description' => 'Product description',     // Required: Product/service description
      *     'name' => 'Product Name',                  // Required: Product/service name
@@ -1249,6 +1293,7 @@ class UblService
      *     'tax_percent' => '21.00',                  // Optional: Tax percentage (default: '21.00')
      *     'tax_scheme_id' => 'VAT',                  // Optional: Tax scheme ID (default: 'VAT')
      *     'item_type_code' => '1000',                // Optional: Item classification code (CPV)
+     *     'item_type_scheme' => 'STD',               // Optional: Item classification scheme (default: 'STD' for Standard)
      *     'item_type_description' => 'Product'        // Optional: Item type description
      *   ]
      * @return self
@@ -1273,7 +1318,7 @@ class UblService
                 throw new \InvalidArgumentException($errorMessage);
             }
         }
-
+        
         // Validate numeric fields
         $numericFields = [
             'quantity' => 'Quantity must be a number',
@@ -1284,6 +1329,24 @@ class UblService
         foreach ($numericFields as $field => $errorMessage) {
             if (!is_numeric($lineData[$field])) {
                 throw new \InvalidArgumentException($errorMessage);
+            }
+        }
+
+        // Validate unit code against UN/ECE Recommendation 20 with Rec 21 extension
+        if (!UblValidator::isValidUnitCode($lineData['unit_code'])) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid unit code: %s. Must be a valid UN/ECE Recommendation 20 with Rec 21 extension unit code.',
+                $lineData['unit_code']
+            ));
+        }
+
+        // Validate classification scheme if provided
+        if (isset($lineData['item_type_code']) && !empty($lineData['item_type_scheme'] ?? '')) {
+            if (!UblValidator::isValidClassificationScheme($lineData['item_type_scheme'])) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Invalid classification scheme: %s. Must be a valid UNTDID 7143 scheme.',
+                    $lineData['item_type_scheme']
+                ));
             }
         }
 
@@ -1412,6 +1475,7 @@ class UblService
         $taxableAmount = (float)$lineData['price_amount'] * (float)$lineData['quantity'];
         $formattedTaxableAmount = number_format($taxableAmount, 2, '.', '');
 
+        // Add TaxableAmount to TaxSubtotal
         $taxableAmountElement = $this->createElement(
             'cbc',
             'TaxableAmount',
@@ -1419,56 +1483,27 @@ class UblService
             ['currencyID' => $lineData['currency']]
         );
         $taxSubtotal->appendChild($taxableAmountElement);
-
-        $taxCategory = $this->createElement('cac', 'TaxCategory');
-        $taxCategory = $taxSubtotal->appendChild($taxCategory);
-
-        $taxCategoryIdElement = $this->createElement('cbc', 'ID', $lineData['tax_category_id']);
-        $taxCategory->appendChild($taxCategoryIdElement);
-
-        $taxPercentElement = $this->createElement('cbc', 'Percent', $formattedAmounts['tax_percent']);
-        $taxCategory->appendChild($taxPercentElement);
-
-        $taxScheme = $this->createElement('cac', 'TaxScheme');
-        $taxScheme = $taxCategory->appendChild($taxScheme);
-
-        $taxSchemeIdElement = $this->createElement('cbc', 'ID', $lineData['tax_scheme_id']);
-        $taxScheme->appendChild($taxSchemeIdElement);
-
-        $itemClassificationCodeElement = $this->createElement('cbc', 'ItemClassificationCode', $lineData['item_type_code'], ['listID' => 'SRV']);
-        $commodityClassification->appendChild($itemClassificationCodeElement);
-
-        // ClassifiedTaxCategory
-        $classifiedTaxCategory = $this->createElement('cac', 'ClassifiedTaxCategory');
-        $classifiedTaxCategory = $item->appendChild($classifiedTaxCategory);
-
-        $idElement = $this->createElement('cbc', 'ID', $lineData['tax_category_id']);
-        $classifiedTaxCategory->appendChild($idElement);
-
-        $percentElement = $this->createElement('cbc', 'Percent', $formattedAmounts['tax_percent']);
-        $classifiedTaxCategory->appendChild($percentElement);
-
-        $taxScheme = $this->createElement('cac', 'TaxScheme');
-        $taxScheme = $classifiedTaxCategory->appendChild($taxScheme);
-
-        $taxSchemeIdElement = $this->createElement('cbc', 'ID', $lineData['tax_scheme_id']);
-        $taxScheme->appendChild($taxSchemeIdElement);
-
-        // Price
-        $price = $this->createElement('cac', 'Price');
-        $price = $invoiceLine->appendChild($price);
-
-        $priceAmountElement = $this->createElement(
+        
+        // Add TaxAmount to TaxSubtotal (required by BR-46)
+        $taxAmountElement = $this->createElement(
             'cbc',
-            'PriceAmount',
-            $formattedAmounts['price_amount'],
+            'TaxAmount',
+            $formattedTaxAmount,
             ['currencyID' => $lineData['currency']]
         );
-        $price->appendChild($priceAmountElement);
-
-        // BaseQuantity
-        $baseQuantityElement = $this->createElement('cbc', 'BaseQuantity', '1', ['unitCode' => $lineData['unit_code']]);
-        $price->appendChild($baseQuantityElement);
+        $taxSubtotal->appendChild($taxAmountElement);
+        
+        $taxCategory = $this->createElement('cac', 'TaxCategory');
+        $taxCategory->appendChild($this->createElement('cbc', 'ID', $lineData['tax_category_id']));
+        $taxCategory->appendChild($this->createElement('cbc', 'Percent', number_format($lineData['tax_percent'], 2, '.', '')));
+        
+        $taxScheme = $this->createElement('cac', 'TaxScheme');
+        $taxScheme->appendChild($this->createElement('cbc', 'ID', 'VAT'));
+        $taxCategory->appendChild($taxScheme);
+        
+        $taxSubtotal->appendChild($taxCategory);
+        $taxTotal->appendChild($taxSubtotal);
+        $invoiceLine->appendChild($taxTotal);
 
         return $this;
     }
