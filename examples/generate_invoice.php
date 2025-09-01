@@ -200,16 +200,29 @@ try {
     );
 
     // Add tax and total calculations
+    $lineTotal = 100.00;  // Sum of all line items before tax
+    $taxAmount = 21.00;   // 21% of 100
+    $chargeAmount = 25.00; // Total charges
+    
     $ubl->addTaxTotal([
         [
-            'taxable_amount' => 100.00,  // Sum of all line items before tax
-            'tax_amount' => 21.00,       // 21% of 100
+            'taxable_amount' => $lineTotal,
+            'tax_amount' => $taxAmount,
             'currency' => 'EUR',
             'tax_category_id' => 'S',     // Standard rate
             'tax_percent' => 21.0,        // 21% VAT
             'tax_scheme_id' => 'VAT'      // VAT tax scheme
         ]
-    ])->addLegalMonetaryTotal();
+    ])->addLegalMonetaryTotal(
+        [
+            'line_extension_amount' => $lineTotal,
+            'tax_exclusive_amount' => $lineTotal + $chargeAmount,
+            'tax_inclusive_amount' => $lineTotal + $chargeAmount + $taxAmount,
+            'charge_total_amount' => $chargeAmount,
+            'payable_amount' => $lineTotal + $chargeAmount + $taxAmount
+        ],
+        'EUR'
+    );
 
     // Generate and output the XML
     $xml = $ubl->generateXml();

@@ -1145,35 +1145,68 @@ class UblService
     }
 
     /**
-     * Voeg LegalMonetaryTotal (bedragentotalen) toe
+     * Add LegalMonetaryTotal (financial totals) to the invoice
      * 
+     * @param array $amounts Associative array containing the following required keys:
+     *   - line_extension_amount: Total of all invoice lines excluding tax
+     *   - tax_exclusive_amount: Amount excluding tax (line_extension_amount + charges - allowances)
+     *   - tax_inclusive_amount: Amount including tax
+     *   - charge_total_amount: Total of all charges
+     *   - payable_amount: Total amount to be paid (should equal tax_inclusive_amount)
+     * @param string $currency Currency code (3 letters, e.g., 'EUR')
      * @return self
+     * @throws \InvalidArgumentException For missing or invalid parameters
      */
-    public function addLegalMonetaryTotal(): self
+    public function addLegalMonetaryTotal(array $amounts, string $currency = 'EUR'): self
     {
-        // LegalMonetaryTotal container
+        // Validate required fields
+        $requiredFields = [
+            'line_extension_amount' => 'Line extension amount is required',
+            'tax_exclusive_amount' => 'Tax exclusive amount is required',
+            'tax_inclusive_amount' => 'Tax inclusive amount is required',
+            'charge_total_amount' => 'Charge total amount is required',
+            'payable_amount' => 'Payable amount is required'
+        ];
+
+        foreach ($requiredFields as $field => $errorMessage) {
+            if (!array_key_exists($field, $amounts) || !is_numeric($amounts[$field])) {
+                throw new \InvalidArgumentException($errorMessage);
+            }
+        }
+
+        // Validate currency
+        if (strlen($currency) !== 3) {
+            throw new \InvalidArgumentException('Currency code must be exactly 3 characters long');
+        }
+
+        // Format amounts to 2 decimal places
+        $formattedAmounts = [];
+        foreach ($amounts as $key => $value) {
+            $formattedAmounts[$key] = number_format((float)$value, 2, '.', '');
+        }
+
+        // Create LegalMonetaryTotal container
         $legalMonetaryTotal = $this->createElement('cac', 'LegalMonetaryTotal');
         $legalMonetaryTotal = $this->rootElement->appendChild($legalMonetaryTotal);
 
-        // LineExtensionAmount (som van alle factuurregels ex BTW)
-        $lineExtensionAmountElement = $this->createElement('cbc', 'LineExtensionAmount', '1300', ['currencyID' => 'EUR']);
-        $legalMonetaryTotal->appendChild($lineExtensionAmountElement);
+        // Add all monetary amounts with currency
+        $elements = [
+            'LineExtensionAmount' => $formattedAmounts['line_extension_amount'],
+            'TaxExclusiveAmount' => $formattedAmounts['tax_exclusive_amount'],
+            'TaxInclusiveAmount' => $formattedAmounts['tax_inclusive_amount'],
+            'ChargeTotalAmount' => $formattedAmounts['charge_total_amount'],
+            'PayableAmount' => $formattedAmounts['payable_amount']
+        ];
 
-        // TaxExclusiveAmount (bedrag exclusief BTW)
-        $taxExclusiveAmountElement = $this->createElement('cbc', 'TaxExclusiveAmount', '1325', ['currencyID' => 'EUR']);
-        $legalMonetaryTotal->appendChild($taxExclusiveAmountElement);
-
-        // TaxInclusiveAmount (bedrag inclusief BTW)
-        $taxInclusiveAmountElement = $this->createElement('cbc', 'TaxInclusiveAmount', '1656.25', ['currencyID' => 'EUR']);
-        $legalMonetaryTotal->appendChild($taxInclusiveAmountElement);
-
-        // ChargeTotalAmount (totaal toeslagen)
-        $chargeTotalAmountElement = $this->createElement('cbc', 'ChargeTotalAmount', '25', ['currencyID' => 'EUR']);
-        $legalMonetaryTotal->appendChild($chargeTotalAmountElement);
-
-        // PayableAmount (te betalen bedrag)
-        $payableAmountElement = $this->createElement('cbc', 'PayableAmount', '1656.25', ['currencyID' => 'EUR']);
-        $legalMonetaryTotal->appendChild($payableAmountElement);
+        foreach ($elements as $elementName => $amount) {
+            $element = $this->createElement(
+                'cbc',
+                $elementName,
+                $amount,
+                ['currencyID' => $currency]
+            );
+            $legalMonetaryTotal->appendChild($element);
+        }
 
         return $this;
     }
