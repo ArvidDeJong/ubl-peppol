@@ -507,38 +507,264 @@ class UblService
         if (empty(trim($endpointId))) {
             throw new \InvalidArgumentException('Endpoint ID is required');
         }
-        
+
         // Validate VAT number format (if provided) - must start with a valid ISO 3166-1 alpha-2 country code
         if (!empty($companyId)) {
             $iso3166Alpha2Codes = [
-                '1A', 'AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ',
-                'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS', 'BT', 'BV', 'BW', 'BY', 'BZ',
-                'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN', 'CO', 'CR', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ',
-                'DE', 'DJ', 'DK', 'DM', 'DO', 'DZ',
-                'EC', 'EE', 'EG', 'EH', 'EL', 'ER', 'ES', 'ET',
-                'FI', 'FJ', 'FK', 'FM', 'FO', 'FR',
-                'GA', 'GB', 'GD', 'GE', 'GF', 'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GS', 'GT', 'GU', 'GW', 'GY',
-                'HK', 'HM', 'HN', 'HR', 'HT', 'HU',
-                'ID', 'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IT',
-                'JE', 'JM', 'JO', 'JP',
-                'KE', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY', 'KZ',
-                'LA', 'LB', 'LC', 'LI', 'LK', 'LR', 'LS', 'LT', 'LU', 'LV', 'LY',
-                'MA', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MK', 'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MU', 'MV', 'MW', 'MX', 'MY', 'MZ',
-                'NA', 'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NO', 'NP', 'NR', 'NU', 'NZ',
+                '1A',
+                'AD',
+                'AE',
+                'AF',
+                'AG',
+                'AI',
+                'AL',
+                'AM',
+                'AO',
+                'AQ',
+                'AR',
+                'AS',
+                'AT',
+                'AU',
+                'AW',
+                'AX',
+                'AZ',
+                'BA',
+                'BB',
+                'BD',
+                'BE',
+                'BF',
+                'BG',
+                'BH',
+                'BI',
+                'BJ',
+                'BL',
+                'BM',
+                'BN',
+                'BO',
+                'BQ',
+                'BR',
+                'BS',
+                'BT',
+                'BV',
+                'BW',
+                'BY',
+                'BZ',
+                'CA',
+                'CC',
+                'CD',
+                'CF',
+                'CG',
+                'CH',
+                'CI',
+                'CK',
+                'CL',
+                'CM',
+                'CN',
+                'CO',
+                'CR',
+                'CU',
+                'CV',
+                'CW',
+                'CX',
+                'CY',
+                'CZ',
+                'DE',
+                'DJ',
+                'DK',
+                'DM',
+                'DO',
+                'DZ',
+                'EC',
+                'EE',
+                'EG',
+                'EH',
+                'EL',
+                'ER',
+                'ES',
+                'ET',
+                'FI',
+                'FJ',
+                'FK',
+                'FM',
+                'FO',
+                'FR',
+                'GA',
+                'GB',
+                'GD',
+                'GE',
+                'GF',
+                'GG',
+                'GH',
+                'GI',
+                'GL',
+                'GM',
+                'GN',
+                'GP',
+                'GQ',
+                'GR',
+                'GS',
+                'GT',
+                'GU',
+                'GW',
+                'GY',
+                'HK',
+                'HM',
+                'HN',
+                'HR',
+                'HT',
+                'HU',
+                'ID',
+                'IE',
+                'IL',
+                'IM',
+                'IN',
+                'IO',
+                'IQ',
+                'IR',
+                'IS',
+                'IT',
+                'JE',
+                'JM',
+                'JO',
+                'JP',
+                'KE',
+                'KG',
+                'KH',
+                'KI',
+                'KM',
+                'KN',
+                'KP',
+                'KR',
+                'KW',
+                'KY',
+                'KZ',
+                'LA',
+                'LB',
+                'LC',
+                'LI',
+                'LK',
+                'LR',
+                'LS',
+                'LT',
+                'LU',
+                'LV',
+                'LY',
+                'MA',
+                'MC',
+                'MD',
+                'ME',
+                'MF',
+                'MG',
+                'MH',
+                'MK',
+                'ML',
+                'MM',
+                'MN',
+                'MO',
+                'MP',
+                'MQ',
+                'MR',
+                'MS',
+                'MT',
+                'MU',
+                'MV',
+                'MW',
+                'MX',
+                'MY',
+                'MZ',
+                'NA',
+                'NC',
+                'NE',
+                'NF',
+                'NG',
+                'NI',
+                'NL',
+                'NO',
+                'NP',
+                'NR',
+                'NU',
+                'NZ',
                 'OM',
-                'PA', 'PE', 'PF', 'PG', 'PH', 'PK', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PW', 'PY',
+                'PA',
+                'PE',
+                'PF',
+                'PG',
+                'PH',
+                'PK',
+                'PL',
+                'PM',
+                'PN',
+                'PR',
+                'PS',
+                'PT',
+                'PW',
+                'PY',
                 'QA',
-                'RE', 'RO', 'RS', 'RU', 'RW',
-                'SA', 'SB', 'SC', 'SD', 'SE', 'SG', 'SH', 'SI', 'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SR', 'SS', 'ST', 'SV', 'SX', 'SY', 'SZ',
-                'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ',
-                'UA', 'UG', 'UM', 'US', 'UY', 'UZ',
-                'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU',
-                'WF', 'WS',
+                'RE',
+                'RO',
+                'RS',
+                'RU',
+                'RW',
+                'SA',
+                'SB',
+                'SC',
+                'SD',
+                'SE',
+                'SG',
+                'SH',
+                'SI',
+                'SJ',
+                'SK',
+                'SL',
+                'SM',
+                'SN',
+                'SO',
+                'SR',
+                'SS',
+                'ST',
+                'SV',
+                'SX',
+                'SY',
+                'SZ',
+                'TC',
+                'TD',
+                'TF',
+                'TG',
+                'TH',
+                'TJ',
+                'TK',
+                'TL',
+                'TM',
+                'TN',
+                'TO',
+                'TR',
+                'TT',
+                'TV',
+                'TW',
+                'TZ',
+                'UA',
+                'UG',
+                'UM',
+                'US',
+                'UY',
+                'UZ',
+                'VA',
+                'VC',
+                'VE',
+                'VG',
+                'VI',
+                'VN',
+                'VU',
+                'WF',
+                'WS',
                 'XI',
-                'YE', 'YT',
-                'ZA', 'ZM', 'ZW'
+                'YE',
+                'YT',
+                'ZA',
+                'ZM',
+                'ZW'
             ];
-            
+
             $countryCode = strtoupper(substr($companyId, 0, 2));
             if (!in_array($countryCode, $iso3166Alpha2Codes, true)) {
                 throw new \InvalidArgumentException(sprintf('Invalid VAT number format. Must start with a valid ISO 3166-1 alpha-2 country code. Got: %s', $countryCode));
@@ -597,7 +823,7 @@ class UblService
         // For Dutch customers, ensure we use the correct scheme ID (0106 for KVK or 0190 for OIN)
         // instead of the Italian Tax Code (0210)
         $effectiveSchemeID = (strtoupper($countryCode) === 'NL' && $endpointSchemeID === '0210') ? '0106' : $endpointSchemeID;
-        
+
         // EndpointID
         $endpointIDElement = $this->createElement('cbc', 'EndpointID', $endpointId, ['schemeID' => $effectiveSchemeID]);
         $party->appendChild($endpointIDElement);
@@ -860,50 +1086,54 @@ class UblService
 
         // Create payment means element
         $paymentMeans = $this->createElement('cac', 'PaymentMeans');
-        
+
         // Add payment means code with name
         $this->addChildElement($paymentMeans, 'cbc', 'PaymentMeansCode', $paymentMeansCode, ['name' => $paymentMeansName]);
-        
+
         // Add payment ID if provided
         if ($paymentId !== null) {
             $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $paymentId);
         }
-        
+        // Add payment due date inside PaymentMeans (allowed by UBL)
+        // if ($paymentDueDate !== null) {
+        //     $this->addChildElement($paymentMeans, 'cbc', 'PaymentDueDate', $paymentDueDate);
+        // }
+
         // PaymentChannelCode is not included as per UBL-CR-413
         // PaymentDueDate is not included as per UBL-CR-412 (must be at invoice level)
-        
+
         // Add payee financial account if account ID is provided
         if ($accountId !== null) {
             $payeeFinancialAccount = $this->createElement('cac', 'PayeeFinancialAccount');
             $payeeFinancialAccount = $paymentMeans->appendChild($payeeFinancialAccount);
-            
+
             // Add account ID (IBAN)
             $idElement = $this->createElement('cbc', 'ID', $accountId);
             $payeeFinancialAccount->appendChild($idElement);
-            
+
             // Add account name if provided
             if ($accountName !== null) {
                 $nameElement = $this->createElement('cbc', 'Name', $accountName);
                 $payeeFinancialAccount->appendChild($nameElement);
             }
-            
+
             // Add financial institution (BIC/SWIFT) if provided
             if ($financialInstitutionId !== null) {
                 $financialInstitutionBranch = $this->createElement('cac', 'FinancialInstitutionBranch');
                 $financialInstitutionBranch = $payeeFinancialAccount->appendChild($financialInstitutionBranch);
-                
+
                 $bicElement = $this->createElement('cbc', 'ID', $financialInstitutionId);
                 $financialInstitutionBranch->appendChild($bicElement);
             }
         }
-        
+
         $this->rootElement->appendChild($paymentMeans);
-        
+
         // Add payment due date to the root level if provided
-        if ($paymentDueDate !== null) {
-            $this->addChildElement($this->rootElement, 'cbc', 'PaymentDueDate', $paymentDueDate);
-        }
-        
+        // if ($paymentDueDate !== null) {
+        //     $this->addChildElement($this->rootElement, 'cbc', 'PaymentDueDate', $paymentDueDate);
+        // }
+
         return $this;
     }
 
@@ -917,69 +1147,22 @@ class UblService
      * @return self
      * @throws \InvalidArgumentException For missing or invalid values
      */
-    public function addPaymentTerms(
-        ?string $note = null,
-        ?string $settlementDiscountPercent = null,
-        ?string $settlementDiscountAmount = null,
-        ?string $settlementDiscountDate = null
-    ): self {
-        // Validate required fields
+    public function addPaymentTerms(?string $note = null): self
+    {
         if (empty($note)) {
             throw new \InvalidArgumentException('Payment terms note is required and cannot be empty');
         }
 
-        // Validate discount percentage if provided
-        if ($settlementDiscountPercent !== null) {
-            if (!is_numeric($settlementDiscountPercent) || $settlementDiscountPercent < 0 || $settlementDiscountPercent > 100) {
-                throw new \InvalidArgumentException('Settlement discount percentage must be a number between 0 and 100');
-            }
-
-            // Ensure the percentage has 2 decimal places
-            $settlementDiscountPercent = number_format((float)$settlementDiscountPercent, 2, '.', '');
-        }
-
-        // Validate discount amount if provided
-        if ($settlementDiscountAmount !== null && !is_numeric($settlementDiscountAmount)) {
-            throw new \InvalidArgumentException('Settlement discount amount must be a valid number');
-        }
-
-        // Validate discount date if provided
-        if ($settlementDiscountDate !== null) {
-            $date = \DateTime::createFromFormat('Y-m-d', $settlementDiscountDate);
-            if (!$date || $date->format('Y-m-d') !== $settlementDiscountDate) {
-                throw new \InvalidArgumentException('Settlement discount date must be in YYYY-MM-DD format');
-            }
-        }
-
-        // PaymentTerms container
         $paymentTerms = $this->createElement('cac', 'PaymentTerms');
         $paymentTerms = $this->rootElement->appendChild($paymentTerms);
 
-        // Add the payment terms note
         $noteElement = $this->createElement('cbc', 'Note', $note);
         $paymentTerms->appendChild($noteElement);
 
-        // Add discount information if applicable
-        if ($settlementDiscountPercent !== null || $settlementDiscountAmount !== null) {
-            // SettlementPeriod is not included as per UBL-CR-466
-            
-            // Add the discount details
-            $paymentTermsDetails = $this->createElement('cac', 'PaymentTermsDetails');
-            $paymentTermsDetails = $paymentTerms->appendChild($paymentTermsDetails);
-
-            if ($settlementDiscountPercent !== null) {
-                $percentElement = $this->createElement('cbc', 'Percent', $settlementDiscountPercent);
-                $paymentTermsDetails->appendChild($percentElement);
-            }
-
-            if ($settlementDiscountAmount !== null) {
-                $amountElement = $this->createElement('cbc', 'Amount', $settlementDiscountAmount, ['currencyID' => 'EUR']);
-                $paymentTermsDetails->appendChild($amountElement);
-            }
-        }
-
         return $this;
     }
+
+
 
     /**
      * Add an allowance or charge to the invoice
@@ -1324,7 +1507,7 @@ class UblService
                 throw new \InvalidArgumentException($errorMessage);
             }
         }
-        
+
         // Validate numeric fields
         $numericFields = [
             'quantity' => 'Quantity must be a number',
@@ -1361,7 +1544,7 @@ class UblService
 
         // Add required elements
         $this->addChildElement($invoiceLine, 'cbc', 'ID', $lineData['id']);
-        
+
         // Add InvoicedQuantity with unit code
         $this->addChildElement(
             $invoiceLine,
@@ -1370,7 +1553,7 @@ class UblService
             number_format((float)$lineData['quantity'], 2, '.', ''),
             ['unitCode' => $lineData['unit_code']]
         );
-        
+
         // Add LineExtensionAmount
         $this->addChildElement(
             $invoiceLine,
@@ -1429,11 +1612,11 @@ class UblService
         $classifiedTaxCategory = $this->createElement('cac', 'ClassifiedTaxCategory');
         $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $lineData['tax_category_id']);
         $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', number_format((float)$lineData['tax_percent'], 2, '.', ''));
-        
+
         $taxScheme = $this->createElement('cac', 'TaxScheme');
         $this->addChildElement($taxScheme, 'cbc', 'ID', $lineData['tax_scheme_id']);
         $classifiedTaxCategory->appendChild($taxScheme);
-        
+
         $item->appendChild($classifiedTaxCategory);
 
         // Add price information
@@ -1442,7 +1625,7 @@ class UblService
         $priceAmount->setAttribute('currencyID', $lineData['currency']);
         $price->appendChild($priceAmount);
         $invoiceLine->appendChild($price);
-        
+
         // TaxTotal is not included in invoice lines as per UBL-CR-561
         // Tax information is only provided at the document level through the TaxTotal element
 
