@@ -844,19 +844,82 @@ class UblService
     }
 
     /**
-     * Voeg PaymentTerms (betalingsvoorwaarden) toe
+     * Add payment terms to the invoice
      * 
+     * @param string|null $note The payment terms (e.g., 'Payment within 30 days, 2% discount if paid within 10 days')
+     * @param string|null $settlementDiscountPercent The discount percentage for early payment (e.g., '2.00')
+     * @param string|null $settlementDiscountAmount The discount amount for early payment (e.g., '10.00')
+     * @param string|null $settlementDiscountDate Due date for the discount (e.g., '2025-10-15')
      * @return self
+     * @throws \InvalidArgumentException For missing or invalid values
      */
-    public function addPaymentTerms(): self
-    {
+    public function addPaymentTerms(
+        ?string $note = null,
+        ?string $settlementDiscountPercent = null,
+        ?string $settlementDiscountAmount = null,
+        ?string $settlementDiscountDate = null
+    ): self {
+        // Validate required fields
+        if (empty($note)) {
+            throw new \InvalidArgumentException('Payment terms note is required and cannot be empty');
+        }
+
+        // Validate discount percentage if provided
+        if ($settlementDiscountPercent !== null) {
+            if (!is_numeric($settlementDiscountPercent) || $settlementDiscountPercent < 0 || $settlementDiscountPercent > 100) {
+                throw new \InvalidArgumentException('Settlement discount percentage must be a number between 0 and 100');
+            }
+            
+            // Ensure the percentage has 2 decimal places
+            $settlementDiscountPercent = number_format((float)$settlementDiscountPercent, 2, '.', '');
+        }
+
+        // Validate discount amount if provided
+        if ($settlementDiscountAmount !== null && !is_numeric($settlementDiscountAmount)) {
+            throw new \InvalidArgumentException('Settlement discount amount must be a valid number');
+        }
+
+        // Validate discount date if provided
+        if ($settlementDiscountDate !== null) {
+            $date = \DateTime::createFromFormat('Y-m-d', $settlementDiscountDate);
+            if (!$date || $date->format('Y-m-d') !== $settlementDiscountDate) {
+                throw new \InvalidArgumentException('Settlement discount date must be in YYYY-MM-DD format');
+            }
+        }
+
         // PaymentTerms container
         $paymentTerms = $this->createElement('cac', 'PaymentTerms');
         $paymentTerms = $this->rootElement->appendChild($paymentTerms);
 
-        // Note
-        $noteElement = $this->createElement('cbc', 'Note', 'Payment within 10 days, 2% discount');
+        // Add the payment terms note
+        $noteElement = $this->createElement('cbc', 'Note', $note);
         $paymentTerms->appendChild($noteElement);
+
+        // Add discount information if applicable
+        if ($settlementDiscountPercent !== null || $settlementDiscountAmount !== null) {
+            $settlementPeriod = $this->createElement('cac', 'SettlementPeriod');
+            $settlementPeriod = $paymentTerms->appendChild($settlementPeriod);
+            
+            // Add end date if provided
+            if ($settlementDiscountDate !== null) {
+                $endDateElement = $this->createElement('cbc', 'EndDate', $settlementDiscountDate);
+                $settlementPeriod->appendChild($endDateElement);
+            }
+            
+            // Add the discount details
+            $paymentTermsDetails = $this->createElement('cac', 'PaymentTermsDetails');
+            $paymentTermsDetails = $paymentTerms->appendChild($paymentTermsDetails);
+            
+            if ($settlementDiscountPercent !== null) {
+                $percentElement = $this->createElement('cbc', 'Percent', $settlementDiscountPercent);
+                $paymentTermsDetails->appendChild($percentElement);
+            }
+            
+            if ($settlementDiscountAmount !== null) {
+                $amountElement = $this->createElement('cbc', 'Amount', $settlementDiscountAmount, ['currencyID' => 'EUR']);
+                $paymentTermsDetails->appendChild($amountElement);
+            }
+        }
 
         return $this;
     }

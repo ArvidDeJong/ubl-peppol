@@ -94,7 +94,12 @@ $invoice = [
         'bic' => 'ABNANL2A',                        // BIC/SWIFT code
         'channel_code' => 'IBAN',                   // Payment channel
         'due_date' => date('Y-m-d', strtotime('+30 days')), // Payment due date
-        'terms' => 'Payment within 30 days',        // Payment terms
+        'terms' => [
+            'note' => 'Binnen 14 dagen betalen met 2% korting, anders binnen 30 dagen',
+            'discount_percent' => '2.00',
+            'discount_date' => date('Y-m-d', strtotime('+14 days')),
+            'discount_amount' => null, // Dit zou automatisch berekend kunnen worden, maar is hier niet geïmplementeerd
+        ],
     ],
 ];
 
@@ -156,7 +161,12 @@ try {
             $invoice['payment']['channel_code'],
             $invoice['payment']['due_date']
         )
-        ->addPaymentTerms($invoice['payment']['terms']);
+        ->addPaymentTerms(
+            $invoice['payment']['terms']['note'],
+            $invoice['payment']['terms']['discount_percent'],
+            $invoice['payment']['terms']['discount_amount'],
+            $invoice['payment']['terms']['discount_date']
+        );
 
     // Add invoice lines
     foreach ($invoice['lines'] as $line) {
