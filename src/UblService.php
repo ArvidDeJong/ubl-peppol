@@ -1381,7 +1381,8 @@ class UblService
         // Add price information
         $price = $this->createElement('cac', 'Price');
         $price = $invoiceLine->appendChild($price);
-
+        
+        // Add PriceAmount element
         $priceAmountElement = $this->createElement(
             'cbc',
             'PriceAmount',
