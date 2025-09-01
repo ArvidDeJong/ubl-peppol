@@ -28,7 +28,7 @@ $invoice = [
     // Customer information
     'customer' => [
         'vat_number' => '853848932B01',              // Customer VAT number without country code
-        'endpoint_id' => 'NL853848932B01',           // VAT number with country code
+        'endpoint_id' => 'RSSMRA85M01H501Z',         // Geldige Italiaanse Codice Fiscale format
         'endpoint_scheme' => '0210',                // 0210 for VAT
         'party_id' => 'CUST-' . uniqid(),           // Internal reference
         'name' => 'ARVID.NL B.V.',                  // Company name
@@ -37,7 +37,7 @@ $invoice = [
         'city' => 'Amsterdam',                      // City
         'country' => 'NL',                          // Country code (2 letters)
         'additional_street' => 'Tweede verdieping', // Optional: additional address line
-        'registration_number' => 'NL853848932B01',        // Optional: company registration number
+        'registration_number' => '87654321',         // KVK nummer (8 cijfers) zonder schemeID
         'contact_name' => 'John Doe',               // Contact person name
         'contact_phone' => '+31 20 123 4567',       // Contact phone number
         'contact_email' => 'john.doe@example.com',  // Contact email

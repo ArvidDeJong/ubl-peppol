@@ -212,7 +212,7 @@ class UblBeBis3Service
         $customizationIDElement = $this->createElement(
             'cbc',
             'CustomizationID',
-            'urn:cen.eu:en16931:2017#conformant#urn:UBL.BE:1.0.0.20180214'
+            'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0'
         );
         $this->rootElement->appendChild($customizationIDElement);
 
@@ -459,10 +459,7 @@ class UblBeBis3Service
             $this->addChildElement($orderLineReference, 'cbc', 'LineID', $lineData['order_line_id']);
         }
 
-        // Voor België: TaxTotal moet direct na OrderLineReference komen (ubl-BE-14)
-        $taxTotal = $this->addChildElement($invoiceLine, 'cac', 'TaxTotal');
-        $taxAmount = ($lineData['line_extension_amount'] * $lineData['tax_percent']) / 100;
-        $this->addChildElement($taxTotal, 'cbc', 'TaxAmount', $this->formatAmount($taxAmount), ['currencyID' => $lineData['currency']]);
+        // TaxTotal weggelaten voor algemene PEPPOL compliance (UBL-CR-561)
 
         $item = $this->addChildElement($invoiceLine, 'cac', 'Item');
         $this->addChildElement($item, 'cbc', 'Description', $lineData['description']);
@@ -470,9 +467,7 @@ class UblBeBis3Service
 
         $classifiedTaxCategory = $this->addChildElement($item, 'cac', 'ClassifiedTaxCategory');
         $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $lineData['tax_category_id']);
-        if (!empty($lineData['tax_category_name'])) {
-            $this->addChildElement($classifiedTaxCategory, 'cbc', 'Name', $lineData['tax_category_name']);
-        }
+        // Name weggelaten voor PEPPOL compliance (UBL-CR-597)
         $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', $this->formatAmount((float)$lineData['tax_percent']));
         $taxScheme = $this->addChildElement($classifiedTaxCategory, 'cac', 'TaxScheme');
         $this->addChildElement($taxScheme, 'cbc', 'ID', $lineData['tax_scheme_id']);
@@ -527,11 +522,6 @@ class UblBeBis3Service
 
             $taxCategory = $this->addChildElement($taxSubtotal, 'cac', 'TaxCategory');
             $this->addChildElement($taxCategory, 'cbc', 'ID', $tax['tax_category_id']);
-            if ($tax['tax_category_id'] === 'S') {
-                $this->addChildElement($taxCategory, 'cbc', 'Name', 'Standaardtarief');
-            } elseif (!empty($tax['tax_category_name'])) {
-                $this->addChildElement($taxCategory, 'cbc', 'Name', $tax['tax_category_name']);
-            }
             $this->addChildElement($taxCategory, 'cbc', 'Percent', $this->formatAmount((float)$tax['tax_percent']));
             $taxScheme = $this->addChildElement($taxCategory, 'cac', 'TaxScheme');
             $this->addChildElement($taxScheme, 'cbc', 'ID', $tax['tax_scheme_id']);
@@ -678,7 +668,8 @@ class UblBeBis3Service
         $partyLegalEntity = $this->addChildElement($party, 'cac', 'PartyLegalEntity');
         $this->addChildElement($partyLegalEntity, 'cbc', 'RegistrationName', $name);
         if ($registrationNumber) {
-            $this->addChildElement($partyLegalEntity, 'cbc', 'CompanyID', $registrationNumber);
+            // Voor Nederlandse KVK nummers: schemeID 0106
+            $this->addChildElement($partyLegalEntity, 'cbc', 'CompanyID', $registrationNumber, ['schemeID' => '0106']);
         }
 
         if ($contactName || $contactPhone || $contactEmail) {

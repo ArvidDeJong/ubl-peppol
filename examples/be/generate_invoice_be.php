@@ -123,7 +123,7 @@ try {
             'tax_amount' => number_format($totalTax, 2, '.', ''),
             'currency' => 'EUR',
             'tax_category_id' => 'S',     // Standard rate
-            'tax_category_name' => 'Standard rated', // Belgian requirement
+            'tax_category_name' => 'Standard rate', // Belgian requirement
             'tax_percent' => 21.0,        // 21% VAT
             'tax_scheme_id' => 'VAT',     // VAT tax scheme
         ]
