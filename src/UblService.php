@@ -479,36 +479,45 @@ class UblService
         string $city,
         string $countryCode,
         ?string $additionalStreet = null,
-        ?string $companyId = null
+        ?string $companyId = null,
+        ?string $contactName = null,
+        ?string $contactPhone = null,
+        ?string $contactEmail = null,
+        string $taxSchemeId = 'VAT'
     ): self {
         $errors = [];
 
         // Validate required fields
-        if (empty(trim($endpointId ?? ''))) {
-            $errors[] = 'Endpoint ID is required';
+        $requiredFields = [
+            'Endpoint ID' => $endpointId,
+            'Endpoint Scheme ID' => $endpointSchemeID,
+            'Party ID' => $partyId,
+            'Party name' => $partyName,
+            'Street' => $street,
+            'Postal code' => $postalCode,
+            'City' => $city,
+            'Country code' => $countryCode
+        ];
+
+        foreach ($requiredFields as $field => $value) {
+            if (empty(trim($value ?? ''))) {
+                $errors[] = "$field is required";
+            }
         }
-        if (empty(trim($endpointSchemeID ?? ''))) {
-            $errors[] = 'Endpoint Scheme ID is required';
-        }
-        if (empty(trim($partyId ?? ''))) {
-            $errors[] = 'Party ID is required';
-        }
-        if (empty(trim($partyName ?? ''))) {
-            $errors[] = 'Company name is required';
-        }
-        if (empty(trim($street ?? ''))) {
-            $errors[] = 'Street address is required';
-        }
-        if (empty(trim($postalCode ?? ''))) {
-            $errors[] = 'Postal code is required';
-        }
-        if (empty(trim($city ?? ''))) {
-            $errors[] = 'City is required';
-        }
-        if (empty(trim($countryCode ?? ''))) {
-            $errors[] = 'Country code is required';
-        } elseif (strlen(trim($countryCode)) !== 2) {
+
+        // Validate country code format
+        if (!empty($countryCode) && strlen(trim($countryCode)) !== 2) {
             $errors[] = 'Country code must be exactly 2 characters (e.g., "NL")';
+        }
+
+        // Validate email format if provided
+        if (!empty($contactEmail) && !filter_var($contactEmail, FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'Invalid email format for contact email';
+        }
+
+        // Validate phone number if provided (basic validation)
+        if (!empty($contactPhone) && !preg_match('/^[+0-9\s\-\(\)]{6,20}$/', $contactPhone)) {
+            $errors[] = 'Invalid phone number format. Only numbers, +, -, spaces and parentheses are allowed';
         }
 
         // Throw exception with all validation errors
@@ -569,44 +578,53 @@ class UblService
         $countryCodeElement = $this->createElement('cbc', 'IdentificationCode', strtoupper($countryCode));
         $country->appendChild($countryCodeElement);
 
-        $identificationCodeElement = $this->createElement('cbc', 'IdentificationCode', 'SE');
-        $country->appendChild($identificationCodeElement);
-
         // PartyTaxScheme
         $partyTaxScheme = $this->createElement('cac', 'PartyTaxScheme');
         $partyTaxScheme = $party->appendChild($partyTaxScheme);
 
-        $companyIDElement = $this->createElement('cbc', 'CompanyID', 'SE1234567801');
-        $partyTaxScheme->appendChild($companyIDElement);
+        if ($companyId) {
+            $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId);
+            $partyTaxScheme->appendChild($companyIDElement);
 
-        $taxScheme = $this->createElement('cac', 'TaxScheme');
-        $taxScheme = $partyTaxScheme->appendChild($taxScheme);
+            $taxScheme = $this->createElement('cac', 'TaxScheme');
+            $taxScheme = $partyTaxScheme->appendChild($taxScheme);
 
-        $taxSchemeIDElement = $this->createElement('cbc', 'ID', 'VAT');
-        $taxScheme->appendChild($taxSchemeIDElement);
+            $taxSchemeIDElement = $this->createElement('cbc', 'ID', $taxSchemeId);
+            $taxScheme->appendChild($taxSchemeIDElement);
+        }
 
         // PartyLegalEntity
         $partyLegalEntity = $this->createElement('cac', 'PartyLegalEntity');
         $partyLegalEntity = $party->appendChild($partyLegalEntity);
 
-        $registrationNameElement = $this->createElement('cbc', 'RegistrationName', 'Buyer Official Name');
+        $registrationNameElement = $this->createElement('cbc', 'RegistrationName', $partyName);
         $partyLegalEntity->appendChild($registrationNameElement);
 
-        $companyIDElement = $this->createElement('cbc', 'CompanyID', 'SE5567894321');
-        $partyLegalEntity->appendChild($companyIDElement);
+        if ($companyId) {
+            $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId);
+            $partyLegalEntity->appendChild($companyIDElement);
+        }
 
-        // Contact
-        $contact = $this->createElement('cac', 'Contact');
-        $contact = $party->appendChild($contact);
+        // Alleen een Contact element toevoegen als er minstens één contactgegeven is opgegeven
+        if ($contactName || $contactPhone || $contactEmail) {
+            $contact = $this->createElement('cac', 'Contact');
+            $contact = $party->appendChild($contact);
 
-        $nameElement = $this->createElement('cbc', 'Name', 'Lisa Johnson');
-        $contact->appendChild($nameElement);
+            if ($contactName) {
+                $nameElement = $this->createElement('cbc', 'Name', $contactName);
+                $contact->appendChild($nameElement);
+            }
 
-        $telephoneElement = $this->createElement('cbc', 'Telephone', '+46 12 34 56 78');
-        $contact->appendChild($telephoneElement);
+            if ($contactPhone) {
+                $telephoneElement = $this->createElement('cbc', 'Telephone', $contactPhone);
+                $contact->appendChild($telephoneElement);
+            }
 
-        $electronicMailElement = $this->createElement('cbc', 'ElectronicMail', 'lisa@buyer.se');
-        $contact->appendChild($electronicMailElement);
+            if ($contactEmail) {
+                $electronicMailElement = $this->createElement('cbc', 'ElectronicMail', $contactEmail);
+                $contact->appendChild($electronicMailElement);
+            }
+        }
 
         return $this;
     }

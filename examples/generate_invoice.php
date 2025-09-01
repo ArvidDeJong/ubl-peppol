@@ -34,13 +34,16 @@ $invoice = [
         'endpoint_id' => 'DE123456789',             // e.g., VAT number
         'endpoint_scheme' => '0210',                // 0210 for VAT
         'party_id' => 'CUST-' . uniqid(),           // Internal reference
-        'name' => 'ARVID.NL B.V.',             // Company name
+        'name' => 'ARVID.NL B.V.',                  // Company name
         'street' => 'Klantstraat 123',              // Street + number
         'postal_code' => '1234 AB',                 // Postal code
         'city' => 'Amsterdam',                      // City
         'country' => 'NL',                          // Country code (2 letters)
         'additional_street' => 'Tweede verdieping', // Optional: additional address line
         'registration_number' => '12345678',        // Optional: company registration number
+        'contact_name' => 'John Doe',               // Contact person name
+        'contact_phone' => '+31 20 123 4567',       // Contact phone number
+        'contact_email' => 'john.doe@example.com',  // Contact email
     ],
 
     // Invoice lines
@@ -138,7 +141,10 @@ try {
             $invoice['customer']['city'],
             $invoice['customer']['country'],
             $invoice['customer']['additional_street'],
-            $invoice['customer']['registration_number']
+            $invoice['customer']['registration_number'],
+            $invoice['customer']['contact_name'],
+            $invoice['customer']['contact_phone'],
+            $invoice['customer']['contact_email']
         )
         ->addDelivery(
             $invoice['delivery']['date'],
@@ -209,7 +215,7 @@ try {
     $lineTotal = 100.00;  // Sum of all line items before tax
     $taxAmount = 21.00;   // 21% of 100
     $chargeAmount = 25.00; // Total charges
-    
+
     $ubl->addTaxTotal([
         [
             'taxable_amount' => $lineTotal,
@@ -236,7 +242,7 @@ try {
     // Handle download if requested
     if (isset($_GET['download'])) {
         header('Content-Type: application/xml');
-        header('Content-Disposition: attachment; filename="invoice-' . date('Y-m-d') . '.xml"');
+        header('Content-Disposition: attachment; filename="invoice-' . date('Y-m-d His') . '.xml"');
         header('Content-Length: ' . strlen($xml));
         echo $xml;
         exit;
