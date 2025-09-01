@@ -870,6 +870,7 @@ class UblService
         }
         
         // PaymentChannelCode is not included as per UBL-CR-413
+        // PaymentDueDate is not included as per UBL-CR-412 (must be at invoice level)
         
         // Add payee financial account if account ID is provided
         if ($accountId !== null) {
