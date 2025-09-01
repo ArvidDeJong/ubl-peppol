@@ -189,32 +189,43 @@ try {
         );
     }
 
+    // Add allowance or charge (e.g., insurance fee)
+    $ubl->addAllowanceCharge(
+        true,                           // isCharge (true for charge, false for allowance)
+        25.00,                          // amount
+        'Insurance fee',                // reason
+        'S',                            // tax category ID (S = standard rate)
+        21.0,                           // tax percentage
+        'EUR'                           // currency
+    );
+
     // Add tax and total calculations
-    $ubl->addTaxTotal()
-        ->addLegalMonetaryTotal();
+    $ubl->addTaxTotal([
+        [
+            'taxable_amount' => 100.00,  // Sum of all line items before tax
+            'tax_amount' => 21.00,       // 21% of 100
+            'currency' => 'EUR',
+            'tax_category_id' => 'S',     // Standard rate
+            'tax_percent' => 21.0,        // 21% VAT
+            'tax_scheme_id' => 'VAT'      // VAT tax scheme
+        ]
+    ])->addLegalMonetaryTotal();
 
-    // Generate the XML
+    // Generate and output the XML
     $xml = $ubl->generateXml();
-
-    // Pretty print the XML
-    $dom = new DOMDocument('1.0');
-    $dom->preserveWhiteSpace = false;
-    $dom->formatOutput = true;
-    $dom->loadXML($xml);
-    $prettyXml = $dom->saveXML();
 
     // Handle download if requested
     if (isset($_GET['download'])) {
         header('Content-Type: application/xml');
         header('Content-Disposition: attachment; filename="invoice-' . date('Y-m-d') . '.xml"');
-        header('Content-Length: ' . strlen($prettyXml));
-        echo $prettyXml;
+        header('Content-Length: ' . strlen($xml));
+        echo $xml;
         exit;
     }
 
-    // Output to browser
+    // Output to browser with proper content type
     header('Content-Type: application/xml');
-    echo $prettyXml;
+    echo $xml;
 } catch (\InvalidArgumentException $e) {
     header('Content-Type: text/plain');
     die('Validation error: ' . $e->getMessage());

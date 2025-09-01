@@ -925,86 +925,221 @@ class UblService
     }
 
     /**
-     * Voeg AllowanceCharge (toeslag/korting) toe
+     * Add an allowance or charge to the invoice
      * 
+     * @param bool $isCharge True for a charge, false for an allowance
+     * @param float $amount The amount of the allowance or charge
+     * @param string $reason Reason for the allowance/charge (e.g., 'Insurance', 'Freight', 'Discount')
+     * @param string $taxCategoryId Tax category ID (e.g., 'S' for standard rate, 'Z' for zero rate)
+     * @param float $taxPercent Tax percentage (e.g., 21.0 for 21%)
+     * @param string $currency Currency code (default: 'EUR')
      * @return self
+     * @throws \InvalidArgumentException For invalid input values
      */
-    public function addAllowanceCharge(): self
-    {
-        // AllowanceCharge container
+    public function addAllowanceCharge(
+        bool $isCharge = true,
+        float $amount = 0.0,
+        string $reason = '',
+        string $taxCategoryId = 'S',
+        float $taxPercent = 0.0,
+        string $currency = 'EUR'
+    ): self {
+        // Validate input values
+        if ($amount < 0) {
+            throw new \InvalidArgumentException('Amount cannot be negative');
+        }
+        
+        if (empty($reason)) {
+            throw new \InvalidArgumentException('Reason for allowance/charge is required');
+        }
+        
+        if ($taxPercent < 0 || $taxPercent > 100) {
+            throw new \InvalidArgumentException('Tax percentage must be between 0 and 100');
+        }
+        
+        if (strlen($currency) !== 3) {
+            throw new \InvalidArgumentException('Currency code must be 3 characters long');
+        }
+
+        // Create AllowanceCharge container
         $allowanceCharge = $this->createElement('cac', 'AllowanceCharge');
         $allowanceCharge = $this->rootElement->appendChild($allowanceCharge);
 
-        // ChargeIndicator
-        $chargeIndicatorElement = $this->createElement('cbc', 'ChargeIndicator', 'true');
+        // Add charge/allowance indicator
+        $chargeIndicatorElement = $this->createElement('cbc', 'ChargeIndicator', $isCharge ? 'true' : 'false');
         $allowanceCharge->appendChild($chargeIndicatorElement);
 
-        // AllowanceChargeReason
-        $allowanceChargeReasonElement = $this->createElement('cbc', 'AllowanceChargeReason', 'Insurance');
+        // Add reason for the allowance/charge
+        $allowanceChargeReasonElement = $this->createElement('cbc', 'AllowanceChargeReason', $reason);
         $allowanceCharge->appendChild($allowanceChargeReasonElement);
 
-        // Amount
-        $amountElement = $this->createElement('cbc', 'Amount', '25', ['currencyID' => 'EUR']);
+        // Add amount with currency
+        $amountElement = $this->createElement('cbc', 'Amount', (string)number_format($amount, 2, '.', ''), ['currencyID' => $currency]);
         $allowanceCharge->appendChild($amountElement);
 
-        // TaxCategory
-        $taxCategory = $this->createElement('cac', 'TaxCategory');
-        $taxCategory = $allowanceCharge->appendChild($taxCategory);
+        // Add tax information if tax percentage is greater than 0
+        if ($taxPercent > 0) {
+            // TaxCategory
+            $taxCategory = $this->createElement('cac', 'TaxCategory');
+            $taxCategory = $allowanceCharge->appendChild($taxCategory);
 
-        $idElement = $this->createElement('cbc', 'ID', 'S');
-        $taxCategory->appendChild($idElement);
+            // Tax category ID (e.g., 'S' for standard rate, 'Z' for zero rate)
+            $idElement = $this->createElement('cbc', 'ID', $taxCategoryId);
+            $taxCategory->appendChild($idElement);
 
-        $percentElement = $this->createElement('cbc', 'Percent', '25.0');
-        $taxCategory->appendChild($percentElement);
+            // Tax percentage
+            $percentElement = $this->createElement('cbc', 'Percent', (string)number_format($taxPercent, 2, '.', ''));
+            $taxCategory->appendChild($percentElement);
 
-        $taxScheme = $this->createElement('cac', 'TaxScheme');
-        $taxScheme = $taxCategory->appendChild($taxScheme);
+            // Tax scheme (always VAT for this implementation)
+            $taxScheme = $this->createElement('cac', 'TaxScheme');
+            $taxScheme = $taxCategory->appendChild($taxScheme);
 
-        $taxSchemeIDElement = $this->createElement('cbc', 'ID', 'VAT');
-        $taxScheme->appendChild($taxSchemeIDElement);
+            $taxSchemeIDElement = $this->createElement('cbc', 'ID', 'VAT');
+            $taxScheme->appendChild($taxSchemeIDElement);
+        }
 
         return $this;
     }
 
     /**
-     * Voeg TaxTotal (BTW totalen) toe
+     * Add tax total information to the invoice
      * 
+     * @param array $taxes Array of tax entries with the following structure:
+     *   [
+     *     [
+     *       'taxable_amount' => 1000.00, // Required: Amount subject to tax (must be >= 0)
+     *       'tax_amount' => 210.00,      // Required: Tax amount (must be >= 0)
+     *       'currency' => 'EUR',         // Required: Currency code (3 letters)
+     *       'tax_category_id' => 'S',    // Required: Tax category ID (e.g., 'S' for standard rate)
+     *       'tax_percent' => 21.0,       // Required: Tax percentage (0-100)
+     *       'tax_scheme_id' => 'VAT'     // Required: Tax scheme ID (e.g., 'VAT')
+     *     ]
+     *   ]
      * @return self
+     * @throws \InvalidArgumentException For invalid or missing required fields
      */
-    public function addTaxTotal(): self
+    public function addTaxTotal(array $taxes): self
     {
-        // TaxTotal container
+        if (empty($taxes)) {
+            throw new \InvalidArgumentException('At least one tax entry is required');
+        }
+
+        // Validate each tax entry
+        $totalTaxAmount = 0;
+        $entryNumber = 0;
+        
+        foreach ($taxes as $tax) {
+            $entryNumber++;
+            $errorPrefix = "Tax entry #{$entryNumber}: ";
+            
+            // Check required fields
+            $requiredFields = [
+                'taxable_amount' => 'Taxable amount is required and must be a non-negative number',
+                'tax_amount' => 'Tax amount is required and must be a non-negative number',
+                'currency' => 'Currency code is required and must be 3 characters long',
+                'tax_category_id' => 'Tax category ID is required',
+                'tax_percent' => 'Tax percentage is required and must be between 0 and 100',
+                'tax_scheme_id' => 'Tax scheme ID is required'
+            ];
+            
+            foreach ($requiredFields as $field => $errorMessage) {
+                if (!array_key_exists($field, $tax)) {
+                    throw new \InvalidArgumentException($errorPrefix . $errorMessage);
+                }
+            }
+            
+            // Validate field types and values
+            if (!is_numeric($tax['taxable_amount']) || $tax['taxable_amount'] < 0) {
+                throw new \InvalidArgumentException($errorPrefix . 'Taxable amount must be a non-negative number');
+            }
+            
+            if (!is_numeric($tax['tax_amount']) || $tax['tax_amount'] < 0) {
+                throw new \InvalidArgumentException($errorPrefix . 'Tax amount must be a non-negative number');
+            }
+            
+            if (!is_string($tax['tax_category_id']) || empty(trim($tax['tax_category_id']))) {
+                throw new \InvalidArgumentException($errorPrefix . 'Tax category ID must be a non-empty string');
+            }
+            
+            if (!is_numeric($tax['tax_percent']) || $tax['tax_percent'] < 0 || $tax['tax_percent'] > 100) {
+                throw new \InvalidArgumentException($errorPrefix . 'Tax percentage must be a number between 0 and 100');
+            }
+            
+            if (!is_string($tax['currency']) || strlen($tax['currency']) !== 3) {
+                throw new \InvalidArgumentException($errorPrefix . 'Currency code must be exactly 3 characters long');
+            }
+            
+            if (!is_string($tax['tax_scheme_id']) || empty(trim($tax['tax_scheme_id']))) {
+                throw new \InvalidArgumentException($errorPrefix . 'Tax scheme ID must be a non-empty string');
+            }
+            
+            $totalTaxAmount += (float)$tax['tax_amount'];
+        }
+
+        // Create TaxTotal container
         $taxTotal = $this->createElement('cac', 'TaxTotal');
         $taxTotal = $this->rootElement->appendChild($taxTotal);
 
-        // TaxAmount (totaal BTW bedrag)
-        $taxAmountElement = $this->createElement('cbc', 'TaxAmount', '331.25', ['currencyID' => 'EUR']);
-        $taxTotal->appendChild($taxAmountElement);
+        // Add total tax amount using the currency from the first tax entry
+        $firstTaxCurrency = $taxes[0]['currency'];
+        $totalTaxAmountElement = $this->createElement(
+            'cbc', 
+            'TaxAmount', 
+            number_format($totalTaxAmount, 2, '.', ''), 
+            ['currencyID' => $firstTaxCurrency]
+        );
+        $taxTotal->appendChild($totalTaxAmountElement);
 
-        // TaxSubtotal
-        $taxSubtotal = $this->createElement('cac', 'TaxSubtotal');
-        $taxSubtotal = $taxTotal->appendChild($taxSubtotal);
+        // Add tax subtotals for each tax category
+        foreach ($taxes as $tax) {
+            $taxCurrency = $tax['currency'];
+            
+            // Create TaxSubtotal element
+            $taxSubtotal = $this->createElement('cac', 'TaxSubtotal');
+            $taxSubtotal = $taxTotal->appendChild($taxSubtotal);
 
-        $taxableAmountElement = $this->createElement('cbc', 'TaxableAmount', '1325', ['currencyID' => 'EUR']);
-        $taxSubtotal->appendChild($taxableAmountElement);
+            // Add taxable amount
+            $taxableAmountElement = $this->createElement(
+                'cbc', 
+                'TaxableAmount', 
+                number_format($tax['taxable_amount'], 2, '.', ''), 
+                ['currencyID' => $taxCurrency]
+            );
+            $taxSubtotal->appendChild($taxableAmountElement);
 
-        $taxAmountElement = $this->createElement('cbc', 'TaxAmount', '331.25', ['currencyID' => 'EUR']);
-        $taxSubtotal->appendChild($taxAmountElement);
+            // Add tax amount
+            $taxAmountElement = $this->createElement(
+                'cbc', 
+                'TaxAmount', 
+                number_format($tax['tax_amount'], 2, '.', ''), 
+                ['currencyID' => $taxCurrency]
+            );
+            $taxSubtotal->appendChild($taxAmountElement);
 
-        $taxCategory = $this->createElement('cac', 'TaxCategory');
-        $taxCategory = $taxSubtotal->appendChild($taxCategory);
+            // Add tax category
+            $taxCategory = $this->createElement('cac', 'TaxCategory');
+            $taxCategory = $taxSubtotal->appendChild($taxCategory);
 
-        $idElement = $this->createElement('cbc', 'ID', 'S');
-        $taxCategory->appendChild($idElement);
+            // Add tax category ID
+            $idElement = $this->createElement('cbc', 'ID', $tax['tax_category_id']);
+            $taxCategory->appendChild($idElement);
 
-        $percentElement = $this->createElement('cbc', 'Percent', '25.0');
-        $taxCategory->appendChild($percentElement);
+            // Add tax percentage
+            $percentElement = $this->createElement(
+                'cbc', 
+                'Percent', 
+                number_format($tax['tax_percent'], 2, '.', '')
+            );
+            $taxCategory->appendChild($percentElement);
 
-        $taxScheme = $this->createElement('cac', 'TaxScheme');
-        $taxScheme = $taxCategory->appendChild($taxScheme);
+            // Add tax scheme
+            $taxScheme = $this->createElement('cac', 'TaxScheme');
+            $taxScheme = $taxCategory->appendChild($taxScheme);
 
-        $taxSchemeIDElement = $this->createElement('cbc', 'ID', 'VAT');
-        $taxScheme->appendChild($taxSchemeIDElement);
+            $taxSchemeIDElement = $this->createElement('cbc', 'ID', $tax['tax_scheme_id'] ?? 'VAT');
+            $taxScheme->appendChild($taxSchemeIDElement);
+        }
 
         return $this;
     }
