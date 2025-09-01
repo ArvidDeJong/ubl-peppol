@@ -6,11 +6,11 @@ use Darvis\UblPeppol\UblService;
 
 // Invoice data
 $invoice = [
-    'invoice_number' => 'INV-2025-001',
-    'issue_date' => '2025-09-01',
-    'due_date' => '2025-10-01',
-    'buyer_reference' => 'CUST-REF-001',
-    'order_reference' => 'PO-2025-001',
+    'invoice_number' => 'INV-' . date('Ym') . '-001',
+    'issue_date' => date('Y-m-d'),
+    'due_date' => date('Y-m-d', strtotime('+30 days')),
+    'buyer_reference' => 'ARVID-REF-001',
+    'order_reference' => 'ARVID-PO-2025-001',
     'lines' => [
         [
             'id' => '1',
@@ -38,7 +38,7 @@ $invoice = [
 try {
     // Initialize UBL service
     $ubl = new UblService();
-    
+
     // Create the document and add all components
     $ubl->createDocument()
         ->addInvoiceHeader(
@@ -50,11 +50,11 @@ try {
         ->addOrderReference($invoice['order_reference'])
         ->addAccountingSupplierParty()
         ->addAccountingCustomerParty();
-    
+
     // Add invoice lines
     foreach ($invoice['lines'] as $line) {
         $lineTotal = bcmul($line['quantity'], $line['price'], 2);
-        
+
         $ubl->addInvoiceLine(
             $line['id'],
             $line['quantity'],
@@ -71,28 +71,38 @@ try {
             $line['tax_percent']
         );
     }
-    
+
     // Add tax and total calculations
     $ubl->addTaxTotal()
         ->addLegalMonetaryTotal();
-    
-    // Generate and output the XML
+
+    // Generate the XML
     $xml = $ubl->generateXml();
-    
+
     // Pretty print the XML
     $dom = new DOMDocument('1.0');
     $dom->preserveWhiteSpace = false;
     $dom->formatOutput = true;
     $dom->loadXML($xml);
-    
+    $prettyXml = $dom->saveXML();
+
+    // Handle download if requested
+    if (isset($_GET['download'])) {
+        header('Content-Type: application/xml');
+        header('Content-Disposition: attachment; filename="invoice-' . date('Y-m-d') . '.xml"');
+        header('Content-Length: ' . strlen($prettyXml));
+        echo $prettyXml;
+        exit;
+    }
+
+    // Output to browser
     header('Content-Type: application/xml');
-    echo $dom->saveXML();
-    
+    echo $prettyXml;
 } catch (\InvalidArgumentException $e) {
     header('Content-Type: text/plain');
     die('Validation error: ' . $e->getMessage());
 } catch (\Exception $e) {
     header('Content-Type: text/plain');
-    die('Error: ' . $e->getMessage() . 
+    die('Error: ' . $e->getMessage() .
         "\n\nStack trace:\n" . $e->getTraceAsString());
 }

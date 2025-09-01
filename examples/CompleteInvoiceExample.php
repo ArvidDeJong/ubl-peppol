@@ -80,7 +80,7 @@ try {
         // 14. Add legal monetary totals
         ->addLegalMonetaryTotal();
 
-    // Generate and output the XML
+    // Generate the XML
     $xml = $ublService->generateXml();
     
     // Pretty print the XML for better readability
@@ -88,11 +88,20 @@ try {
     $dom->preserveWhiteSpace = false;
     $dom->formatOutput = true;
     $dom->loadXML($xml);
+    $prettyXml = $dom->saveXML();
     
-    echo $dom->saveXML();
+    // Handle download if requested
+    if (isset($_GET['download'])) {
+        header('Content-Type: application/xml');
+        header('Content-Disposition: attachment; filename="complete-invoice-'.date('Y-m-d').'.xml"');
+        header('Content-Length: ' . strlen($prettyXml));
+        echo $prettyXml;
+        exit;
+    }
     
-    // Optionally, save to file
-    // file_put_contents('complete-invoice.xml', $dom->saveXML());
+    // Output to browser
+    header('Content-Type: application/xml');
+    echo $prettyXml;
     
 } catch (\Exception $e) {
     echo "Error creating invoice: " . $e->getMessage() . "\n";
