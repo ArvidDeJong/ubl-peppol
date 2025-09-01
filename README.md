@@ -1,6 +1,6 @@
 # UBL/PEPPOL Service
 
-A PHP library for generating invoices according to the UBL/PEPPOL standard. This package allows you to generate UBL 2.1 documents that comply with the PEPPOL BIS Billing 3.0 standard for e-invoicing.
+A PHP library for generating invoices according to the UBL/PEPPOL standard. This package allows you to generate UBL 2.1 documents that comply with the PEPPOL BIS Billing 3.0 standard for e-invoicing, with full support for Belgian implementation (EN 16931) and multi-country validation.
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/darvis/ubl-peppol.svg?style=flat-square)](https://packagist.org/packages/darvis/ubl-peppol)
 [![Total Downloads](https://img.shields.io/packagist/dt/darvis/ubl-peppol.svg?style=flat-square)](https://packagist.org/packages/darvis/ubl-peppol)
@@ -37,63 +37,75 @@ $UblNLBis3Service = app('ubl-peppol');
 
 ## Usage
 
-Below is an example of how to generate a UBL invoice:
+### Quick Start
+
+For a quick start, see the complete examples in the `examples/` directory:
+
+- **`examples/be/generate_invoice_be.php`** - Complete Belgian UBL invoice example
+- **`examples/nl/generate_invoice_nl.php`** - Complete Dutch UBL invoice example  
+- **`examples/test_data.php`** - Sample invoice data structure
+- **`examples/index.php`** - Basic usage demonstration
+
+### Basic Example
 
 ```php
-use Darvis\UblPeppol\UblNLBis3Service;
+use Darvis\UblPeppol\UblBeBis3Service;
 
-// Create a new UBL Service instance
-$UblNLBis3Service = new UblNLBis3Service();
+// Create a new UBL Service instance for Belgian invoices
+$ublService = new UblBeBis3Service();
 
-// Set up the invoice details
-$UblNLBis3Service->setId('INVOICE-2023-001');
-$UblNLBis3Service->setIssueDate(new \DateTime());
-$UblNLBis3Service->setDueDate(new \DateTime('+30 days'));
-
-// Set up the supplier
-$UblNLBis3Service->setSupplierName('Supplier Company Name');
-$UblNLBis3Service->setSupplierStreet('Example Street 123');
-$UblNLBis3Service->setSupplierCity('Amsterdam');
-$UblNLBis3Service->setSupplierPostcode('1234 AB');
-$UblNLBis3Service->setSupplierCountry('NL');
-$UblNLBis3Service->setSupplierVat('NL123456789B01');
-$UblNLBis3Service->setSupplierChamber('12345678');
-
-// Set up the customer
-$UblNLBis3Service->setCustomerName('Customer Company Name');
-$UblNLBis3Service->setCustomerStreet('Customer Street 456');
-$UblNLBis3Service->setCustomerCity('Rotterdam');
-$UblNLBis3Service->setCustomerPostcode('5678 CD');
-$UblNLBis3Service->setCustomerCountry('NL');
-$UblNLBis3Service->setCustomerVat('NL987654321B01');
-
-// Add invoice lines
-$UblNLBis3Service->addLine(
-    '1',                  // Line ID
-    'Product description',   // Description
-    2,                    // Quantity
-    'EA',                 // Unit
-    100.00,               // Price per unit (excl. btw)
-    21.00,                // VAT percentage
-    'S',                  // VAT category
-    'Standard rate'         // VAT description
-);
+// Load test data (see examples/test_data.php for structure)
+$invoiceData = require 'examples/test_data.php';
 
 // Generate the UBL XML document
-$ublXml = $UblNLBis3Service->getUbl();
+$ublXml = $ublService->generateInvoice($invoiceData);
 
-// You can now save or send the document
+// Save the generated invoice
 file_put_contents('invoice.xml', $ublXml);
 ```
 
-Refer to the examples in the `examples` directory for more usage options.
+### Country-Specific Services
+
+- **`UblBeBis3Service`** - For Belgian UBL invoices (EN 16931 compliant)
+- **`UblNlBis3Service`** - For Dutch UBL invoices
+
+### Complete Examples
+
+For detailed implementation examples with full invoice data structures, validation, and country-specific requirements, check the `examples/` directory. Each example includes:
+
+- Complete invoice data setup
+- Supplier and customer information
+- Invoice lines with tax calculations
+- Payment terms and delivery information
+- Country-specific validation requirements
 
 ## Features
 
 - Generate UBL 2.1 invoices according to the PEPPOL standard
-- Support for different VAT rates
+- **Belgian Implementation (EN 16931)**: Full compliance with Belgian UBL Schematron rules
+- **Multi-Country Validation**: Tested against Belgian, Dutch, and Italian PEPPOL validators
+- **Correct BTCC Values**: Proper Belgian tax category names ("Taux standard", "Taux zéro")
+- Support for different VAT rates and tax categories
 - Automatic calculation of totals and VAT amounts
-- Input data validation
+- Input data validation with country-specific requirements
+- XSD and Schematron validation compliance
+
+## Validation Testing
+
+The package has been validated against multiple PEPPOL validators:
+
+- **Netherlands**: https://test.peppolautoriteit.nl/validate
+- **Belgium**: https://ecosio.com/en/peppol-and-xml-document-validator/
+- **Italy (General PEPPOL)**: https://peppol-docs.agid.gov.it/docs/validator/
+
+## Recent Updates (v1.2.0)
+
+- Fixed Belgian UBL Schematron validation errors (ubl-BE-01, ubl-BE-10, ubl-BE-14)
+- Added proper BTCC values for Belgian tax categories
+- Enhanced XSD validation compliance
+- Fixed PEPPOL Italy validator warnings
+- Added automatic schemeID handling for Dutch KVK numbers
+- Improved Italian Codice Fiscale format validation
 
 ## Requirements
 
