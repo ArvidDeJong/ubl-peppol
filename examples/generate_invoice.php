@@ -4,35 +4,78 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Darvis\UblPeppol\UblService;
 
-// Invoice data
+// Invoice data structure
 $invoice = [
-    'invoice_number' => 'INV-' . date('Ym') . '-001',
-    'issue_date' => date('Y-m-d', strtotime('-1 days')),
-    'due_date' => date('Y-m-d', strtotime('+30 days')),
-    'buyer_reference' => 'ARVID-REF-001',
-    'order_reference' => 'ARVID-PO-2025-001',
+    // Invoice header information
+    'header' => [
+        'invoice_number' => 'INV-' . date('Ym') . '-001',
+        'issue_date' => date('Y-m-d', strtotime('-1 days')),
+        'due_date' => date('Y-m-d', strtotime('+30 days')),
+        'buyer_reference' => 'ARVID-REF-001',
+        'order_reference' => 'ARVID-PO-2025-001',
+    ],
+
+    // Supplier information
+    'supplier' => [
+        'endpoint_id' => '87654321',                // e.g., KVK number
+        'endpoint_scheme' => '0106',                // 0106 for KVK
+        'party_id' => 'SUPPLIER-002',               // Internal reference
+        'name' => 'Darvis ALU',     // Company name
+        'street' => 'Koningin Maximalaan 44',           // Street + number
+        'postal_code' => '1787DA',                 // Postal code
+        'city' => 'Den Helder',                        // City
+        'country' => 'NL',                          // Country code (2 letters)
+        'vat_number' => 'NL87654321B01',            // VAT number
+        'additional_street' => null,                // Optional: additional address line
+    ],
+
+    // Customer information
+    'customer' => [
+        'endpoint_id' => 'DE123456789',             // e.g., VAT number
+        'endpoint_scheme' => '0210',                // 0210 for VAT
+        'party_id' => 'CUST-' . uniqid(),           // Internal reference
+        'name' => 'ARVID.NL B.V.',             // Company name
+        'street' => 'Klantstraat 123',              // Street + number
+        'postal_code' => '1234 AB',                 // Postal code
+        'city' => 'Amsterdam',                      // City
+        'country' => 'NL',                          // Country code (2 letters)
+        'additional_street' => 'Tweede verdieping', // Optional: additional address line
+        'registration_number' => '12345678',        // Optional: company registration number
+    ],
+
+    // Invoice lines
     'lines' => [
         [
             'id' => '1',
             'quantity' => '2',
-            'unit_code' => 'PCE',
+            'unit_code' => 'PCE',                   // UN/ECE rec 20 unit code
             'description' => 'Sample product',
             'name' => 'Product A',
             'price' => '100.00',
             'tax_percent' => '21.00',
-            'currency' => 'EUR'
+            'currency' => 'EUR',
+            'accounting_cost' => null,              // Optional: accounting cost center
+            'order_line_id' => null,                // Optional: reference to order line
         ],
         [
             'id' => '2',
             'quantity' => '1',
-            'unit_code' => 'HUR',
-            'description' => 'Consulting',
+            'unit_code' => 'HUR',                   // Hours
+            'description' => 'Consulting services',
             'name' => 'Consulting hours',
             'price' => '75.00',
             'tax_percent' => '21.00',
-            'currency' => 'EUR'
+            'currency' => 'EUR',
+            'accounting_cost' => 'PROJ-001',        // Optional: project code
+            'order_line_id' => 'PO-2023-456',       // Optional: purchase order line reference
         ]
-    ]
+    ],
+
+    // Payment information
+    'payment' => [
+        'means_code' => '30',                       // 30 = Credit transfer
+        'terms' => 'Payment within 30 days',
+    ],
 ];
 
 try {
@@ -42,24 +85,38 @@ try {
     // Create the document and add all components
     $ubl->createDocument()
         ->addInvoiceHeader(
-            $invoice['invoice_number'],
-            $invoice['issue_date'],
-            $invoice['due_date']
+            $invoice['header']['invoice_number'],
+            $invoice['header']['issue_date'],
+            $invoice['header']['due_date']
         )
-        ->addBuyerReference($invoice['buyer_reference'])
-        ->addOrderReference($invoice['order_reference'])
+        ->addBuyerReference($invoice['header']['buyer_reference'])
+        ->addOrderReference($invoice['header']['order_reference'])
         ->addAccountingSupplierParty(
-            '87654321',                 // Endpoint ID (bijv. KVK-nummer)
-            '0106',                     // Endpoint Scheme ID (0106 voor KVK)
-            'SUPPLIER-002',             // Interne partij ID
-            'Voorbeeld Leverancier B.V.', // Bedrijfsnaam
-            'Voorbeeldstraat 42',       // Straat + huisnummer
-            '1011 AB',                  // Postcode
-            'Utrecht',                  // Plaatsnaam
-            'NL',                       // Landcode (2 letters)
-            'NL87654321B01'             // BTW-nummer
+            $invoice['supplier']['endpoint_id'],
+            $invoice['supplier']['endpoint_scheme'],
+            $invoice['supplier']['party_id'],
+            $invoice['supplier']['name'],
+            $invoice['supplier']['street'],
+            $invoice['supplier']['postal_code'],
+            $invoice['supplier']['city'],
+            $invoice['supplier']['country'],
+            $invoice['supplier']['vat_number'],
+            $invoice['supplier']['additional_street']
         )
-        ->addAccountingCustomerParty();
+        ->addAccountingCustomerParty(
+            $invoice['customer']['endpoint_id'],
+            $invoice['customer']['endpoint_scheme'],
+            $invoice['customer']['party_id'],
+            $invoice['customer']['name'],
+            $invoice['customer']['street'],
+            $invoice['customer']['postal_code'],
+            $invoice['customer']['city'],
+            $invoice['customer']['country'],
+            $invoice['customer']['additional_street'],
+            $invoice['customer']['registration_number']
+        )
+        ->addPaymentMeans($invoice['payment']['means_code'])
+        ->addPaymentTerms($invoice['payment']['terms']);
 
     // Add invoice lines
     foreach ($invoice['lines'] as $line) {
@@ -73,11 +130,11 @@ try {
             $line['description'],
             $line['name'],
             $line['price'],
-            null, // accounting cost
-            null, // order line id
-            'ITEM-' . $line['id'], // standard item id
-            'NL', // origin country
-            'S',  // tax category (S = standard)
+            $line['accounting_cost'],
+            $line['order_line_id'],
+            null,  // standardItemId
+            null,  // originCountry
+            'S',   // taxCategoryId (S = Standard rate)
             $line['tax_percent']
         );
     }

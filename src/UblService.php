@@ -456,12 +456,70 @@ class UblService
     }
 
     /**
-     * Voeg AccountingCustomerParty (klantpartij) toe
+     * Add AccountingCustomerParty (customer information)
      * 
+     * @param string $endpointId Customer's unique identifier (e.g., VAT number)
+     * @param string $endpointSchemeID Scheme of the endpoint ID (e.g., '0002' for GLN)
+     * @param string $partyId Internal party ID
+     * @param string $partyName Customer's company name
+     * @param string $street Street name and number
+     * @param string $postalCode Postal code
+     * @param string $city City name
+     * @param string $countryCode Country code (2 letters, e.g., 'NL')
+     * @param string|null $additionalStreet Additional address line (optional)
+     * @param string|null $companyId Company registration number (optional)
      * @return self
+     * @throws \InvalidArgumentException On invalid input
      */
-    public function addAccountingCustomerParty(): self
-    {
+    public function addAccountingCustomerParty(
+        string $endpointId,
+        string $endpointSchemeID,
+        string $partyId,
+        string $partyName,
+        string $street,
+        string $postalCode,
+        string $city,
+        string $countryCode,
+        ?string $additionalStreet = null,
+        ?string $companyId = null
+    ): self {
+        $errors = [];
+        
+        // Validate required fields
+        if (empty(trim($endpointId ?? ''))) {
+            $errors[] = 'Endpoint ID is required';
+        }
+        if (empty(trim($endpointSchemeID ?? ''))) {
+            $errors[] = 'Endpoint Scheme ID is required';
+        }
+        if (empty(trim($partyId ?? ''))) {
+            $errors[] = 'Party ID is required';
+        }
+        if (empty(trim($partyName ?? ''))) {
+            $errors[] = 'Company name is required';
+        }
+        if (empty(trim($street ?? ''))) {
+            $errors[] = 'Street address is required';
+        }
+        if (empty(trim($postalCode ?? ''))) {
+            $errors[] = 'Postal code is required';
+        }
+        if (empty(trim($city ?? ''))) {
+            $errors[] = 'City is required';
+        }
+        if (empty(trim($countryCode ?? ''))) {
+            $errors[] = 'Country code is required';
+        } elseif (strlen(trim($countryCode)) !== 2) {
+            $errors[] = 'Country code must be exactly 2 characters (e.g., "NL")';
+        }
+
+        // Throw exception with all validation errors
+        if (!empty($errors)) {
+            $errorMessage = "Validation error(s) in customer information:\n" . 
+                          implode("\n- ", array_merge([''], $errors));
+            throw new \InvalidArgumentException($errorMessage);
+        }
+
         // AccountingCustomerParty container
         $accountingCustomerParty = $this->createElement('cac', 'AccountingCustomerParty');
         $accountingCustomerParty = $this->rootElement->appendChild($accountingCustomerParty);
@@ -471,42 +529,47 @@ class UblService
         $party = $accountingCustomerParty->appendChild($party);
 
         // EndpointID
-        $endpointIDElement = $this->createElement('cbc', 'EndpointID', 'FR23342', ['schemeID' => '0002']);
+        $endpointIDElement = $this->createElement('cbc', 'EndpointID', $endpointId, ['schemeID' => $endpointSchemeID]);
         $party->appendChild($endpointIDElement);
 
         // PartyIdentification
         $partyIdentification = $this->createElement('cac', 'PartyIdentification');
         $partyIdentification = $party->appendChild($partyIdentification);
 
-        $idElement = $this->createElement('cbc', 'ID', 'FR23342', ['schemeID' => '0002']);
+        $idElement = $this->createElement('cbc', 'ID', $partyId, ['schemeID' => $endpointSchemeID]);
         $partyIdentification->appendChild($idElement);
 
         // PartyName
-        $partyName = $this->createElement('cac', 'PartyName');
-        $partyName = $party->appendChild($partyName);
+        $partyNameElement = $this->createElement('cac', 'PartyName');
+        $partyNameElement = $party->appendChild($partyNameElement);
 
-        $nameElement = $this->createElement('cbc', 'Name', 'BuyerTradingName AS');
-        $partyName->appendChild($nameElement);
+        $nameElement = $this->createElement('cbc', 'Name', $partyName);
+        $partyNameElement->appendChild($nameElement);
 
         // PostalAddress
         $postalAddress = $this->createElement('cac', 'PostalAddress');
         $postalAddress = $party->appendChild($postalAddress);
 
-        $streetNameElement = $this->createElement('cbc', 'StreetName', 'Hovedgatan 32');
+        $streetNameElement = $this->createElement('cbc', 'StreetName', $street);
         $postalAddress->appendChild($streetNameElement);
 
-        $additionalStreetNameElement = $this->createElement('cbc', 'AdditionalStreetName', 'Po box 878');
-        $postalAddress->appendChild($additionalStreetNameElement);
+        if ($additionalStreet !== null) {
+            $additionalStreetNameElement = $this->createElement('cbc', 'AdditionalStreetName', $additionalStreet);
+            $postalAddress->appendChild($additionalStreetNameElement);
+        }
 
-        $cityNameElement = $this->createElement('cbc', 'CityName', 'Stockholm');
+        $cityNameElement = $this->createElement('cbc', 'CityName', $city);
         $postalAddress->appendChild($cityNameElement);
 
-        $postalZoneElement = $this->createElement('cbc', 'PostalZone', '456 34');
+        $postalZoneElement = $this->createElement('cbc', 'PostalZone', $postalCode);
         $postalAddress->appendChild($postalZoneElement);
 
-        // Country - moet als laatste element binnen PostalAddress komen
+        // Country - must be the last element within PostalAddress
         $country = $this->createElement('cac', 'Country');
         $country = $postalAddress->appendChild($country);
+        
+        $countryCodeElement = $this->createElement('cbc', 'IdentificationCode', strtoupper($countryCode));
+        $country->appendChild($countryCodeElement);
 
         $identificationCodeElement = $this->createElement('cbc', 'IdentificationCode', 'SE');
         $country->appendChild($identificationCodeElement);

@@ -45,7 +45,18 @@ try {
             'Tweede verdieping' // Optioneel: toevoeging adres
         )
         // 6. Add customer information
-        ->addAccountingCustomerParty()
+        ->addAccountingCustomerParty(
+            'NL987654321B01',       // Endpoint ID (e.g., VAT number)
+            '0210',                 // Scheme ID (0210 for SIRET, 0208 for GLN, 0210 for VAT)
+            'CUST-001',             // Internal party ID
+            'Klant Bedrijf B.V.',   // Company name
+            'Klantstraat 123',      // Street address
+            '1234 AB',              // Postal code
+            'Amsterdam',            // City
+            'NL',                   // Country code (2 letters)
+            'Tweede verdieping',    // Additional address line (optional)
+            '12345678'              // Company registration number (optional)
+        )
         // 7. Add delivery information
         ->addDelivery()
         // 8. Add payment means (defaults to SEPA credit transfer)
