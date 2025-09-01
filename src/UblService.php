@@ -869,10 +869,7 @@ class UblService
             $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $paymentId);
         }
         
-        // Add payment channel code if provided
-        if ($paymentChannelCode !== null) {
-            $this->addChildElement($paymentMeans, 'cbc', 'PaymentChannelCode', $paymentChannelCode);
-        }
+        // PaymentChannelCode is not included as per UBL-CR-413
         
         // Add payee financial account if account ID is provided
         if ($accountId !== null) {
@@ -963,15 +960,8 @@ class UblService
 
         // Add discount information if applicable
         if ($settlementDiscountPercent !== null || $settlementDiscountAmount !== null) {
-            $settlementPeriod = $this->createElement('cac', 'SettlementPeriod');
-            $settlementPeriod = $paymentTerms->appendChild($settlementPeriod);
-
-            // Add end date if provided
-            if ($settlementDiscountDate !== null) {
-                $endDateElement = $this->createElement('cbc', 'EndDate', $settlementDiscountDate);
-                $settlementPeriod->appendChild($endDateElement);
-            }
-
+            // SettlementPeriod is not included as per UBL-CR-466
+            
             // Add the discount details
             $paymentTermsDetails = $this->createElement('cac', 'PaymentTermsDetails');
             $paymentTermsDetails = $paymentTerms->appendChild($paymentTermsDetails);
@@ -1451,47 +1441,9 @@ class UblService
         $priceAmount->setAttribute('currencyID', $lineData['currency']);
         $price->appendChild($priceAmount);
         $invoiceLine->appendChild($price);
-
-        // Add tax total
-        $taxTotal = $this->createElement('cac', 'TaxTotal');
         
-        // Calculate tax amount
-        $taxAmount = (float)$lineData['line_extension_amount'] * ((float)$lineData['tax_percent'] / 100);
-        $formattedTaxAmount = number_format($taxAmount, 2, '.', '');
-        $formattedTaxableAmount = number_format((float)$lineData['line_extension_amount'], 2, '.', '');
-        
-        // Add TaxAmount to TaxTotal
-        $taxAmountElement = $this->createElement('cbc', 'TaxAmount', $formattedTaxAmount);
-        $taxAmountElement->setAttribute('currencyID', $lineData['currency']);
-        $taxTotal->appendChild($taxAmountElement);
-        
-        // Create TaxSubtotal
-        $taxSubtotal = $this->createElement('cac', 'TaxSubtotal');
-        
-        // Add TaxableAmount to TaxSubtotal
-        $taxableAmountElement = $this->createElement('cbc', 'TaxableAmount', $formattedTaxableAmount);
-        $taxableAmountElement->setAttribute('currencyID', $lineData['currency']);
-        $taxSubtotal->appendChild($taxableAmountElement);
-        
-        // Add TaxAmount to TaxSubtotal
-        $taxAmountElement = $this->createElement('cbc', 'TaxAmount', $formattedTaxAmount);
-        $taxAmountElement->setAttribute('currencyID', $lineData['currency']);
-        $taxSubtotal->appendChild($taxAmountElement);
-        
-        // Create and configure TaxCategory
-        $taxCategory = $this->createElement('cac', 'TaxCategory');
-        $this->addChildElement($taxCategory, 'cbc', 'ID', $lineData['tax_category_id']);
-        $this->addChildElement($taxCategory, 'cbc', 'Percent', number_format((float)$lineData['tax_percent'], 2, '.', ''));
-        
-        // Create and configure TaxScheme
-        $taxScheme = $this->createElement('cac', 'TaxScheme');
-        $this->addChildElement($taxScheme, 'cbc', 'ID', $lineData['tax_scheme_id']);
-        
-        // Build the hierarchy
-        $taxCategory->appendChild($taxScheme);
-        $taxSubtotal->appendChild($taxCategory);
-        $taxTotal->appendChild($taxSubtotal);
-        $invoiceLine->appendChild($taxTotal);
+        // TaxTotal is not included in invoice lines as per UBL-CR-561
+        // Tax information is only provided at the document level through the TaxTotal element
 
         return $this;
     }
