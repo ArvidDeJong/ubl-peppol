@@ -130,37 +130,61 @@ class UblService
      */
     public function addInvoiceHeader(string $invoiceNumber, $issueDate, $dueDate): self
     {
+        $errors = [];
+        
         // Validate invoice number
-        if (empty(trim($invoiceNumber))) {
-            throw new \InvalidArgumentException('Invoice number is required and cannot be empty');
+        $invoiceNumber = trim($invoiceNumber);
+        if (empty($invoiceNumber)) {
+            $errors[] = 'Invoice number is required and cannot be empty';
+        } elseif (strlen($invoiceNumber) > 35) {
+            $errors[] = 'Invoice number cannot exceed 35 characters';
         }
 
-        // Convert and validate invoice date
+        // Valideer en converteer factuurdatum
         $issueDateObj = null;
         if ($issueDate instanceof \DateTime) {
             $issueDateObj = $issueDate;
             $issueDate = $issueDate->format('Y-m-d');
         } elseif (is_string($issueDate)) {
+            $issueDate = trim($issueDate);
             $issueDateObj = \DateTime::createFromFormat('Y-m-d', $issueDate);
+            
             if (!$issueDateObj || $issueDateObj->format('Y-m-d') !== $issueDate) {
-                throw new \InvalidArgumentException('Invalid invoice date. Use YYYY-MM-DD format');
+                $errors[] = 'Invalid invoice date. Please use YYYY-MM-DD format';
+            } else {
+                // Check if the date is in the past or today
+                $today = new \DateTime('today');
+                if ($issueDateObj > $today) {
+                    $errors[] = 'Invoice date cannot be in the future';
+                }
             }
         } else {
-            throw new \InvalidArgumentException('Invoice date must be a string (YYYY-MM-DD) or DateTime object');
+            $errors[] = 'Invoice date must be a string (YYYY-MM-DD) or DateTime object';
         }
 
-        // Convert and validate due date
+        // Valideer en converteer vervaldatum
         $dueDateObj = null;
         if ($dueDate instanceof \DateTime) {
             $dueDateObj = $dueDate;
             $dueDate = $dueDate->format('Y-m-d');
         } elseif (is_string($dueDate)) {
+            $dueDate = trim($dueDate);
             $dueDateObj = \DateTime::createFromFormat('Y-m-d', $dueDate);
+            
             if (!$dueDateObj || $dueDateObj->format('Y-m-d') !== $dueDate) {
-                throw new \InvalidArgumentException('Invalid due date. Use YYYY-MM-DD format');
+                $errors[] = 'Invalid due date. Please use YYYY-MM-DD format';
+            } elseif (isset($issueDateObj) && $dueDateObj <= $issueDateObj) {
+                $errors[] = 'Due date must be after the invoice date';
             }
         } else {
-            throw new \InvalidArgumentException('Due date must be a string (YYYY-MM-DD) or DateTime object');
+            $errors[] = 'Due date must be a string (YYYY-MM-DD) or DateTime object';
+        }
+
+        // Gooi een uitzondering met alle validatiefouten
+        if (!empty($errors)) {
+            $errorMessage = "Validation error(s) in invoice header:\n" . 
+                          implode("\n- ", array_merge([''], $errors));
+            throw new \InvalidArgumentException($errorMessage);
         }
 
         // Check if due date is after invoice date
@@ -287,9 +311,31 @@ class UblService
     /**
      * Voeg AccountingSupplierParty (verkooppartij) toe
      * 
+     * @param string $endpointId Unieke identificatie van de leverancier (bijv. KVK nummer)
+     * @param string $endpointSchemeID Het schema van de endpoint ID (bijv. '0106' voor KVK)
+     * @param string $partyId Interne identificatie van de partij
+     * @param string $partyName Naam van de leverancier
+     * @param string $street Straatnaam en huisnummer
+     * @param string $postalCode Postcode
+     * @param string $city Plaatsnaam
+     * @param string $countryCode Landcode (2 letters, bijv. 'NL')
+     * @param string $companyId BTW-nummer of ander fiscaal identificatienummer
+     * @param string|null $additionalStreet Toevoeging adres (optioneel)
      * @return self
+     * @throws \InvalidArgumentException Bij ongeldige invoer
      */
-    public function addAccountingSupplierParty(): self
+    public function addAccountingSupplierParty(
+        string $endpointId,
+        string $endpointSchemeID,
+        string $partyId,
+        string $partyName,
+        string $street,
+        string $postalCode,
+        string $city,
+        string $countryCode,
+        string $companyId,
+        ?string $additionalStreet = null
+    ): self
     {
         // AccountingSupplierParty container
         $accountingSupplierParty = $this->createElement('cac', 'AccountingSupplierParty');
@@ -299,52 +345,95 @@ class UblService
         $party = $this->createElement('cac', 'Party');
         $party = $accountingSupplierParty->appendChild($party);
 
+        // Valideer invoer
+        $errors = [];
+        
+        // Verzamel alle validatiefouten
+        if (empty(trim($endpointId ?? ''))) {
+            $errors[] = 'Endpoint ID (bijv. KVK-nummer) is verplicht';
+        }
+        if (empty(trim($endpointSchemeID ?? ''))) {
+            $errors[] = 'Endpoint Scheme ID (bijv. "0106" voor KVK) is verplicht';
+        }
+        if (empty(trim($partyId ?? ''))) {
+            $errors[] = 'Interne partij ID is verplicht';
+        }
+        if (empty(trim($partyName ?? ''))) {
+            $errors[] = 'Bedrijfsnaam is verplicht';
+        }
+        if (empty(trim($street ?? ''))) {
+            $errors[] = 'Straat en huisnummer zijn verplicht';
+        }
+        if (empty(trim($postalCode ?? ''))) {
+            $errors[] = 'Postcode is verplicht';
+        }
+        if (empty(trim($city ?? ''))) {
+            $errors[] = 'Plaatsnaam is verplicht';
+        }
+        if (empty(trim($countryCode ?? ''))) {
+            $errors[] = 'Landcode is verplicht';
+        } elseif (strlen(trim($countryCode)) !== 2) {
+            $errors[] = 'Landcode moet uit precies 2 tekens bestaan (bijv. "NL")';
+        }
+        if (empty(trim($companyId ?? ''))) {
+            $errors[] = 'BTW-nummer of fiscaal identificatienummer is verplicht';
+        }
+
+        // Gooi een uitzondering met alle validatiefouten
+        if (!empty($errors)) {
+            $errorMessage = "Validatiefout(en) in addAccountingSupplierParty():\n" . 
+                          implode("\n- ", array_merge([''], $errors));
+            throw new \InvalidArgumentException($errorMessage);
+        }
+
         // EndpointID
-        $endpointIDElement = $this->createElement('cbc', 'EndpointID', '9482348239847239874', ['schemeID' => '0088']);
+        $endpointIDElement = $this->createElement('cbc', 'EndpointID', $endpointId, ['schemeID' => $endpointSchemeID]);
         $party->appendChild($endpointIDElement);
 
         // PartyIdentification
         $partyIdentification = $this->createElement('cac', 'PartyIdentification');
         $partyIdentification = $party->appendChild($partyIdentification);
 
-        $idElement = $this->createElement('cbc', 'ID', '99887766');
+        $idElement = $this->createElement('cbc', 'ID', $partyId);
         $partyIdentification->appendChild($idElement);
 
         // PartyName
-        $partyName = $this->createElement('cac', 'PartyName');
-        $partyName = $party->appendChild($partyName);
+        $partyNameElement = $this->createElement('cac', 'PartyName');
+        $partyNameElement = $party->appendChild($partyNameElement);
 
-        $nameElement = $this->createElement('cbc', 'Name', 'SupplierTradingName Ltd.');
-        $partyName->appendChild($nameElement);
+        $nameElement = $this->createElement('cbc', 'Name', $partyName);
+        $partyNameElement->appendChild($nameElement);
 
         // PostalAddress
         $postalAddress = $this->createElement('cac', 'PostalAddress');
         $postalAddress = $party->appendChild($postalAddress);
 
-        $streetNameElement = $this->createElement('cbc', 'StreetName', 'Main street 1');
+        $streetNameElement = $this->createElement('cbc', 'StreetName', $street);
         $postalAddress->appendChild($streetNameElement);
 
-        $additionalStreetNameElement = $this->createElement('cbc', 'AdditionalStreetName', 'Postbox 123');
-        $postalAddress->appendChild($additionalStreetNameElement);
+        if ($additionalStreet !== null) {
+            $additionalStreetNameElement = $this->createElement('cbc', 'AdditionalStreetName', $additionalStreet);
+            $postalAddress->appendChild($additionalStreetNameElement);
+        }
 
-        $cityNameElement = $this->createElement('cbc', 'CityName', 'London');
+        $cityNameElement = $this->createElement('cbc', 'CityName', $city);
         $postalAddress->appendChild($cityNameElement);
 
-        $postalZoneElement = $this->createElement('cbc', 'PostalZone', 'GB 123 EW');
+        $postalZoneElement = $this->createElement('cbc', 'PostalZone', $postalCode);
         $postalAddress->appendChild($postalZoneElement);
 
         // Country - moet als laatste element binnen PostalAddress komen
         $country = $this->createElement('cac', 'Country');
         $country = $postalAddress->appendChild($country);
 
-        $identificationCodeElement = $this->createElement('cbc', 'IdentificationCode', 'GB');
+        $identificationCodeElement = $this->createElement('cbc', 'IdentificationCode', strtoupper($countryCode));
         $country->appendChild($identificationCodeElement);
 
         // PartyTaxScheme
         $partyTaxScheme = $this->createElement('cac', 'PartyTaxScheme');
         $partyTaxScheme = $party->appendChild($partyTaxScheme);
 
-        $companyIDElement = $this->createElement('cbc', 'CompanyID', 'GB1232434');
+        $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId);
         $partyTaxScheme->appendChild($companyIDElement);
 
         $taxScheme = $this->createElement('cac', 'TaxScheme');

@@ -7,7 +7,7 @@ use Darvis\UblPeppol\UblService;
 // Invoice data
 $invoice = [
     'invoice_number' => 'INV-' . date('Ym') . '-001',
-    'issue_date' => date('Y-m-d'),
+    'issue_date' => date('Y-m-d', strtotime('-1 days')),
     'due_date' => date('Y-m-d', strtotime('+30 days')),
     'buyer_reference' => 'ARVID-REF-001',
     'order_reference' => 'ARVID-PO-2025-001',
@@ -48,7 +48,17 @@ try {
         )
         ->addBuyerReference($invoice['buyer_reference'])
         ->addOrderReference($invoice['order_reference'])
-        ->addAccountingSupplierParty()
+        ->addAccountingSupplierParty(
+            '87654321',                 // Endpoint ID (bijv. KVK-nummer)
+            '0106',                     // Endpoint Scheme ID (0106 voor KVK)
+            'SUPPLIER-002',             // Interne partij ID
+            'Voorbeeld Leverancier B.V.', // Bedrijfsnaam
+            'Voorbeeldstraat 42',       // Straat + huisnummer
+            '1011 AB',                  // Postcode
+            'Utrecht',                  // Plaatsnaam
+            'NL',                       // Landcode (2 letters)
+            'NL87654321B01'             // BTW-nummer
+        )
         ->addAccountingCustomerParty();
 
     // Add invoice lines

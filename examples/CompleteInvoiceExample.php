@@ -32,7 +32,18 @@ try {
         // 4. Add order reference (optional)
         ->addOrderReference('PO-2025-001')
         // 5. Add supplier information
-        ->addAccountingSupplierParty()
+        ->addAccountingSupplierParty(
+            '12345678',         // Endpoint ID (bijv. KVK-nummer)
+            '0106',             // Endpoint Scheme ID (0106 voor KVK)
+            'SUPPLIER-001',     // Interne partij ID
+            'Leverancier B.V.', // Bedrijfsnaam
+            'Kerkstraat 1',     // Straat + huisnummer
+            '1234 AB',          // Postcode
+            'Amsterdam',        // Plaatsnaam
+            'NL',               // Landcode (2 letters)
+            'NL123456789B01',   // BTW-nummer
+            'Tweede verdieping' // Optioneel: toevoeging adres
+        )
         // 6. Add customer information
         ->addAccountingCustomerParty()
         // 7. Add delivery information
