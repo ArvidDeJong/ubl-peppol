@@ -15,16 +15,16 @@ composer require darvis/ubl-peppol
 
 ## Laravel Installation
 
-If you're using Laravel, the service provider will be automatically registered via package discovery. You can then use the UblBis3Service through dependency injection or via the facade:
+If you're using Laravel, the service provider will be automatically registered via package discovery. You can then use the UblNLBis3Service through dependency injection or via the facade:
 
 ```php
-use Darvis\UblPeppol\UblBis3Service;
+use Darvis\UblPeppol\UblNLBis3Service;
 
 class InvoiceController extends Controller
 {
-    public function generate(UblBis3Service $UblBis3Service)
+    public function generate(UblNLBis3Service $UblNLBis3Service)
     {
-        // Use the UblBis3Service...
+        // Use the UblNLBis3Service...
     }
 }
 ```
@@ -32,7 +32,7 @@ class InvoiceController extends Controller
 Or via the app container:
 
 ```php
-$UblBis3Service = app('ubl-peppol');
+$UblNLBis3Service = app('ubl-peppol');
 ```
 
 ## Usage
@@ -40,35 +40,35 @@ $UblBis3Service = app('ubl-peppol');
 Below is an example of how to generate a UBL invoice:
 
 ```php
-use Darvis\UblPeppol\UblBis3Service;
+use Darvis\UblPeppol\UblNLBis3Service;
 
 // Create a new UBL Service instance
-$UblBis3Service = new UblBis3Service();
+$UblNLBis3Service = new UblNLBis3Service();
 
 // Set up the invoice details
-$UblBis3Service->setId('INVOICE-2023-001');
-$UblBis3Service->setIssueDate(new \DateTime());
-$UblBis3Service->setDueDate(new \DateTime('+30 days'));
+$UblNLBis3Service->setId('INVOICE-2023-001');
+$UblNLBis3Service->setIssueDate(new \DateTime());
+$UblNLBis3Service->setDueDate(new \DateTime('+30 days'));
 
 // Set up the supplier
-$UblBis3Service->setSupplierName('Supplier Company Name');
-$UblBis3Service->setSupplierStreet('Example Street 123');
-$UblBis3Service->setSupplierCity('Amsterdam');
-$UblBis3Service->setSupplierPostcode('1234 AB');
-$UblBis3Service->setSupplierCountry('NL');
-$UblBis3Service->setSupplierVat('NL123456789B01');
-$UblBis3Service->setSupplierChamber('12345678');
+$UblNLBis3Service->setSupplierName('Supplier Company Name');
+$UblNLBis3Service->setSupplierStreet('Example Street 123');
+$UblNLBis3Service->setSupplierCity('Amsterdam');
+$UblNLBis3Service->setSupplierPostcode('1234 AB');
+$UblNLBis3Service->setSupplierCountry('NL');
+$UblNLBis3Service->setSupplierVat('NL123456789B01');
+$UblNLBis3Service->setSupplierChamber('12345678');
 
 // Set up the customer
-$UblBis3Service->setCustomerName('Customer Company Name');
-$UblBis3Service->setCustomerStreet('Customer Street 456');
-$UblBis3Service->setCustomerCity('Rotterdam');
-$UblBis3Service->setCustomerPostcode('5678 CD');
-$UblBis3Service->setCustomerCountry('NL');
-$UblBis3Service->setCustomerVat('NL987654321B01');
+$UblNLBis3Service->setCustomerName('Customer Company Name');
+$UblNLBis3Service->setCustomerStreet('Customer Street 456');
+$UblNLBis3Service->setCustomerCity('Rotterdam');
+$UblNLBis3Service->setCustomerPostcode('5678 CD');
+$UblNLBis3Service->setCustomerCountry('NL');
+$UblNLBis3Service->setCustomerVat('NL987654321B01');
 
 // Add invoice lines
-$UblBis3Service->addLine(
+$UblNLBis3Service->addLine(
     '1',                  // Line ID
     'Product description',   // Description
     2,                    // Quantity
@@ -80,7 +80,7 @@ $UblBis3Service->addLine(
 );
 
 // Generate the UBL XML document
-$ublXml = $UblBis3Service->getUbl();
+$ublXml = $UblNLBis3Service->getUbl();
 
 // You can now save or send the document
 file_put_contents('invoice.xml', $ublXml);

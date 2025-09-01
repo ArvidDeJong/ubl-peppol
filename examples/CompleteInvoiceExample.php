@@ -1,8 +1,12 @@
 <?php
 
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Darvis\UblPeppol\UblBis3Service;
+use Darvis\UblPeppol\UblNLBis3Service;
 
 /**
  * Complete UBL Invoice Example
@@ -15,39 +19,112 @@ use Darvis\UblPeppol\UblBis3Service;
  * - Payment terms and means
  */
 
-// Create a new instance of UblBis3Service
-$UblBis3Service = new UblBis3Service();
-
 try {
-    // 1. Create the document and add required components
-    $UblBis3Service->createDocument()
-        // 2. Add invoice header with basic information
-        ->addInvoiceHeader(
-            'INV-001',          // Invoice number
-            '2025-09-01',       // Issue date
-            '2025-10-01'        // Due date
-        )
-        // 3. Add buyer reference (required for PEPPOL)
+    // Create a new instance of UblNLBis3Service
+    $UblNLBis3Service = new UblNLBis3Service();
+
+    // Set the standard based on a query parameter (for demonstration)
+    // 'peppol' for Belgian standard (default)
+    // 'si_ubl' for Dutch standard
+    $standard = $_GET['standard'] ?? 'peppol';
+    if ($standard === 'si_ubl') {
+        $UblNLBis3Service->setStandard(UblNLBis3Service::STANDARD_SI_UBL);
+    } else {
+        $UblNLBis3Service->setStandard(UblNLBis3Service::STANDARD_PEPPOL);
+    }
+    // --- Data Definition ---
+    $invoiceLinesData = [
+        [
+            'id' => '1',
+            'quantity' => 7,
+            'unit_code' => 'DAY',
+            'description' => 'Consulting services',
+            'name' => 'Consulting',
+            'price_amount' => 400,
+            'currency' => 'EUR',
+            'accounting_cost' => 'SERVICES',
+            'order_line_id' => 'PO-2025-001-1',
+            'tax_category_id' => 'S',
+            'tax_percent' => 21.0,
+            'tax_category_name' => 'Standaard tarief',
+        ],
+        [
+            'id' => '2',
+            'quantity' => -2,
+            'unit_code' => 'PCE',
+            'description' => 'Returned item',
+            'name' => 'Product return',
+            'price_amount' => 60.00,
+            'currency' => 'EUR',
+            'accounting_cost' => 'RETURNS',
+            'order_line_id' => 'PO-2025-001-2',
+            'tax_category_id' => 'S',
+            'tax_percent' => 21.0,
+            'tax_category_name' => 'Standaard tarief',
+        ],
+    ];
+
+    // --- Calculations ---
+    $lineExtensionAmount = 0;
+    $taxExclusiveAmount = 0;
+    $totalTaxAmount = 0;
+    $taxes = [];
+
+    foreach ($invoiceLinesData as $line) {
+        $lineTotal = $line['quantity'] * $line['price_amount'];
+        $lineExtensionAmount += $lineTotal;
+
+        $taxPercent = $line['tax_percent'];
+        $taxAmount = $lineTotal * ($taxPercent / 100);
+        $totalTaxAmount += $taxAmount;
+
+        if (!isset($taxes[$taxPercent])) {
+            $taxes[$taxPercent] = [
+                'taxable_amount' => 0,
+                'tax_amount' => 0,
+                'currency' => $line['currency'],
+                'tax_category_id' => $line['tax_category_id'],
+                'tax_category_name' => $line['tax_category_name'],
+                'tax_percent' => $taxPercent,
+                'tax_scheme_id' => 'VAT',
+            ];
+        }
+        $taxes[$taxPercent]['taxable_amount'] += $lineTotal;
+        $taxes[$taxPercent]['tax_amount'] += $taxAmount;
+    }
+
+    $taxExclusiveAmount = $lineExtensionAmount; // Assuming no document-level allowances/charges
+    $taxInclusiveAmount = $lineExtensionAmount + $totalTaxAmount;
+    $payableAmount = $taxInclusiveAmount;
+
+    $monetaryTotals = [
+        'line_extension_amount' => $lineExtensionAmount,
+        'tax_exclusive_amount' => $taxExclusiveAmount,
+        'tax_inclusive_amount' => $taxInclusiveAmount,
+        'charge_total_amount' => 0, // No charges in this example
+        'payable_amount' => $payableAmount,
+    ];
+
+    // --- UBL Document Generation ---
+    $UblNLBis3Service->createDocument()
+        ->addInvoiceHeader('INV-001', date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('+29 days')))
         ->addBuyerReference('CUST-REF-001')
-        // 4. Add order reference (optional)
         ->addOrderReference('PO-2025-001')
-        // 5. Add supplier information
         ->addAccountingSupplierParty(
-            '12345678',         // Endpoint ID (bijv. KVK-nummer)
-            '0106',             // Endpoint Scheme ID (0106 voor KVK)
-            'SUPPLIER-001',     // Interne partij ID
-            'Leverancier B.V.', // Bedrijfsnaam
-            'Kerkstraat 1',     // Straat + huisnummer
-            '1234 AB',          // Postcode
-            'Amsterdam',        // Plaatsnaam
-            'NL',               // Landcode (2 letters)
-            'NL123456789B01',   // BTW-nummer
-            'Tweede verdieping' // Optioneel: toevoeging adres
+            '12345678',
+            '0106',
+            'SUPPLIER-001',
+            'Leverancier B.V.',
+            'Kerkstraat 1',
+            '1234 AB',
+            'Amsterdam',
+            'NL',
+            'NL123456789B01',
+            'Tweede verdieping'
         )
-        // 6. Add customer information
         ->addAccountingCustomerParty(
             'NL987654321B01',       // Endpoint ID (e.g., VAT number)
-            '0210',                 // Scheme ID (0210 for SIRET, 0208 for GLN, 0210 for VAT)
+            '0210',                 // Scheme ID
             'CUST-001',             // Internal party ID
             'Klant Bedrijf B.V.',   // Company name
             'Klantstraat 123',      // Street address
@@ -57,63 +134,38 @@ try {
             'Tweede verdieping',    // Additional address line (optional)
             '12345678'              // Company registration number (optional)
         )
-        // 7. Add delivery information
         ->addDelivery(
-            '2025-09-15',                           // Leveringsdatum (verplicht)
-            'DELIVERY-12345',                       // Uniek ID voor de leveringslocatie
-            '0088',                                 // Schema ID (0088 = GLN)
-            'Bezorgstraat 10',                      // Straatnaam
-            'Tweede verdieping',                    // Aanvullende straatinformatie
-            'Amsterdam',                            // Stad
-            '1011 AB',                              // Postcode
-            'NL',                                   // Landcode (2 letters)
-            'ARVID.NL B.V.'                         // Naam ontvangende partij
+            date('Y-m-d'),
+            'DELIVERY-12345',
+            '0088',
+            'Bezorgstraat 10',
+            'Tweede verdieping',
+            'Amsterdam',
+            '1011 AB',
+            'NL',
+            'ARVID.NL B.V.'
         )
-        // 8. Add payment means (defaults to SEPA credit transfer)
-        ->addPaymentMeans('30') // 30 = Credit transfer
-        // 9. Add payment terms
-        ->addPaymentTerms()
-        // 10. Add allowance/charge (e.g., discount)
-        ->addAllowanceCharge()
-        // 11. Add first invoice line (positive amount)
-        ->addInvoiceLine(
-            '1',                        // ID
-            '7',                        // Quantity
-            'DAY',                      // Unit code (UN/ECE rec 20)
-            '2800',                     // Line amount (7 * 400)
-            'Consulting services',      // Description
-            'Consulting',               // Name
-            '400',                      // Price per unit
-            'SERVICES',                 // Accounting cost
-            'PO-2025-001-1',            // Order line reference
-            'SERV-CONSULT-001',         // Standard item ID
-            'NL',                       // Origin country
-            'S',                        // Tax category (S = standard rate)
-            '21.0'                      // Tax percentage (21%)
+        ->addPaymentMeans(
+            '30',                           // PaymentMeansCode
+            'Credit transfer',              // PaymentMeansName
+            'Factuur INV-001',              // PaymentID
+            'NL88RABO0123456789',           // AccountID (IBAN)
+            'Leverancier B.V.',             // AccountName
+            'RABONL2U'                      // FinancialInstitutionID (BIC)
         )
-        // 12. Add second invoice line (negative amount for credit/return)
-        ->addInvoiceLine(
-            '2',
-            '-2',                       // Negative quantity for credit
-            'PCE',                      // Pieces
-            '-120.00',                  // Negative amount for credit
-            'Returned item',
-            'Product return',
-            '60.00',
-            'RETURNS',
-            'PO-2025-001-2',
-            'PROD-001',
-            'BE',
-            'S',
-            '21.0'
-        )
-        // 13. Add tax totals (calculated automatically)
-        ->addTaxTotal()
-        // 14. Add legal monetary totals
-        ->addLegalMonetaryTotal();
+        ->addPaymentTerms('Betaling binnen 30 dagen');
+
+    // Add invoice lines
+    foreach ($invoiceLinesData as $lineData) {
+        $UblNLBis3Service->addInvoiceLine($lineData);
+    }
+
+    // Add totals
+    $UblNLBis3Service->addTaxTotal(array_values($taxes))
+        ->addLegalMonetaryTotal($monetaryTotals, 'EUR');
 
     // Generate the XML
-    $xml = $UblBis3Service->generateXml();
+    $xml = $UblNLBis3Service->generateXml();
 
     // Pretty print the XML for better readability
     $dom = new DOMDocument('1.0');
@@ -134,10 +186,9 @@ try {
     // Output to browser
     header('Content-Type: application/xml');
     echo $prettyXml;
-} catch (\Exception $e) {
-    echo "Error creating invoice: " . $e->getMessage() . "\n";
-    if ($e->getPrevious()) {
-        echo "Previous exception: " . $e->getPrevious()->getMessage() . "\n";
-    }
+} catch (\Throwable $e) {
+    // Display a user-friendly error message
+    file_put_contents('php://stderr', "Error creating invoice: " . $e->getMessage() . "\n");
+    file_put_contents('php://stderr', $e->getTraceAsString() . "\n");
     exit(1);
 }

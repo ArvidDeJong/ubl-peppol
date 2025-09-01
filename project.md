@@ -43,9 +43,9 @@ https://test.peppolautoriteit.nl/validate
 
 2. Basic Example:
    ```php
-   use Darvis\UblPeppol\UblBis3Service;
+   use Darvis\UblPeppol\UblNLBis3Service;
    
-   $ubl = new UblBis3Service();
+   $ubl = new UblNLBis3Service();
    $xml = $ubl->createInvoice([
        'supplier' => [
            'name' => 'Supplier BV',
@@ -60,7 +60,7 @@ https://test.peppolautoriteit.nl/validate
 
 ## Documentation
 
-- `src/UblBis3Service.php` - Main class for generating UBL documents
+- `src/UblNLBis3Service.php` - Main class for generating UBL documents
 - `examples/` - Example files for reference
   - `base-example.xml` - Basic UBL invoice
   - `creditnote-example.xml` - Credit note example
