@@ -594,15 +594,19 @@ class UblService
         $party = $this->createElement('cac', 'Party');
         $party = $accountingCustomerParty->appendChild($party);
 
+        // For Dutch customers, ensure we use the correct scheme ID (0106 for KVK or 0190 for OIN)
+        // instead of the Italian Tax Code (0210)
+        $effectiveSchemeID = (strtoupper($countryCode) === 'NL' && $endpointSchemeID === '0210') ? '0106' : $endpointSchemeID;
+        
         // EndpointID
-        $endpointIDElement = $this->createElement('cbc', 'EndpointID', $endpointId, ['schemeID' => $endpointSchemeID]);
+        $endpointIDElement = $this->createElement('cbc', 'EndpointID', $endpointId, ['schemeID' => $effectiveSchemeID]);
         $party->appendChild($endpointIDElement);
 
         // PartyIdentification
         $partyIdentification = $this->createElement('cac', 'PartyIdentification');
         $partyIdentification = $party->appendChild($partyIdentification);
 
-        $idElement = $this->createElement('cbc', 'ID', $partyId, ['schemeID' => $endpointSchemeID]);
+        $idElement = $this->createElement('cbc', 'ID', $partyId, ['schemeID' => $effectiveSchemeID]);
         $partyIdentification->appendChild($idElement);
 
         // PartyName
