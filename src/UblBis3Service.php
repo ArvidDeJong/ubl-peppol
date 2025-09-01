@@ -12,7 +12,7 @@ use Darvis\UblPeppol\Validation\UblValidator;
  * This version has been completely rewritten to follow the exact XML structure 
  * of the PEPPOL standard according to the base-example.xml reference.
  */
-class UblService
+class UblBis3Service
 {
     /**
      * @var DOMDocument The main XML document instance

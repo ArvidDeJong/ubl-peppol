@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Darvis\UblPeppol\UblService;
+use Darvis\UblPeppol\UblBis3Service;
 
 /**
  * Complete UBL Invoice Example
@@ -15,12 +15,12 @@ use Darvis\UblPeppol\UblService;
  * - Payment terms and means
  */
 
-// Create a new instance of UblService
-$ublService = new UblService();
+// Create a new instance of UblBis3Service
+$UblBis3Service = new UblBis3Service();
 
 try {
     // 1. Create the document and add required components
-    $ublService->createDocument()
+    $UblBis3Service->createDocument()
         // 2. Add invoice header with basic information
         ->addInvoiceHeader(
             'INV-001',          // Invoice number
@@ -113,28 +113,27 @@ try {
         ->addLegalMonetaryTotal();
 
     // Generate the XML
-    $xml = $ublService->generateXml();
-    
+    $xml = $UblBis3Service->generateXml();
+
     // Pretty print the XML for better readability
     $dom = new DOMDocument('1.0');
     $dom->preserveWhiteSpace = false;
     $dom->formatOutput = true;
     $dom->loadXML($xml);
     $prettyXml = $dom->saveXML();
-    
+
     // Handle download if requested
     if (isset($_GET['download'])) {
         header('Content-Type: application/xml');
-        header('Content-Disposition: attachment; filename="complete-invoice-'.date('Y-m-d').'.xml"');
+        header('Content-Disposition: attachment; filename="complete-invoice-' . date('Y-m-d') . '.xml"');
         header('Content-Length: ' . strlen($prettyXml));
         echo $prettyXml;
         exit;
     }
-    
+
     // Output to browser
     header('Content-Type: application/xml');
     echo $prettyXml;
-    
 } catch (\Exception $e) {
     echo "Error creating invoice: " . $e->getMessage() . "\n";
     if ($e->getPrevious()) {
