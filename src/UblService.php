@@ -708,41 +708,138 @@ class UblService
     }
 
     /**
-     * Voeg PaymentMeans (betalingsgegevens) toe
+     * Validate IBAN (International Bank Account Number)
+     * 
+     * @param string $iban The IBAN to validate
+     * @return bool True if the IBAN is valid, false otherwise
+     */
+    private function isValidIban(string $iban): bool
+    {
+        // Normalize IBAN (remove spaces and convert to uppercase)
+        $iban = strtoupper(str_replace(' ', '', $iban));
+        
+        // Check length is at least 2 characters (country code + check digits)
+        if (strlen($iban) < 4) {
+            return false;
+        }
+        
+        // Move first 4 characters to the end
+        $moved = substr($iban, 4) . substr($iban, 0, 4);
+        
+        // Convert letters to numbers (A=10, B=11, ..., Z=35)
+        $converted = '';
+        foreach (str_split($moved) as $char) {
+            if (ctype_alpha($char)) {
+                $converted .= (ord($char) - 55);
+            } else {
+                $converted .= $char;
+            }
+        }
+        
+        // Check if the number is valid using modulo 97
+        return (int)bcmod($converted, '97') === 1;
+    }
+
+    /**
+     * Add payment means (betalingsgegevens) to the invoice
      *
-     * @param string|null $paymentType
+     * @param string $paymentMeansCode Payment means code (e.g., '30' for credit transfer)
+     * @param string $paymentMeansName Payment means name (e.g., 'Credit transfer')
+     * @param string $paymentId Payment reference or ID
+     * @param string $accountId Bank account number (IBAN)
+     * @param string $accountName Name on the bank account
+     * @param string $financialInstitutionId BIC/SWIFT code of the financial institution
+     * @param string|null $paymentChannelCode Payment channel code (optional)
+     * @param string|null $paymentDueDate Payment due date in YYYY-MM-DD format (optional)
      * @return self
      */
-    public function addPaymentMeans(?string $paymentType = '30'): self
-    {
+    public function addPaymentMeans(
+        string $paymentMeansCode = '30',
+        string $paymentMeansName = 'Credit transfer',
+        ?string $paymentId = null,
+        ?string $accountId = null,
+        ?string $accountName = null,
+        ?string $financialInstitutionId = null,
+        ?string $paymentChannelCode = null,
+        ?string $paymentDueDate = null
+    ): self {
+        // Validate payment means code (should be a valid UNCL4461 code)
+        if (!preg_match('/^[0-9]+$/', $paymentMeansCode)) {
+            throw new \InvalidArgumentException('Payment means code must be a numeric value');
+        }
+
+        // Validate IBAN if provided
+        if ($accountId !== null && !$this->isValidIban($accountId)) {
+            throw new \InvalidArgumentException('Invalid IBAN format');
+        }
+
+        // Validate BIC/SWIFT if provided
+        if ($financialInstitutionId !== null && !preg_match('/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/', $financialInstitutionId)) {
+            throw new \InvalidArgumentException('Invalid BIC/SWIFT code format');
+        }
+
+        // Validate payment due date format if provided
+        if ($paymentDueDate !== null && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $paymentDueDate)) {
+            throw new \InvalidArgumentException('Payment due date must be in YYYY-MM-DD format');
+        }
         // PaymentMeans container
         $paymentMeans = $this->createElement('cac', 'PaymentMeans');
         $paymentMeans = $this->rootElement->appendChild($paymentMeans);
 
-        // PaymentMeansCode
-        $paymentMeansCodeElement = $this->createElement('cbc', 'PaymentMeansCode', $paymentType, ['name' => 'Credit transfer']);
+        // PaymentMeansCode with name attribute
+        $paymentMeansCodeElement = $this->createElement(
+            'cbc', 
+            'PaymentMeansCode', 
+            $paymentMeansCode, 
+            ['name' => $paymentMeansName]
+        );
         $paymentMeans->appendChild($paymentMeansCodeElement);
 
-        // PaymentID
-        $paymentIDElement = $this->createElement('cbc', 'PaymentID', 'Snippet1');
-        $paymentMeans->appendChild($paymentIDElement);
+        // Add PaymentID if provided
+        if ($paymentId !== null) {
+            $paymentIDElement = $this->createElement('cbc', 'PaymentID', $paymentId);
+            $paymentMeans->appendChild($paymentIDElement);
+        }
 
-        // PayeeFinancialAccount
-        $payeeFinancialAccount = $this->createElement('cac', 'PayeeFinancialAccount');
-        $payeeFinancialAccount = $paymentMeans->appendChild($payeeFinancialAccount);
+        // Add PaymentDueDate if provided
+        if ($paymentDueDate !== null) {
+            $paymentDueDateElement = $this->createElement('cbc', 'PaymentDueDate', $paymentDueDate);
+            $paymentMeans->appendChild($paymentDueDateElement);
+        }
 
-        $idElement = $this->createElement('cbc', 'ID', 'IBAN32423940');
-        $payeeFinancialAccount->appendChild($idElement);
+        // Add PaymentChannelCode if provided
+        if ($paymentChannelCode !== null) {
+            $paymentChannelElement = $this->createElement('cbc', 'PaymentChannelCode', $paymentChannelCode);
+            $paymentMeans->appendChild($paymentChannelElement);
+        }
 
-        $nameElement = $this->createElement('cbc', 'Name', 'AccountName');
-        $payeeFinancialAccount->appendChild($nameElement);
+        // Only add PayeeFinancialAccount if account details are provided
+        if ($accountId !== null || $accountName !== null) {
+            $payeeFinancialAccount = $this->createElement('cac', 'PayeeFinancialAccount');
+            $payeeFinancialAccount = $paymentMeans->appendChild($payeeFinancialAccount);
 
-        $financialInstitutionBranch = $this->createElement('cac', 'FinancialInstitutionBranch');
-        $financialInstitutionBranch = $payeeFinancialAccount->appendChild($financialInstitutionBranch);
+            // Add account ID (IBAN)
+            if ($accountId !== null) {
+                $idElement = $this->createElement('cbc', 'ID', $accountId);
+                $payeeFinancialAccount->appendChild($idElement);
+            }
 
-        $idElement = $this->createElement('cbc', 'ID', 'BIC324098');
-        $financialInstitutionBranch->appendChild($idElement);
+            // Add account name
+            if ($accountName !== null) {
+                $nameElement = $this->createElement('cbc', 'Name', $accountName);
+                $payeeFinancialAccount->appendChild($nameElement);
+            }
 
+            // Add financial institution (BIC/SWIFT) if provided
+            if ($financialInstitutionId !== null) {
+                $financialInstitutionBranch = $this->createElement('cac', 'FinancialInstitutionBranch');
+                $financialInstitutionBranch = $payeeFinancialAccount->appendChild($financialInstitutionBranch);
+
+                $bicElement = $this->createElement('cbc', 'ID', $financialInstitutionId);
+                $financialInstitutionBranch->appendChild($bicElement);
+            }
+        }
+        
         return $this;
     }
 

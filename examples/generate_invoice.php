@@ -87,7 +87,14 @@ $invoice = [
     // Payment information
     'payment' => [
         'means_code' => '30',                       // 30 = Credit transfer
-        'terms' => 'Payment within 30 days',
+        'means_name' => 'Credit transfer via SEPA', // Payment method description
+        'payment_id' => 'INV-' . date('Y') . '-123', // Payment reference
+        'account_iban' => 'NL71ABNA0607005106',     // IBAN
+        'account_name' => 'Darvis ALU',             // Account holder name
+        'bic' => 'ABNANL2A',                        // BIC/SWIFT code
+        'channel_code' => 'IBAN',                   // Payment channel
+        'due_date' => date('Y-m-d', strtotime('+30 days')), // Payment due date
+        'terms' => 'Payment within 30 days',        // Payment terms
     ],
 ];
 
@@ -139,7 +146,16 @@ try {
             $invoice['delivery']['country'],
             $invoice['delivery']['party_name']
         )
-        ->addPaymentMeans($invoice['payment']['means_code'])
+        ->addPaymentMeans(
+            $invoice['payment']['means_code'],
+            $invoice['payment']['means_name'],
+            $invoice['payment']['payment_id'],
+            $invoice['payment']['account_iban'],
+            $invoice['payment']['account_name'],
+            $invoice['payment']['bic'],
+            $invoice['payment']['channel_code'],
+            $invoice['payment']['due_date']
+        )
         ->addPaymentTerms($invoice['payment']['terms']);
 
     // Add invoice lines
