@@ -172,21 +172,27 @@ try {
     foreach ($invoice['lines'] as $line) {
         $lineTotal = bcmul($line['quantity'], $line['price'], 2);
 
-        $ubl->addInvoiceLine(
-            $line['id'],
-            $line['quantity'],
-            $line['unit_code'],
-            $lineTotal,
-            $line['description'],
-            $line['name'],
-            $line['price'],
-            $line['accounting_cost'],
-            $line['order_line_id'],
-            null,  // standardItemId
-            null,  // originCountry
-            'S',   // taxCategoryId (S = Standard rate)
-            $line['tax_percent']
-        );
+        $lineData = [
+            'id' => $line['id'],
+            'quantity' => $line['quantity'],
+            'unit_code' => $line['unit_code'],
+            'line_extension_amount' => $lineTotal,
+            'description' => $line['description'],
+            'name' => $line['name'],
+            'price_amount' => $line['price'],
+            'currency' => 'EUR',
+            'accounting_cost' => $line['accounting_cost'],
+            'order_line_id' => $line['order_line_id'],
+            'standard_item_id' => null,  // Optioneel: standaard item ID (bijv. GTIN)
+            'origin_country' => 'NL',    // Optioneel: land van herkomst (2-letterige code)
+            'tax_category_id' => 'S',    // BTW categorie (S = standaardtarief)
+            'tax_percent' => $line['tax_percent'],
+            'tax_scheme_id' => 'VAT',    // BTW-schema (VAT = BTW)
+            'item_type_code' => '1000',   // Productcategorie code (CPV)
+            'item_type_description' => 'Product' // Producttype omschrijving
+        ];
+
+        $ubl->addInvoiceLine($lineData);
     }
 
     // Add allowance or charge (e.g., insurance fee)

@@ -61,7 +61,7 @@ class UblService
         $this->rootElement->setAttribute('xmlns:cac', $this->ns_cac_uri);
         $this->rootElement->setAttribute('xmlns:cbc', $this->ns_cbc_uri);
         $this->rootElement->setAttribute('xmlns', $this->ns_invoice_uri);
-        
+
         // Add root element to the document
         $this->dom->appendChild($this->rootElement);
 
@@ -118,7 +118,6 @@ class UblService
         return $element;
     }
 
-
     /**
      * Add the invoice header
      *
@@ -131,7 +130,7 @@ class UblService
     public function addInvoiceHeader(string $invoiceNumber, $issueDate, $dueDate): self
     {
         $errors = [];
-        
+
         // Validate invoice number
         $invoiceNumber = trim($invoiceNumber);
         if (empty($invoiceNumber)) {
@@ -148,7 +147,7 @@ class UblService
         } elseif (is_string($issueDate)) {
             $issueDate = trim($issueDate);
             $issueDateObj = \DateTime::createFromFormat('Y-m-d', $issueDate);
-            
+
             if (!$issueDateObj || $issueDateObj->format('Y-m-d') !== $issueDate) {
                 $errors[] = 'Invalid invoice date. Please use YYYY-MM-DD format';
             } else {
@@ -170,7 +169,7 @@ class UblService
         } elseif (is_string($dueDate)) {
             $dueDate = trim($dueDate);
             $dueDateObj = \DateTime::createFromFormat('Y-m-d', $dueDate);
-            
+
             if (!$dueDateObj || $dueDateObj->format('Y-m-d') !== $dueDate) {
                 $errors[] = 'Invalid due date. Please use YYYY-MM-DD format';
             } elseif (isset($issueDateObj) && $dueDateObj <= $issueDateObj) {
@@ -182,8 +181,8 @@ class UblService
 
         // Gooi een uitzondering met alle validatiefouten
         if (!empty($errors)) {
-            $errorMessage = "Validation error(s) in invoice header:\n" . 
-                          implode("\n- ", array_merge([''], $errors));
+            $errorMessage = "Validation error(s) in invoice header:\n" .
+                implode("\n- ", array_merge([''], $errors));
             throw new \InvalidArgumentException($errorMessage);
         }
 
@@ -335,8 +334,7 @@ class UblService
         string $countryCode,
         string $companyId,
         ?string $additionalStreet = null
-    ): self
-    {
+    ): self {
         // AccountingSupplierParty container
         $accountingSupplierParty = $this->createElement('cac', 'AccountingSupplierParty');
         $accountingSupplierParty = $this->rootElement->appendChild($accountingSupplierParty);
@@ -347,7 +345,7 @@ class UblService
 
         // Valideer invoer
         $errors = [];
-        
+
         // Verzamel alle validatiefouten
         if (empty(trim($endpointId ?? ''))) {
             $errors[] = 'Endpoint ID (bijv. KVK-nummer) is verplicht';
@@ -381,8 +379,8 @@ class UblService
 
         // Gooi een uitzondering met alle validatiefouten
         if (!empty($errors)) {
-            $errorMessage = "Validatiefout(en) in addAccountingSupplierParty():\n" . 
-                          implode("\n- ", array_merge([''], $errors));
+            $errorMessage = "Validatiefout(en) in addAccountingSupplierParty():\n" .
+                implode("\n- ", array_merge([''], $errors));
             throw new \InvalidArgumentException($errorMessage);
         }
 
@@ -484,7 +482,7 @@ class UblService
         ?string $companyId = null
     ): self {
         $errors = [];
-        
+
         // Validate required fields
         if (empty(trim($endpointId ?? ''))) {
             $errors[] = 'Endpoint ID is required';
@@ -515,8 +513,8 @@ class UblService
 
         // Throw exception with all validation errors
         if (!empty($errors)) {
-            $errorMessage = "Validation error(s) in customer information:\n" . 
-                          implode("\n- ", array_merge([''], $errors));
+            $errorMessage = "Validation error(s) in customer information:\n" .
+                implode("\n- ", array_merge([''], $errors));
             throw new \InvalidArgumentException($errorMessage);
         }
 
@@ -567,7 +565,7 @@ class UblService
         // Country - must be the last element within PostalAddress
         $country = $this->createElement('cac', 'Country');
         $country = $postalAddress->appendChild($country);
-        
+
         $countryCodeElement = $this->createElement('cbc', 'IdentificationCode', strtoupper($countryCode));
         $country->appendChild($countryCodeElement);
 
@@ -717,15 +715,15 @@ class UblService
     {
         // Normalize IBAN (remove spaces and convert to uppercase)
         $iban = strtoupper(str_replace(' ', '', $iban));
-        
+
         // Check length is at least 2 characters (country code + check digits)
         if (strlen($iban) < 4) {
             return false;
         }
-        
+
         // Move first 4 characters to the end
         $moved = substr($iban, 4) . substr($iban, 0, 4);
-        
+
         // Convert letters to numbers (A=10, B=11, ..., Z=35)
         $converted = '';
         foreach (str_split($moved) as $char) {
@@ -735,7 +733,7 @@ class UblService
                 $converted .= $char;
             }
         }
-        
+
         // Check if the number is valid using modulo 97
         return (int)bcmod($converted, '97') === 1;
     }
@@ -788,9 +786,9 @@ class UblService
 
         // PaymentMeansCode with name attribute
         $paymentMeansCodeElement = $this->createElement(
-            'cbc', 
-            'PaymentMeansCode', 
-            $paymentMeansCode, 
+            'cbc',
+            'PaymentMeansCode',
+            $paymentMeansCode,
             ['name' => $paymentMeansName]
         );
         $paymentMeans->appendChild($paymentMeansCodeElement);
@@ -839,7 +837,7 @@ class UblService
                 $financialInstitutionBranch->appendChild($bicElement);
             }
         }
-        
+
         return $this;
     }
 
@@ -869,7 +867,7 @@ class UblService
             if (!is_numeric($settlementDiscountPercent) || $settlementDiscountPercent < 0 || $settlementDiscountPercent > 100) {
                 throw new \InvalidArgumentException('Settlement discount percentage must be a number between 0 and 100');
             }
-            
+
             // Ensure the percentage has 2 decimal places
             $settlementDiscountPercent = number_format((float)$settlementDiscountPercent, 2, '.', '');
         }
@@ -899,22 +897,22 @@ class UblService
         if ($settlementDiscountPercent !== null || $settlementDiscountAmount !== null) {
             $settlementPeriod = $this->createElement('cac', 'SettlementPeriod');
             $settlementPeriod = $paymentTerms->appendChild($settlementPeriod);
-            
+
             // Add end date if provided
             if ($settlementDiscountDate !== null) {
                 $endDateElement = $this->createElement('cbc', 'EndDate', $settlementDiscountDate);
                 $settlementPeriod->appendChild($endDateElement);
             }
-            
+
             // Add the discount details
             $paymentTermsDetails = $this->createElement('cac', 'PaymentTermsDetails');
             $paymentTermsDetails = $paymentTerms->appendChild($paymentTermsDetails);
-            
+
             if ($settlementDiscountPercent !== null) {
                 $percentElement = $this->createElement('cbc', 'Percent', $settlementDiscountPercent);
                 $paymentTermsDetails->appendChild($percentElement);
             }
-            
+
             if ($settlementDiscountAmount !== null) {
                 $amountElement = $this->createElement('cbc', 'Amount', $settlementDiscountAmount, ['currencyID' => 'EUR']);
                 $paymentTermsDetails->appendChild($amountElement);
@@ -948,15 +946,15 @@ class UblService
         if ($amount < 0) {
             throw new \InvalidArgumentException('Amount cannot be negative');
         }
-        
+
         if (empty($reason)) {
             throw new \InvalidArgumentException('Reason for allowance/charge is required');
         }
-        
+
         if ($taxPercent < 0 || $taxPercent > 100) {
             throw new \InvalidArgumentException('Tax percentage must be between 0 and 100');
         }
-        
+
         if (strlen($currency) !== 3) {
             throw new \InvalidArgumentException('Currency code must be 3 characters long');
         }
@@ -1028,11 +1026,11 @@ class UblService
         // Validate each tax entry
         $totalTaxAmount = 0;
         $entryNumber = 0;
-        
+
         foreach ($taxes as $tax) {
             $entryNumber++;
             $errorPrefix = "Tax entry #{$entryNumber}: ";
-            
+
             // Check required fields
             $requiredFields = [
                 'taxable_amount' => 'Taxable amount is required and must be a non-negative number',
@@ -1042,38 +1040,38 @@ class UblService
                 'tax_percent' => 'Tax percentage is required and must be between 0 and 100',
                 'tax_scheme_id' => 'Tax scheme ID is required'
             ];
-            
+
             foreach ($requiredFields as $field => $errorMessage) {
                 if (!array_key_exists($field, $tax)) {
                     throw new \InvalidArgumentException($errorPrefix . $errorMessage);
                 }
             }
-            
+
             // Validate field types and values
             if (!is_numeric($tax['taxable_amount']) || $tax['taxable_amount'] < 0) {
                 throw new \InvalidArgumentException($errorPrefix . 'Taxable amount must be a non-negative number');
             }
-            
+
             if (!is_numeric($tax['tax_amount']) || $tax['tax_amount'] < 0) {
                 throw new \InvalidArgumentException($errorPrefix . 'Tax amount must be a non-negative number');
             }
-            
+
             if (!is_string($tax['tax_category_id']) || empty(trim($tax['tax_category_id']))) {
                 throw new \InvalidArgumentException($errorPrefix . 'Tax category ID must be a non-empty string');
             }
-            
+
             if (!is_numeric($tax['tax_percent']) || $tax['tax_percent'] < 0 || $tax['tax_percent'] > 100) {
                 throw new \InvalidArgumentException($errorPrefix . 'Tax percentage must be a number between 0 and 100');
             }
-            
+
             if (!is_string($tax['currency']) || strlen($tax['currency']) !== 3) {
                 throw new \InvalidArgumentException($errorPrefix . 'Currency code must be exactly 3 characters long');
             }
-            
+
             if (!is_string($tax['tax_scheme_id']) || empty(trim($tax['tax_scheme_id']))) {
                 throw new \InvalidArgumentException($errorPrefix . 'Tax scheme ID must be a non-empty string');
             }
-            
+
             $totalTaxAmount += (float)$tax['tax_amount'];
         }
 
@@ -1084,9 +1082,9 @@ class UblService
         // Add total tax amount using the currency from the first tax entry
         $firstTaxCurrency = $taxes[0]['currency'];
         $totalTaxAmountElement = $this->createElement(
-            'cbc', 
-            'TaxAmount', 
-            number_format($totalTaxAmount, 2, '.', ''), 
+            'cbc',
+            'TaxAmount',
+            number_format($totalTaxAmount, 2, '.', ''),
             ['currencyID' => $firstTaxCurrency]
         );
         $taxTotal->appendChild($totalTaxAmountElement);
@@ -1094,25 +1092,25 @@ class UblService
         // Add tax subtotals for each tax category
         foreach ($taxes as $tax) {
             $taxCurrency = $tax['currency'];
-            
+
             // Create TaxSubtotal element
             $taxSubtotal = $this->createElement('cac', 'TaxSubtotal');
             $taxSubtotal = $taxTotal->appendChild($taxSubtotal);
 
             // Add taxable amount
             $taxableAmountElement = $this->createElement(
-                'cbc', 
-                'TaxableAmount', 
-                number_format($tax['taxable_amount'], 2, '.', ''), 
+                'cbc',
+                'TaxableAmount',
+                number_format($tax['taxable_amount'], 2, '.', ''),
                 ['currencyID' => $taxCurrency]
             );
             $taxSubtotal->appendChild($taxableAmountElement);
 
             // Add tax amount
             $taxAmountElement = $this->createElement(
-                'cbc', 
-                'TaxAmount', 
-                number_format($tax['tax_amount'], 2, '.', ''), 
+                'cbc',
+                'TaxAmount',
+                number_format($tax['tax_amount'], 2, '.', ''),
                 ['currencyID' => $taxCurrency]
             );
             $taxSubtotal->appendChild($taxAmountElement);
@@ -1127,8 +1125,8 @@ class UblService
 
             // Add tax percentage
             $percentElement = $this->createElement(
-                'cbc', 
-                'Percent', 
+                'cbc',
+                'Percent',
                 number_format($tax['tax_percent'], 2, '.', '')
             );
             $taxCategory->appendChild($percentElement);
@@ -1213,126 +1211,245 @@ class UblService
 
 
     /**
-     * Voeg een enkele InvoiceLine (factuurregel) toe
+     * Add an invoice line to the document
      * 
-     * @param string $id Factuurregel ID
-     * @param string $quantity Hoeveelheid
-     * @param string $unitCode Eenheid (bijv. 'DAY', 'PCS')
-     * @param string $lineExtensionAmount Regelbedrag exclusief BTW
-     * @param string $description Omschrijving
-     * @param string $name Naam
-     * @param string $priceAmount Prijs per eenheid
-     * @param string|null $accountingCost Kostenplaats (optioneel)
-     * @param string|null $orderLineId Order regel ID (optioneel)
-     * @param string|null $standardItemId Item ID (optioneel)
-     * @param string|null $originCountry Land van herkomst (optioneel)
-     * @param string $taxCategoryId BTW categorie ID (S=standaard)
-     * @param string $taxPercent BTW percentage
+     * @param array $lineData Array containing the invoice line data with the following structure:
+     *   [
+     *     'id' => '1',                               // Required: Line item ID
+     *     'quantity' => '2',                         // Required: Quantity
+     *     'unit_code' => 'PCS',                      // Required: Unit of measure code (e.g., 'PCS', 'DAY')
+     *     'line_extension_amount' => '100.00',       // Required: Line total amount excluding tax
+     *     'description' => 'Product description',     // Required: Product/service description
+     *     'name' => 'Product Name',                  // Required: Product/service name
+     *     'price_amount' => '50.00',                 // Required: Price per unit
+     *     'currency' => 'EUR',                       // Required: Currency code (3 letters)
+     *     'accounting_cost' => 'COST001',            // Optional: Accounting cost center
+     *     'order_line_id' => 'PO-001-1',             // Optional: Reference to purchase order line
+     *     'standard_item_id' => 'GTIN-123456789',    // Optional: Standard item identifier
+     *     'origin_country' => 'NL',                  // Optional: Country of origin (2-letter code)
+     *     'tax_category_id' => 'S',                  // Optional: Tax category ID (default: 'S' for standard rate)
+     *     'tax_percent' => '21.00',                  // Optional: Tax percentage (default: '21.00')
+     *     'tax_scheme_id' => 'VAT',                  // Optional: Tax scheme ID (default: 'VAT')
+     *     'item_type_code' => '1000',                // Optional: Item classification code (CPV)
+     *     'item_type_description' => 'Product'        // Optional: Item type description
+     *   ]
      * @return self
+     * @throws \InvalidArgumentException For missing or invalid parameters
      */
-    public function addInvoiceLine(
-        string $id,
-        string $quantity,
-        string $unitCode,
-        string $lineExtensionAmount,
-        string $description,
-        string $name,
-        string $priceAmount,
-        ?string $accountingCost = null,
-        ?string $orderLineId = null,
-        ?string $standardItemId = null,
-        ?string $originCountry = null,
-        string $taxCategoryId = 'S',
-        string $taxPercent = '25.0'
-    ): self {
-        // InvoiceLine container
+    public function addInvoiceLine(array $lineData): self
+    {
+        // Validate required fields
+        $requiredFields = [
+            'id' => 'Line ID is required',
+            'quantity' => 'Quantity is required',
+            'unit_code' => 'Unit code is required',
+            'line_extension_amount' => 'Line extension amount is required',
+            'description' => 'Description is required',
+            'name' => 'Name is required',
+            'price_amount' => 'Price amount is required',
+            'currency' => 'Currency is required'
+        ];
+
+        foreach ($requiredFields as $field => $errorMessage) {
+            if (!isset($lineData[$field]) || $lineData[$field] === '') {
+                throw new \InvalidArgumentException($errorMessage);
+            }
+        }
+
+        // Validate numeric fields
+        $numericFields = [
+            'quantity' => 'Quantity must be a number',
+            'line_extension_amount' => 'Line extension amount must be a number',
+            'price_amount' => 'Price amount must be a number'
+        ];
+
+        foreach ($numericFields as $field => $errorMessage) {
+            if (!is_numeric($lineData[$field])) {
+                throw new \InvalidArgumentException($errorMessage);
+            }
+        }
+
+        // Set default values for optional fields
+        $lineData = array_merge([
+            'tax_category_id' => 'S',
+            'tax_percent' => '21.00',
+            'tax_scheme_id' => 'VAT',
+            'item_type_code' => '1000',
+            'item_type_description' => 'Product'
+        ], $lineData);
+
+        // Format numeric values
+        $formattedAmounts = [
+            'line_extension_amount' => number_format((float)$lineData['line_extension_amount'], 2, '.', ''),
+            'price_amount' => number_format((float)$lineData['price_amount'], 2, '.', ''),
+            'tax_percent' => number_format((float)$lineData['tax_percent'], 2, '.', '')
+        ];
+
+        // Create InvoiceLine container
         $invoiceLine = $this->createElement('cac', 'InvoiceLine');
         $invoiceLine = $this->rootElement->appendChild($invoiceLine);
 
-        // ID
-        $idElement = $this->createElement('cbc', 'ID', $id);
-        $invoiceLine->appendChild($idElement);
+        // Add required elements
+        $elements = [
+            'ID' => $lineData['id'],
+            'InvoicedQuantity' => [
+                'value' => $lineData['quantity'],
+                'attributes' => ['unitCode' => $lineData['unit_code']]
+            ],
+            'LineExtensionAmount' => [
+                'value' => $formattedAmounts['line_extension_amount'],
+                'attributes' => ['currencyID' => $lineData['currency']]
+            ]
+        ];
 
-        // InvoicedQuantity
-        $invoicedQuantityElement = $this->createElement('cbc', 'InvoicedQuantity', $quantity, ['unitCode' => $unitCode]);
-        $invoiceLine->appendChild($invoicedQuantityElement);
+        foreach ($elements as $elementName => $data) {
+            $element = is_array($data)
+                ? $this->createElement('cbc', $elementName, $data['value'], $data['attributes'] ?? [])
+                : $this->createElement('cbc', $elementName, $data);
+            $invoiceLine->appendChild($element);
+        }
 
-        // LineExtensionAmount
-        $lineExtensionAmountElement = $this->createElement('cbc', 'LineExtensionAmount', $lineExtensionAmount, ['currencyID' => 'EUR']);
-        $invoiceLine->appendChild($lineExtensionAmountElement);
-
-        // AccountingCost (optioneel)
-        if ($accountingCost) {
-            $accountingCostElement = $this->createElement('cbc', 'AccountingCost', $accountingCost);
+        // Add optional accounting cost
+        if (!empty($lineData['accounting_cost'])) {
+            $accountingCostElement = $this->createElement('cbc', 'AccountingCost', $lineData['accounting_cost']);
             $invoiceLine->appendChild($accountingCostElement);
         }
 
-        // OrderLineReference (optioneel)
-        if ($orderLineId) {
+        // Add order line reference if provided
+        if (!empty($lineData['order_line_id'])) {
             $orderLineReference = $this->createElement('cac', 'OrderLineReference');
             $orderLineReference = $invoiceLine->appendChild($orderLineReference);
-
-            $lineIdElement = $this->createElement('cbc', 'LineID', $orderLineId);
+            $lineIdElement = $this->createElement('cbc', 'LineID', $lineData['order_line_id']);
             $orderLineReference->appendChild($lineIdElement);
         }
 
-        // Item
+        // Create Item section
         $item = $this->createElement('cac', 'Item');
         $item = $invoiceLine->appendChild($item);
 
-        $descriptionElement = $this->createElement('cbc', 'Description', $description);
-        $item->appendChild($descriptionElement);
+        // Add item details
+        $itemElements = [
+            'Description' => $lineData['description'],
+            'Name' => $lineData['name']
+        ];
 
-        $nameElement = $this->createElement('cbc', 'Name', $name);
-        $item->appendChild($nameElement);
+        foreach ($itemElements as $elementName => $value) {
+            $element = $this->createElement('cbc', $elementName, $value);
+            $item->appendChild($element);
+        }
 
-        // StandardItemIdentification (optioneel)
-        if ($standardItemId) {
+        // Add standard item identification if provided
+        if (!empty($lineData['standard_item_id'])) {
             $standardItemIdentification = $this->createElement('cac', 'StandardItemIdentification');
             $standardItemIdentification = $item->appendChild($standardItemIdentification);
-
-            $idElement = $this->createElement('cbc', 'ID', $standardItemId, ['schemeID' => '0088']);
+            $idElement = $this->createElement('cbc', 'ID', $lineData['standard_item_id'], ['schemeID' => '0088']);
             $standardItemIdentification->appendChild($idElement);
         }
 
-        // OriginCountry (optioneel)
-        if ($originCountry) {
+        // Add origin country if provided
+        if (!empty($lineData['origin_country'])) {
             $originCountryElement = $this->createElement('cac', 'OriginCountry');
             $originCountryElement = $item->appendChild($originCountryElement);
-
-            $identificationCodeElement = $this->createElement('cbc', 'IdentificationCode', $originCountry);
+            $identificationCodeElement = $this->createElement('cbc', 'IdentificationCode', $lineData['origin_country']);
             $originCountryElement->appendChild($identificationCodeElement);
         }
 
-        // CommodityClassification
+        // Add commodity classification
         $commodityClassification = $this->createElement('cac', 'CommodityClassification');
         $commodityClassification = $item->appendChild($commodityClassification);
+        $itemClassificationCode = $this->createElement('cbc', 'ItemClassificationCode', $lineData['item_type_code'], ['listID' => 'CPV']);
+        $commodityClassification->appendChild($itemClassificationCode);
 
-        $itemClassificationCodeElement = $this->createElement('cbc', 'ItemClassificationCode', '09348023', ['listID' => 'SRV']);
+        // Add price information
+        $price = $this->createElement('cac', 'Price');
+        $price = $invoiceLine->appendChild($price);
+
+        $priceAmountElement = $this->createElement(
+            'cbc',
+            'PriceAmount',
+            $formattedAmounts['price_amount'],
+            ['currencyID' => $lineData['currency']]
+        );
+        $price->appendChild($priceAmountElement);
+
+        // Add tax information
+        $taxTotal = $this->createElement('cac', 'TaxTotal');
+        $taxTotal = $invoiceLine->appendChild($taxTotal);
+
+        $taxAmount = (float)$lineData['price_amount'] * (float)$lineData['quantity'] * ((float)$lineData['tax_percent'] / 100);
+        $formattedTaxAmount = number_format($taxAmount, 2, '.', '');
+
+        $taxAmountElement = $this->createElement(
+            'cbc',
+            'TaxAmount',
+            $formattedTaxAmount,
+            ['currencyID' => $lineData['currency']]
+        );
+        $taxTotal->appendChild($taxAmountElement);
+
+        $taxSubtotal = $this->createElement('cac', 'TaxSubtotal');
+        $taxSubtotal = $taxTotal->appendChild($taxSubtotal);
+
+        $taxableAmount = (float)$lineData['price_amount'] * (float)$lineData['quantity'];
+        $formattedTaxableAmount = number_format($taxableAmount, 2, '.', '');
+
+        $taxableAmountElement = $this->createElement(
+            'cbc',
+            'TaxableAmount',
+            $formattedTaxableAmount,
+            ['currencyID' => $lineData['currency']]
+        );
+        $taxSubtotal->appendChild($taxableAmountElement);
+
+        $taxCategory = $this->createElement('cac', 'TaxCategory');
+        $taxCategory = $taxSubtotal->appendChild($taxCategory);
+
+        $taxCategoryIdElement = $this->createElement('cbc', 'ID', $lineData['tax_category_id']);
+        $taxCategory->appendChild($taxCategoryIdElement);
+
+        $taxPercentElement = $this->createElement('cbc', 'Percent', $formattedAmounts['tax_percent']);
+        $taxCategory->appendChild($taxPercentElement);
+
+        $taxScheme = $this->createElement('cac', 'TaxScheme');
+        $taxScheme = $taxCategory->appendChild($taxScheme);
+
+        $taxSchemeIdElement = $this->createElement('cbc', 'ID', $lineData['tax_scheme_id']);
+        $taxScheme->appendChild($taxSchemeIdElement);
+
+        $itemClassificationCodeElement = $this->createElement('cbc', 'ItemClassificationCode', $lineData['item_type_code'], ['listID' => 'SRV']);
         $commodityClassification->appendChild($itemClassificationCodeElement);
 
         // ClassifiedTaxCategory
         $classifiedTaxCategory = $this->createElement('cac', 'ClassifiedTaxCategory');
         $classifiedTaxCategory = $item->appendChild($classifiedTaxCategory);
 
-        $idElement = $this->createElement('cbc', 'ID', $taxCategoryId);
+        $idElement = $this->createElement('cbc', 'ID', $lineData['tax_category_id']);
         $classifiedTaxCategory->appendChild($idElement);
 
-        $percentElement = $this->createElement('cbc', 'Percent', $taxPercent);
+        $percentElement = $this->createElement('cbc', 'Percent', $formattedAmounts['tax_percent']);
         $classifiedTaxCategory->appendChild($percentElement);
 
         $taxScheme = $this->createElement('cac', 'TaxScheme');
         $taxScheme = $classifiedTaxCategory->appendChild($taxScheme);
 
-        $taxSchemeIdElement = $this->createElement('cbc', 'ID', 'VAT');
+        $taxSchemeIdElement = $this->createElement('cbc', 'ID', $lineData['tax_scheme_id']);
         $taxScheme->appendChild($taxSchemeIdElement);
 
         // Price
         $price = $this->createElement('cac', 'Price');
         $price = $invoiceLine->appendChild($price);
 
-        $priceAmountElement = $this->createElement('cbc', 'PriceAmount', $priceAmount, ['currencyID' => 'EUR']);
+        $priceAmountElement = $this->createElement(
+            'cbc',
+            'PriceAmount',
+            $formattedAmounts['price_amount'],
+            ['currencyID' => $lineData['currency']]
+        );
         $price->appendChild($priceAmountElement);
+
+        // BaseQuantity
+        $baseQuantityElement = $this->createElement('cbc', 'BaseQuantity', '1', ['unitCode' => $lineData['unit_code']]);
+        $price->appendChild($baseQuantityElement);
 
         return $this;
     }
