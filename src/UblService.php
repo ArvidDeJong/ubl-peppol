@@ -465,7 +465,8 @@ class UblService
         $registrationNameElement = $this->createElement('cbc', 'RegistrationName', 'SupplierOfficialName Ltd');
         $partyLegalEntity->appendChild($registrationNameElement);
 
-        $companyIDElement = $this->createElement('cbc', 'CompanyID', 'GB983294');
+        // Add CompanyID with schemeID for Dutch legal entity identifier (KVK)
+        $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId, ['schemeID' => '0106']);
         $partyLegalEntity->appendChild($companyIDElement);
 
         return $this;
@@ -659,7 +660,8 @@ class UblService
         $partyLegalEntity->appendChild($registrationNameElement);
 
         if ($companyId) {
-            $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId);
+            // Add CompanyID with schemeID for Dutch legal entity identifier (KVK)
+            $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId, ['schemeID' => '0106']);
             $partyLegalEntity->appendChild($companyIDElement);
         }
 
