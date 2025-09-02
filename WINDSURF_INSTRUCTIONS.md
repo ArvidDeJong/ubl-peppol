@@ -99,8 +99,55 @@ use Darvis\UblPeppol\UblBeBis3Service;
 // Service instantiëren
 $ublService = new UblBeBis3Service();
 
-// UBL XML genereren
-$ublXml = $ublService->generateInvoice($invoiceData);
+// Document initialiseren
+$ublService->createDocument();
+
+// Factuur header toevoegen
+$ublService->addInvoiceHeader($invoiceData['invoice_number'], $invoiceData['invoice_date'], $invoiceData['due_date']);
+
+// Leverancier toevoegen
+$ublService->addAccountingSupplierParty(
+    $invoiceData['supplier']['vat_number'],
+    '0208',  // endpointSchemeID
+    $invoiceData['supplier']['vat_number'],
+    $invoiceData['supplier']['name'],
+    $invoiceData['supplier']['address']['street'],
+    $invoiceData['supplier']['address']['postal_code'],
+    $invoiceData['supplier']['address']['city'],
+    $invoiceData['supplier']['address']['country'],
+    $invoiceData['supplier']['vat_number']
+);
+
+// Klant toevoegen
+$ublService->addAccountingCustomerParty(
+    $invoiceData['customer']['vat_number'],
+    '0208',  // endpointSchemeID
+    $invoiceData['customer']['vat_number'],
+    $invoiceData['customer']['name'],
+    $invoiceData['customer']['address']['street'],
+    $invoiceData['customer']['address']['postal_code'],
+    $invoiceData['customer']['address']['city'],
+    $invoiceData['customer']['address']['country']
+);
+
+// Factuurregels toevoegen
+foreach ($invoiceData['invoice_lines'] as $line) {
+    $ublService->addInvoiceLine([
+        'id' => $line['id'],
+        'quantity' => $line['quantity'],
+        'unit_code' => $line['unit_code'],
+        'price_amount' => $line['unit_price'],
+        'currency' => $invoiceData['currency'],
+        'name' => $line['description'],
+        'description' => $line['description'],
+        'tax_category_id' => 'S',
+        'tax_percent' => $line['vat_rate'],
+        'tax_scheme_id' => 'VAT'
+    ]);
+}
+
+// XML genereren
+$ublXml = $ublService->generateXml();
 
 // Opslaan als bestand
 file_put_contents('factuur.xml', $ublXml);
