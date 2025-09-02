@@ -9,9 +9,11 @@ All notable changes to this package will be documented in this file.
 - Updated docs/validation.md and docs/troubleshooting.md to English
 - Translated WINDSURF_INSTRUCTIONS.md to English for AI assistant compatibility
 - Updated composer.json keywords formatting for better readability
+- Removed hardcoded version from composer.json to use Git tags for versioning
 
 ### Fixed
 - Fixed IBAN example in test_data.php for correct validation
+- Fixed Packagist version mismatch by removing version field from composer.json
 
 ## [1.2.1] - 2025-09-02
 ### Changed
