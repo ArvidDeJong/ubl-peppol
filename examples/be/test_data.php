@@ -28,7 +28,7 @@ $invoice = [
     // Customer information
     'customer' => [
         'vat_number' => '853848932B01',              // Customer VAT number without country code
-        'endpoint_id' => 'RSSMRA85M01H501Z',         // Geldige Italiaanse Codice Fiscale format
+        'endpoint_id' => 'RSSMRA85M01H501Z',         // Geldig Italiaans Codice Fiscale formaat
         'endpoint_scheme' => '0210',                // 0210 for VAT
         'party_id' => 'CUST-' . uniqid(),           // Internal reference
         'name' => 'ARVID.NL B.V.',                  // Company name
@@ -37,7 +37,7 @@ $invoice = [
         'city' => 'Amsterdam',                      // City
         'country' => 'NL',                          // Country code (2 letters)
         'additional_street' => 'Tweede verdieping', // Optional: additional address line
-        'registration_number' => '87654321',         // KVK nummer (8 cijfers) zonder schemeID
+        'registration_number' => '85384893',         // KVK nummer (8 cijfers) zonder landcode
         'contact_name' => 'John Doe',               // Contact person name
         'contact_phone' => '+31 20 123 4567',       // Contact phone number
         'contact_email' => 'john.doe@example.com',  // Contact email
@@ -101,7 +101,7 @@ $invoice = [
         'means_code' => '30',                       // 30 = Credit transfer
         'means_name' => 'Credit transfer via SEPA', // Payment method description
         'payment_id' => 'INV-' . date('Y') . '-123', // Payment reference
-        'account_iban' => 'NL32RABO0180732591',     // IBAN
+        'account_iban' => 'NL32RABO0180732595',     // IBAN
         'account_name' => 'Darvis ALU',             // Account holder name
         'bic' => 'RABONL22',                        // BIC/SWIFT code
         'channel_code' => 'IBAN',                   // Payment channel

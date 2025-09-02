@@ -27,6 +27,7 @@ https://test.peppolautoriteit.nl/validate
 
 ### Belgium
 https://ecosio.com/en/peppol-and-xml-document-validator/
+Ruleset: OpenPeppol UBL Invoice (2024.11) (aka BIS Billing 3.0.18)
 
 ### Italy (General PEPPOL)
 https://peppol-docs.agid.gov.it/docs/validator/
