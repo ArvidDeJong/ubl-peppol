@@ -2,7 +2,7 @@
 
 All notable changes to this package will be documented in this file.
 
-## [Unreleased]
+## [1.2.1] - 2025-09-02
 ### Changed
 - Harmonized method signatures between UblBeBis3Service and UblNlBis3Service for consistent API
 - Updated parameter names for consistency: `endpointScheme` → `endpointSchemeID`, `means_code` → `paymentMeansCode`, etc.
