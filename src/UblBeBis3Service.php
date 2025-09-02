@@ -522,6 +522,7 @@ class UblBeBis3Service
 
             $taxCategory = $this->addChildElement($taxSubtotal, 'cac', 'TaxCategory');
             $this->addChildElement($taxCategory, 'cbc', 'ID', $tax['tax_category_id']);
+            // Name weggelaten voor PEPPOL compliance (UBL-CR-504)
             $this->addChildElement($taxCategory, 'cbc', 'Percent', $this->formatAmount((float)$tax['tax_percent']));
             $taxScheme = $this->addChildElement($taxCategory, 'cac', 'TaxScheme');
             $this->addChildElement($taxScheme, 'cbc', 'ID', $tax['tax_scheme_id']);
@@ -668,8 +669,9 @@ class UblBeBis3Service
         $partyLegalEntity = $this->addChildElement($party, 'cac', 'PartyLegalEntity');
         $this->addChildElement($partyLegalEntity, 'cbc', 'RegistrationName', $name);
         if ($registrationNumber) {
-            // Voor Nederlandse KVK nummers: schemeID 0106
-            $this->addChildElement($partyLegalEntity, 'cbc', 'CompanyID', $registrationNumber, ['schemeID' => '0106']);
+            // Voor Nederlandse klanten: gebruik juiste schemeID (0106 voor KVK, 0190 voor OIN)
+            $schemeID = (strtoupper($country) === 'NL') ? '0106' : '0106';
+            $this->addChildElement($partyLegalEntity, 'cbc', 'CompanyID', $registrationNumber, ['schemeID' => $schemeID]);
         }
 
         if ($contactName || $contactPhone || $contactEmail) {
