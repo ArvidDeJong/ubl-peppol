@@ -28,7 +28,7 @@ $invoice = [
     // Customer information
     'customer' => [
         'vat_number' => '853848932B01',              // Customer VAT number without country code
-        'endpoint_id' => 'IT01234567890',         // Italiaanse VAT nummer formaat
+        'endpoint_id' => 'RSSMRA85M01H501Z',         // Geldig Italiaans Codice Fiscale formaat
         'endpoint_scheme' => '0210',                // 0210 for VAT
         'party_id' => 'CUST-' . uniqid(),           // Internal reference
         'name' => 'ARVID.NL B.V.',                  // Company name
