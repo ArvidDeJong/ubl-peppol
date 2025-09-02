@@ -112,6 +112,12 @@ The package has been validated against multiple PEPPOL validators:
 - PHP 8.2 or higher
 - DOM extension
 
+## Author
+
+**Arvid de Jong**  
+Email: info@arvid.nl  
+Website: [arvid.nl](https://arvid.nl)
+
 ## Contributing
 
 Contributions are welcome! Feel free to create issues or submit pull requests.
