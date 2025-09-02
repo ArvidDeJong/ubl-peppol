@@ -5,6 +5,30 @@ A PHP library for generating invoices according to the UBL/PEPPOL standard. This
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/darvis/ubl-peppol.svg?style=flat-square)](https://packagist.org/packages/darvis/ubl-peppol)
 [![Total Downloads](https://img.shields.io/packagist/dt/darvis/ubl-peppol.svg?style=flat-square)](https://packagist.org/packages/darvis/ubl-peppol)
 
+
+# UBL PEPPOL Generator for PHP
+
+An easy-to-use PHP package for generating UBL XML documents that comply with the PEPPOL BIS Billing 3.0 standard, specifically tailored for the Belgian implementation (EN 16931).
+
+## Objective
+
+This package enables developers to easily generate UBL documents that comply with PEPPOL standards, without requiring in-depth knowledge of the UBL specification. The package supports multiple PEPPOL validation standards including Belgium, Netherlands, and Italy.
+
+## Documentation
+
+https://docs.peppol.eu/poacc/billing/3.0/
+
+## Validation Testing
+
+### Netherlands
+https://test.peppolautoriteit.nl/validate
+
+### Belgium
+https://ecosio.com/en/peppol-and-xml-document-validator/
+
+### Italy (General PEPPOL)
+https://peppol-docs.agid.gov.it/docs/validator/
+
 ## Installation
 
 You can install this package via Composer:

@@ -3,6 +3,15 @@
 All notable changes to this package will be documented in this file.
 
 ## [Unreleased]
+### Changed
+- Harmonized method signatures between UblBeBis3Service and UblNlBis3Service for consistent API
+- Updated parameter names for consistency: `endpointScheme` → `endpointSchemeID`, `means_code` → `paymentMeansCode`, etc.
+- Enhanced browser-based examples with download functionality
+- Updated WINDSURF_INSTRUCTIONS.md with step-by-step implementation guide
+
+### Added
+- Added comprehensive Windsurf AI instructions for package usage
+- Added author information to README.md
 
 ## [1.2.0] - 2025-09-01
 ### Added

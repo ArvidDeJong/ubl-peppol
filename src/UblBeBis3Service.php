@@ -567,9 +567,9 @@ class UblBeBis3Service
     }
 
     public function addPaymentMeans(
-        string $means_code,
-        ?string $means_name,
-        string $payment_id,
+        string $paymentMeansCode,
+        ?string $paymentMeansName,
+        string $paymentId,
         string $account_iban,
         ?string $account_name,
         ?string $bic,
@@ -577,8 +577,8 @@ class UblBeBis3Service
         ?string $due_date
     ): self {
         $paymentMeans = $this->addChildElement($this->rootElement, 'cac', 'PaymentMeans');
-        $this->addChildElement($paymentMeans, 'cbc', 'PaymentMeansCode', $means_code, $means_name ? ['name' => $means_name] : []);
-        $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $payment_id);
+        $this->addChildElement($paymentMeans, 'cbc', 'PaymentMeansCode', $paymentMeansCode, $paymentMeansName ? ['name' => $paymentMeansName] : []);
+        $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $paymentId);
 
         $payeeFinancialAccount = $this->addChildElement($paymentMeans, 'cac', 'PayeeFinancialAccount');
         $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $account_iban);
@@ -594,9 +594,9 @@ class UblBeBis3Service
     }
 
     public function addDelivery(
-        string $date,
-        string $location_id,
-        string $location_scheme,
+        string $deliveryDate,
+        string $locationId,
+        string $locationSchemeId,
         string $street,
         ?string $additional_street,
         string $city,
@@ -605,10 +605,10 @@ class UblBeBis3Service
         ?string $party_name = null
     ): self {
         $delivery = $this->addChildElement($this->rootElement, 'cac', 'Delivery');
-        $this->addChildElement($delivery, 'cbc', 'ActualDeliveryDate', $date);
+        $this->addChildElement($delivery, 'cbc', 'ActualDeliveryDate', $deliveryDate);
 
         $deliveryLocation = $this->addChildElement($delivery, 'cac', 'DeliveryLocation');
-        $this->addChildElement($deliveryLocation, 'cbc', 'ID', $location_id, ['schemeID' => $location_scheme]);
+        $this->addChildElement($deliveryLocation, 'cbc', 'ID', $locationId, ['schemeID' => $locationSchemeId]);
 
         $address = $this->addChildElement($deliveryLocation, 'cac', 'Address');
         $this->addChildElement($address, 'cbc', 'StreetName', $street);
@@ -631,7 +631,7 @@ class UblBeBis3Service
 
     public function addAccountingCustomerParty(
         string $endpointId,
-        string $endpointScheme,
+        string $endpointSchemeID,
         string $partyId,
         string $name,
         string $street,
@@ -647,7 +647,7 @@ class UblBeBis3Service
         $customerParty = $this->addChildElement($this->rootElement, 'cac', 'AccountingCustomerParty');
         $party = $this->addChildElement($customerParty, 'cac', 'Party');
 
-        $this->addChildElement($party, 'cbc', 'EndpointID', $endpointId, ['schemeID' => $endpointScheme]);
+        $this->addChildElement($party, 'cbc', 'EndpointID', $endpointId, ['schemeID' => $endpointSchemeID]);
 
         $partyIdentification = $this->addChildElement($party, 'cac', 'PartyIdentification');
         $this->addChildElement($partyIdentification, 'cbc', 'ID', $partyId);
@@ -690,7 +690,7 @@ class UblBeBis3Service
 
     public function addAccountingSupplierParty(
         string $endpointId,
-        string $endpointScheme,
+        string $endpointSchemeID,
         string $partyId,
         string $name,
         string $street,
@@ -704,7 +704,7 @@ class UblBeBis3Service
         $party = $this->addChildElement($supplierParty, 'cac', 'Party');
 
         // EndpointID
-        $this->addChildElement($party, 'cbc', 'EndpointID', $endpointId, ['schemeID' => $endpointScheme]);
+        $this->addChildElement($party, 'cbc', 'EndpointID', $endpointId, ['schemeID' => $endpointSchemeID]);
 
         // PartyIdentification
         $partyIdentification = $this->addChildElement($party, 'cac', 'PartyIdentification');
