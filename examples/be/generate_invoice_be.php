@@ -1,14 +1,14 @@
 <?php
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
 
-use Darvis\UblPeppol\UblBis3Service;
+use Darvis\UblPeppol\UblBeBis3Service;
 
-include 'test_data.php';
+include '../test_data.php';
 
 try {
     // Initialize UBL service
-    $ubl = new UblBis3Service();
+    $ubl = new UblBeBis3Service();
 
     // Create the document and add all components
     $ubl->createDocument()
@@ -19,6 +19,8 @@ try {
         )
         ->addBuyerReference($invoice['header']['buyer_reference'])
         ->addOrderReference($invoice['header']['order_reference'])
+        ->addAdditionalDocumentReference('UBL.BE', 'CommercialInvoice')
+        ->addAdditionalDocumentReference('PEPPOL', 'PEPPOLInvoice')
         ->addAccountingSupplierParty(
             $invoice['supplier']['endpoint_id'],
             $invoice['supplier']['endpoint_scheme'],
@@ -121,6 +123,7 @@ try {
             'tax_amount' => number_format($totalTax, 2, '.', ''),
             'currency' => 'EUR',
             'tax_category_id' => 'S',     // Standard rate
+            'tax_category_name' => 'Standard rate', // Belgian requirement
             'tax_percent' => 21.0,        // 21% VAT
             'tax_scheme_id' => 'VAT',     // VAT tax scheme
         ]
@@ -154,6 +157,7 @@ try {
             'accounting_cost' => $line['accounting_cost'] ?? null,
             'order_line_id' => $line['order_line_id'] ?? null,
             'tax_category_id' => $line['tax_category_id'] ?? 'S',
+            'tax_category_name' => $line['tax_category_name'] ?? null,
             'tax_percent' => $line['tax_percent'],
             'tax_scheme_id' => $line['tax_scheme_id'] ?? 'VAT',
         ];
@@ -167,7 +171,7 @@ try {
     // Handle download if requested
     if (isset($_GET['download'])) {
         header('Content-Type: application/xml');
-        header('Content-Disposition: attachment; filename="invoice-' . date('Y-m-d His') . '.xml"');
+        header('Content-Disposition: attachment; filename="be-invoice-' . date('Y-m-d_His') . '.xml"');
         header('Content-Length: ' . strlen($xml));
         echo $xml;
         exit;

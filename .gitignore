@@ -33,3 +33,6 @@ Thumbs.db
 # Local development bestanden
 .env
 .env.backup
+generated_invoice.xml
+examples/be/invoice.xml
+test.xml

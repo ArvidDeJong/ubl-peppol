@@ -12,7 +12,7 @@ class UblPeppolServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton('ubl-peppol', function ($app) {
-            return new UblBis3Service();
+            return new UblNLBis3Service();
         });
     }
 

@@ -12,7 +12,7 @@ use Darvis\UblPeppol\Validation\UblValidator;
  * This version has been completely rewritten to follow the exact XML structure 
  * of the PEPPOL standard according to the base-example.xml reference.
  */
-class UblBis3Service
+class UblNLBis3Service
 {
     /**
      * @var DOMDocument The main XML document instance
@@ -212,7 +212,7 @@ class UblBis3Service
         $customizationIDElement = $this->createElement(
             'cbc',
             'CustomizationID',
-            'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0'
+            'urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0'
         );
         $this->rootElement->appendChild($customizationIDElement);
 
@@ -320,6 +320,22 @@ class UblBis3Service
         // OrderReference ID
         $orderIdElement = $this->createElement('cbc', 'ID', $orderNumber);
         $orderRefElement->appendChild($orderIdElement);
+
+        return $this;
+    }
+
+    /**
+     * Add an Additional Document Reference to the invoice.
+     *
+     * @param string $id The identifier of the referenced document.
+     * @param string|null $documentType The type of the referenced document.
+     * @return self
+     */
+    public function addAdditionalDocumentReference(string $id, ?string $documentType = null): self
+    {
+        $docRef = $this->addChildElement($this->rootElement, 'cac', 'AdditionalDocumentReference');
+        $this->addChildElement($docRef, 'cbc', 'ID', $id);
+
 
         return $this;
     }
@@ -1087,16 +1103,12 @@ class UblBis3Service
         $paymentMeans = $this->createElement('cac', 'PaymentMeans');
 
         // Add payment means code with name
-        $this->addChildElement($paymentMeans, 'cbc', 'PaymentMeansCode', $paymentMeansCode, ['name' => $paymentMeansName]);
+        $this->addChildElement($paymentMeans, 'cbc', 'PaymentMeansCode', $paymentMeansCode);
 
         // Add payment ID if provided
         if ($paymentId !== null) {
             $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $paymentId);
         }
-        // Add payment due date inside PaymentMeans (allowed by UBL)
-        // if ($paymentDueDate !== null) {
-        //     $this->addChildElement($paymentMeans, 'cbc', 'PaymentDueDate', $paymentDueDate);
-        // }
 
         // PaymentChannelCode is not included as per UBL-CR-413
         // PaymentDueDate is not included as per UBL-CR-412 (must be at invoice level)
@@ -1104,34 +1116,21 @@ class UblBis3Service
         // Add payee financial account if account ID is provided
         if ($accountId !== null) {
             $payeeFinancialAccount = $this->createElement('cac', 'PayeeFinancialAccount');
-            $payeeFinancialAccount = $paymentMeans->appendChild($payeeFinancialAccount);
 
             // Add account ID (IBAN)
-            $idElement = $this->createElement('cbc', 'ID', $accountId);
-            $payeeFinancialAccount->appendChild($idElement);
+            $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $accountId);
 
-            // Add account name if provided
-            if ($accountName !== null) {
-                $nameElement = $this->createElement('cbc', 'Name', $accountName);
-                $payeeFinancialAccount->appendChild($nameElement);
-            }
-
-            // Add financial institution (BIC/SWIFT) if provided
+            // Add financial institution branch (BIC/SWIFT) if provided
             if ($financialInstitutionId !== null) {
                 $financialInstitutionBranch = $this->createElement('cac', 'FinancialInstitutionBranch');
-                $financialInstitutionBranch = $payeeFinancialAccount->appendChild($financialInstitutionBranch);
-
-                $bicElement = $this->createElement('cbc', 'ID', $financialInstitutionId);
-                $financialInstitutionBranch->appendChild($bicElement);
+                $this->addChildElement($financialInstitutionBranch, 'cbc', 'ID', $financialInstitutionId);
+                $payeeFinancialAccount->appendChild($financialInstitutionBranch);
             }
+
+            $paymentMeans->appendChild($payeeFinancialAccount);
         }
 
         $this->rootElement->appendChild($paymentMeans);
-
-        // Add payment due date to the root level if provided
-        // if ($paymentDueDate !== null) {
-        //     $this->addChildElement($this->rootElement, 'cbc', 'PaymentDueDate', $paymentDueDate);
-        // }
 
         return $this;
     }
@@ -1251,6 +1250,7 @@ class UblBis3Service
      *       'tax_amount' => 210.00,      // Required: Tax amount (must be >= 0)
      *       'currency' => 'EUR',         // Required: Currency code (3 letters)
      *       'tax_category_id' => 'S',    // Required: Tax category ID (e.g., 'S' for standard rate)
+     *       'tax_category_name' => 'Standard rated', // Optional: The name of the tax category
      *       'tax_percent' => 21.0,       // Required: Tax percentage (0-100)
      *       'tax_scheme_id' => 'VAT'     // Required: Tax scheme ID (e.g., 'VAT')
      *     ]
@@ -1454,27 +1454,14 @@ class UblBis3Service
     /**
      * Add an invoice line to the document
      * 
-     * @param array $lineData Array containing the invoice line data with the following structure:
-     *   [
-     *     'id' => '1',                               // Required: Line item ID
-     *     'quantity' => '2',                         // Required: Quantity
-     *     'unit_code' => 'PCE',                      // Required: Unit of measure code (e.g., 'PCE' for piece, 'HUR' for hour)
-     *     'line_extension_amount' => '100.00',       // Required: Line total amount excluding tax
-     *     'description' => 'Product description',     // Required: Product/service description
-     *     'name' => 'Product Name',                  // Required: Product/service name
-     *     'price_amount' => '50.00',                 // Required: Price per unit
-     *     'currency' => 'EUR',                       // Required: Currency code (3 letters)
-     *     'accounting_cost' => 'COST001',            // Optional: Accounting cost center
-     *     'order_line_id' => 'PO-001-1',             // Optional: Reference to purchase order line
-     *     'standard_item_id' => 'GTIN-123456789',    // Optional: Standard item identifier
-     *     'origin_country' => 'NL',                  // Optional: Country of origin (2-letter code)
-     *     'tax_category_id' => 'S',                  // Optional: Tax category ID (default: 'S' for standard rate)
-     *     'tax_percent' => '21.00',                  // Optional: Tax percentage (default: '21.00')
-     *     'tax_scheme_id' => 'VAT',                  // Optional: Tax scheme ID (default: 'VAT')
-     *     'item_type_code' => '1000',                // Optional: Item classification code
-     *     'item_type_scheme' => 'STD',               // Optional: Item classification scheme (default: 'STD' for Standard)
-     *     'item_type_name' => 'Product Type'          // Optional: Item type name
-     *   ]
+     * @param array $lineData Array containing the invoice line data
+     * @return self
+     * @throws \InvalidArgumentException For missing or invalid parameters
+     */
+    /**
+     * Add an invoice line to the document
+     * 
+     * @param array $lineData Array containing the invoice line data
      * @return self
      * @throws \InvalidArgumentException For missing or invalid parameters
      */
@@ -1484,67 +1471,16 @@ class UblBis3Service
         $lineData = array_merge([
             'tax_category_id' => 'S',
             'tax_percent' => '21.00',
-            'tax_scheme_id' => 'VAT',
-            'item_type_scheme' => 'STD',
-            'item_type_name' => 'Product'
         ], $lineData);
-
-        // Validate required fields
-        $requiredFields = [
-            'id' => 'Line ID is required',
-            'quantity' => 'Quantity is required',
-            'unit_code' => 'Unit code is required',
-            'line_extension_amount' => 'Line extension amount is required',
-            'description' => 'Description is required',
-            'name' => 'Name is required',
-            'price_amount' => 'Price amount is required',
-            'currency' => 'Currency is required'
-        ];
-
-        foreach ($requiredFields as $field => $errorMessage) {
-            if (!isset($lineData[$field]) || $lineData[$field] === '') {
-                throw new \InvalidArgumentException($errorMessage);
-            }
-        }
-
-        // Validate numeric fields
-        $numericFields = [
-            'quantity' => 'Quantity must be a number',
-            'line_extension_amount' => 'Line extension amount must be a number',
-            'price_amount' => 'Price amount must be a number',
-            'tax_percent' => 'Tax percent must be a number'
-        ];
-
-        foreach ($numericFields as $field => $errorMessage) {
-            if (isset($lineData[$field]) && !is_numeric($lineData[$field])) {
-                throw new \InvalidArgumentException($errorMessage);
-            }
-        }
-
-        // Validate unit code
-        if (!UblValidator::isValidUnitCode($lineData['unit_code'])) {
-            throw new \InvalidArgumentException(sprintf(
-                'Invalid unit code: %s. Must be a valid UN/ECE Recommendation 20 with Rec 21 extension unit code.',
-                $lineData['unit_code']
-            ));
-        }
-
-        // Validate classification scheme if provided
-        if (!empty($lineData['item_type_scheme']) && !UblValidator::isValidClassificationScheme($lineData['item_type_scheme'])) {
-            throw new \InvalidArgumentException(sprintf(
-                'Invalid classification scheme: %s. Must be a valid UNTDID 7143 scheme.',
-                $lineData['item_type_scheme']
-            ));
-        }
 
         // Create InvoiceLine container
         $invoiceLine = $this->createElement('cac', 'InvoiceLine');
         $this->rootElement->appendChild($invoiceLine);
 
-        // Add required elements
+        // Add ID
         $this->addChildElement($invoiceLine, 'cbc', 'ID', $lineData['id']);
 
-        // Add InvoicedQuantity with unit code
+        // Add InvoicedQuantity
         $this->addChildElement(
             $invoiceLine,
             'cbc',
@@ -1554,79 +1490,48 @@ class UblBis3Service
         );
 
         // Add LineExtensionAmount
-        $this->addChildElement(
-            $invoiceLine,
-            'cbc',
-            'LineExtensionAmount',
-            number_format((float)$lineData['line_extension_amount'], 2, '.', ''),
-            ['currencyID' => $lineData['currency']]
-        );
+        $baseQuantity = $lineData['base_quantity'] ?? 1;
+        if ($baseQuantity == 0) {
+            $baseQuantity = 1;
+        } // Prevent division by zero
+        $lineExtensionAmountValue = $lineData['quantity'] * ($lineData['price_amount'] / $baseQuantity);
+        $this->addChildElement($invoiceLine, 'cbc', 'LineExtensionAmount', $this->formatAmount($lineExtensionAmountValue), ['currencyID' => $lineData['currency']]);
 
-        // Add optional accounting cost
-        if (!empty($lineData['accounting_cost'])) {
+        // AccountingCost
+        if (isset($lineData['accounting_cost'])) {
             $this->addChildElement($invoiceLine, 'cbc', 'AccountingCost', $lineData['accounting_cost']);
         }
 
-        // Add order line reference if provided
-        if (!empty($lineData['order_line_id'])) {
-            $orderLineRef = $this->createElement('cac', 'OrderLineReference');
-            $this->addChildElement($orderLineRef, 'cbc', 'LineID', $lineData['order_line_id']);
-            $invoiceLine->appendChild($orderLineRef);
+        // OrderLineReference
+        if (isset($lineData['order_line_id'])) {
+            $orderLineReference = $this->createElement('cac', 'OrderLineReference');
+            $invoiceLine->appendChild($orderLineReference);
+            $this->addChildElement($orderLineReference, 'cbc', 'LineID', $lineData['order_line_id']);
         }
 
-        // Create Item section
+        // Item
         $item = $this->createElement('cac', 'Item');
         $invoiceLine->appendChild($item);
 
-        // Add item details
         $this->addChildElement($item, 'cbc', 'Description', $lineData['description']);
         $this->addChildElement($item, 'cbc', 'Name', $lineData['name']);
 
-        // Add standard item identification if provided
-        if (!empty($lineData['standard_item_id'])) {
-            $stdItemId = $this->createElement('cac', 'StandardItemIdentification');
-            $idElement = $this->createElement('cbc', 'ID', $lineData['standard_item_id']);
-            $idElement->setAttribute('schemeID', 'GTIN');
-            $stdItemId->appendChild($idElement);
-            $item->appendChild($stdItemId);
-        }
-
-        // Add origin country if provided
-        if (!empty($lineData['origin_country'])) {
-            $originCountry = $this->createElement('cac', 'OriginCountry');
-            $this->addChildElement($originCountry, 'cbc', 'IdentificationCode', $lineData['origin_country']);
-            $item->appendChild($originCountry);
-        }
-
-        // Add commodity classification if type code is provided
-        if (!empty($lineData['item_type_code'])) {
-            $commodityClassification = $this->createElement('cac', 'CommodityClassification');
-            $itemClassificationCode = $this->createElement('cbc', 'ItemClassificationCode', $lineData['item_type_code']);
-            $itemClassificationCode->setAttribute('listID', $lineData['item_type_scheme']);
-            $commodityClassification->appendChild($itemClassificationCode);
-            $item->appendChild($commodityClassification);
-        }
-
-        // Add ClassifiedTaxCategory (required for PEPPOL)
+        // Item > ClassifiedTaxCategory
         $classifiedTaxCategory = $this->createElement('cac', 'ClassifiedTaxCategory');
-        $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $lineData['tax_category_id']);
-        $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', number_format((float)$lineData['tax_percent'], 2, '.', ''));
-
-        $taxScheme = $this->createElement('cac', 'TaxScheme');
-        $this->addChildElement($taxScheme, 'cbc', 'ID', $lineData['tax_scheme_id']);
-        $classifiedTaxCategory->appendChild($taxScheme);
-
         $item->appendChild($classifiedTaxCategory);
+        $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $lineData['tax_category_id']);
+        $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', $this->formatAmount($lineData['tax_percent']));
+        $taxScheme = $this->addChildElement($classifiedTaxCategory, 'cac', 'TaxScheme');
+        $this->addChildElement($taxScheme, 'cbc', 'ID', 'VAT');
 
-        // Add price information
+        // Price
         $price = $this->createElement('cac', 'Price');
-        $priceAmount = $this->createElement('cbc', 'PriceAmount', number_format((float)$lineData['price_amount'], 2, '.', ''));
-        $priceAmount->setAttribute('currencyID', $lineData['currency']);
-        $price->appendChild($priceAmount);
         $invoiceLine->appendChild($price);
 
-        // TaxTotal is not included in invoice lines as per UBL-CR-561
-        // Tax information is only provided at the document level through the TaxTotal element
+        $this->addChildElement($price, 'cbc', 'PriceAmount', $this->formatAmount($lineData['price_amount']), ['currencyID' => $lineData['currency']]);
+
+        $baseQuantityValue = $lineData['base_quantity'] ?? 1;
+        $this->addChildElement($price, 'cbc', 'BaseQuantity', number_format((float)$baseQuantityValue, 2, '.', ''), ['unitCode' => $lineData['unit_code']]);
 
         return $this;
     }
