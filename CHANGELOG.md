@@ -2,6 +2,21 @@
 
 All notable changes to this package will be documented in this file.
 
+## [1.2.3] - 2025-09-02
+### Fixed
+- Fixed PEPPOL UBL validation errors for complete compliance
+- Fixed CustomizationID encoding issues for PEPPOL BIS Billing 3.0
+- Fixed Dutch customer CompanyID to use KVK number (8 digits) instead of VAT number for schemeID 0106
+- Fixed Italian Codice Fiscale format validation (RSSMRA85M01H501Z) for schemeID 0210
+- Removed TaxCategory Name elements from TaxTotal for UBL-CR-504 compliance
+- Removed TaxTotal elements from InvoiceLine for UBL-CR-561 compliance
+- Removed ClassifiedTaxCategory Name elements from InvoiceLine Items for UBL-CR-597 compliance
+
+### Changed
+- Updated test data with correct KVK number format for Dutch customers
+- Updated EndpointID format for Italian customers to valid Codice Fiscale
+- Reorganized test_data.php files per country (be/test_data.php, nl/test_data.php)
+
 ## [1.2.2] - 2025-09-02
 ### Changed
 - Translated all documentation from Dutch to English for international accessibility
