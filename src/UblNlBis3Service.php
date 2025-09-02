@@ -212,7 +212,7 @@ class UblNLBis3Service
         $customizationIDElement = $this->createElement(
             'cbc',
             'CustomizationID',
-            'urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0'
+            'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0'
         );
         $this->rootElement->appendChild($customizationIDElement);
 
@@ -782,7 +782,7 @@ class UblNLBis3Service
 
             $countryCode = strtoupper(substr($companyId, 0, 2));
             if (!in_array($countryCode, $iso3166Alpha2Codes, true)) {
-                throw new \InvalidArgumentException(sprintf('Invalid VAT number format. Must start with a valid ISO 3166-1 alpha-2 country code. Got: %s', $countryCode));
+                throw new \InvalidArgumentException(sprintf('Invalid VAT number format. Must start with a valid ISO 3166-1 alpha-2 country code. Current value: "%s", extracted country code: "%s"', $companyId, $countryCode));
             }
         }
         $errors = [];
