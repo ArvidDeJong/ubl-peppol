@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use Darvis\UblPeppol\UblBeBis3Service;
 
-include '../test_data.php';
+include 'test_data.php';
 
 try {
     // Initialize UBL service
