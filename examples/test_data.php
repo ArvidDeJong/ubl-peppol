@@ -101,7 +101,7 @@ $invoice = [
         'means_code' => '30',                       // 30 = Credit transfer
         'means_name' => 'Credit transfer via SEPA', // Payment method description
         'payment_id' => 'INV-' . date('Y') . '-123', // Payment reference
-        'account_iban' => 'NL32RABO0180732595',     // IBAN
+        'account_iban' => 'NL32RABO0180732591',     // IBAN
         'account_name' => 'Darvis ALU',             // Account holder name
         'bic' => 'RABONL22',                        // BIC/SWIFT code
         'channel_code' => 'IBAN',                   // Payment channel

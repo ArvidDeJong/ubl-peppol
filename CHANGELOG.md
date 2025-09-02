@@ -2,6 +2,17 @@
 
 All notable changes to this package will be documented in this file.
 
+## [1.2.2] - 2025-09-02
+### Changed
+- Translated all documentation from Dutch to English for international accessibility
+- Updated docs/README.md, docs/api-reference.md, docs/belgium-implementation.md, docs/netherlands-implementation.md
+- Updated docs/validation.md and docs/troubleshooting.md to English
+- Translated WINDSURF_INSTRUCTIONS.md to English for AI assistant compatibility
+- Updated composer.json keywords formatting for better readability
+
+### Fixed
+- Fixed IBAN example in test_data.php for correct validation
+
 ## [1.2.1] - 2025-09-02
 ### Changed
 - Harmonized method signatures between UblBeBis3Service and UblNlBis3Service for consistent API
