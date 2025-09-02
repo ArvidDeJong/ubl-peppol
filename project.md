@@ -1,76 +1,112 @@
-# UBL PEPPOL Generator voor PHP
+# UBL PEPPOL Generator for PHP
 
-Een eenvoudig te gebruiken PHP-pakket voor het genereren van UBL XML-documenten die voldoen aan de PEPPOL BIS Billing 3.0 standaard, specifiek toegespitst op de Belgische implementatie (EN 16931).
+An easy-to-use PHP package for generating UBL XML documents that comply with the PEPPOL BIS Billing 3.0 standard, specifically tailored for the Belgian implementation (EN 16931).
 
-## Doelstelling
+## Objective
 
-Dit pakket stelt ontwikkelaars in staat om eenvoudig UBL-documenten te genereren die voldoen aan de PEPPOL-standaarden, zonder dat er uitgebreide kennis van de UBL-specificatie nodig is.
+This package enables developers to easily generate UBL documents that comply with PEPPOL standards, without requiring in-depth knowledge of the UBL specification. The package supports multiple PEPPOL validation standards including Belgium, Netherlands, and Italy.
 
-## Belangrijkste functionaliteiten
+## Documentation
 
-- **Ondersteunde documenten**:
-  - Facturen
-  - Creditnota's
-  - Correctiefacturen
-  - Factuurlijsten
+https://docs.peppol.eu/poacc/billing/3.0/
 
-- **Validatie**:
-  - Controle op verplichte velden
-  - Validatie van datums (formaat `YYYY-MM-DD`)
-  - Controle op numerieke waarden en valuta-formaten
-  - Validatie van BTW-nummers volgens Belgische regels
+## Validation Testing
 
-- **Kenmerken**:
-  - Eenvoudige, intuïtieve API
-  - Uitgebreide foutmeldingen
-  - Ondersteuning voor meerdere valuta's
-  - Flexibele toevoeging van extra UBL-elementen
+### Netherlands
+https://test.peppolautoriteit.nl/validate
 
-## Snel aan de slag
+### Belgium
+https://ecosio.com/en/peppol-and-xml-document-validator/
 
-1. Installeer het pakket via Composer:
+### Italy (General PEPPOL)
+https://peppol-docs.agid.gov.it/docs/validator/
+
+## Recent Updates (v1.2.0)
+
+- **Belgian Compliance**: Full support for Belgian UBL Schematron rules (ubl-BE-01, ubl-BE-10, ubl-BE-14)
+- **Multi-Country Support**: Validated against Belgian, Dutch, and Italian PEPPOL validators
+- **Correct BTCC Values**: Implemented proper Belgian tax category names ("Taux standard", "Taux zéro")
+- **Enhanced Validation**: Fixed XSD and Schematron validation errors across multiple standards
+
+## Key Features
+
+- **Supported Documents**:
+  - Invoices
+  - Credit Notes
+  - Corrective Invoices
+  - Invoice Lists
+
+- **Validation**:
+  - Required field validation
+  - Date format validation (`YYYY-MM-DD`)
+  - Numeric and currency format validation
+  - VAT number validation according to Belgian rules
+
+- **Features**:
+  - Simple, intuitive API
+  - Comprehensive error messages
+  - Support for multiple currencies
+  - Flexible addition of extra UBL elements
+
+## Quick Start
+
+1. Install the package via Composer:
    ```bash
    composer require darvis/ubl-peppol
    ```
 
-2. Basisvoorbeeld:
-   ```php
-   use Darvis\UblPeppol\UblService;
+2. Run the examples:
+   ```bash
+   # Belgian UBL invoice example
+   php examples/be/generate_invoice_be.php
    
-   $ubl = new UblService();
-   $xml = $ubl->createInvoice([
-       'supplier' => [
-           'name' => 'Leverancier BV',
-           'vat_number' => 'BE0123456789',
-           // ... andere vereiste velden
-       ],
-       // ... andere factuurgegevens
-   ]);
+   # Dutch UBL invoice example  
+   php examples/nl/generate_invoice_nl.php
    
-   file_put_contents('factuur.xml', $xml);
+   # Basic demonstration
+   php examples/index.php
    ```
 
-## Documentatie
+3. Basic Example:
+   ```php
+   use Darvis\UblPeppol\UblBeBis3Service;
+   
+   // Load test data structure
+   $invoiceData = require 'examples/test_data.php';
+   
+   $ubl = new UblBeBis3Service();
+   $xml = $ubl->generateInvoice($invoiceData);
+   
+   file_put_contents('invoice.xml', $xml);
+   ```
 
-- `src/UblService.php` - Hoofdklasse voor het genereren van UBL-documenten
-- `examples/` - Voorbeeldbestanden ter referentie
-  - `base-example.xml` - Basis UBL-factuur
-  - `creditnote-example.xml` - Voorbeeld creditnota
-  - `allowance-example.xml` - Voorbeeld met kortingen
+## Examples
 
-## Vereisten
+The `examples/` directory contains complete working examples:
 
-- PHP 8.1 of hoger
-- PHP-extensies: DOM, SimpleXML, XMLWriter
+- **`examples/be/generate_invoice_be.php`** - Belgian UBL invoice with full EN 16931 compliance
+- **`examples/nl/generate_invoice_nl.php`** - Dutch UBL invoice example
+- **`examples/test_data.php`** - Complete invoice data structure with all required fields
+- **`examples/index.php`** - Basic usage demonstration
 
-## Licentie
+## Documentation
 
-Dit project is gelicentieerd onder de MIT-licentie. Zie het [LICENSE](LICENSE) bestand voor meer informatie.
+- `src/UblBeBis3Service.php` - Belgian UBL service class
+- `src/UblNlBis3Service.php` - Dutch UBL service class
 
-## Bijdragen
+## Requirements
 
-Bijdragen zijn welkom! Bij het indienen van pull requests, zorg ervoor dat je code voldoet aan de PSR-12 standaarden en vergeet niet om tests toe te voegen voor nieuwe functionaliteit.
+- PHP 8.1 or higher
+- PHP extensions: DOM, SimpleXML, XMLWriter
 
-## Ondersteuning
+## License
 
-Voor vragen of problemen, open een issue in de GitHub repository of neem contact op met de onderhouders.
+This package is available under the [MIT License](LICENSE). See the [LICENSE](LICENSE) file for more information.
+
+## Contributions
+
+Contributions are welcome! When submitting pull requests, ensure that your code adheres to the PSR-12 standards and don't forget to add tests for new functionality.
+
+## Support
+
+For questions or issues, please open an issue in the GitHub repository or contact the maintainers.

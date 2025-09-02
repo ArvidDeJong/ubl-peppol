@@ -19,9 +19,17 @@
         "php": "^8.2",
         "ext-dom": "*"
     },
+    "require-dev": {
+        "pestphp/pest": "^2.0"
+    },
     "autoload": {
         "psr-4": {
             "Darvis\\UblPeppol\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
         }
     },
     "extra": {
@@ -32,7 +40,10 @@
         }
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
     },
     "support": {
         "issues": "https://github.com/ArvidDeJong/ubl-peppol/issues",
