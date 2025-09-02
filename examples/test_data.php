@@ -37,7 +37,7 @@ $invoice = [
         'city' => 'Amsterdam',                      // City
         'country' => 'NL',                          // Country code (2 letters)
         'additional_street' => 'Tweede verdieping', // Optional: additional address line
-        'registration_number' => '87654321',         // KVK nummer (8 cijfers) zonder schemeID
+        'registration_number' => 'NL853848932B01',         // KVK nummer (8 cijfers) zonder schemeID
         'contact_name' => 'John Doe',               // Contact person name
         'contact_phone' => '+31 20 123 4567',       // Contact phone number
         'contact_email' => 'john.doe@example.com',  // Contact email
@@ -101,7 +101,7 @@ $invoice = [
         'means_code' => '30',                       // 30 = Credit transfer
         'means_name' => 'Credit transfer via SEPA', // Payment method description
         'payment_id' => 'INV-' . date('Y') . '-123', // Payment reference
-        'account_iban' => 'NL32RABO0180732591',     // IBAN
+        'account_iban' => 'NL32RABO0180732595',     // IBAN
         'account_name' => 'Darvis ALU',             // Account holder name
         'bic' => 'RABONL22',                        // BIC/SWIFT code
         'channel_code' => 'IBAN',                   // Payment channel
