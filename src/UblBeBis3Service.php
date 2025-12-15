@@ -554,10 +554,10 @@ class UblBeBis3Service
     }
 
     public function addPaymentTerms(
-        ?string $note,
-        ?float $discount_percent,
-        ?float $discount_amount,
-        ?string $discount_date
+        ?string $note = null,
+        ?float $discount_percent = null,
+        ?float $discount_amount = null,
+        ?string $discount_date = null
     ): self {
         $paymentTerms = $this->addChildElement($this->rootElement, 'cac', 'PaymentTerms');
         if ($note) {
@@ -574,8 +574,8 @@ class UblBeBis3Service
         string $account_iban,
         ?string $account_name,
         ?string $bic,
-        ?string $channel_code,
-        ?string $due_date
+        ?string $channel_code = null,
+        ?string $due_date = null
     ): self {
         $paymentMeans = $this->addChildElement($this->rootElement, 'cac', 'PaymentMeans');
         $this->addChildElement($paymentMeans, 'cbc', 'PaymentMeansCode', $paymentMeansCode, $paymentMeansName ? ['name' => $paymentMeansName] : []);

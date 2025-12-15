@@ -114,10 +114,12 @@ $ubl->addPaymentMeans(
     'BE-PAY-2024-001',
     'BE12 3456 7890 1234',   // Belgian IBAN
     'My Belgian Company BV',
-    'BBRUBEBB'               // BIC code
+    'BBRUBEBB',              // BIC code
+    null,                    // Channel code not used in Belgium
+    null                     // Due date handled at invoice level
 );
 
-$ubl->addPaymentTerms('Payment within 30 days');
+$ubl->addPaymentTerms('Payment within 30 days', null, null, null);
 
 // 10. Generate XML
 $xml = $ubl->generateXml();

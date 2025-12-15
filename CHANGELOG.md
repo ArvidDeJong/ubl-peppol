@@ -2,6 +2,13 @@
 
 All notable changes to this package will be documented in this file.
 
+## [1.2.4] - 2025-12-15
+### Fixed
+- Allowed `UblBeBis3Service::addPaymentMeans` and `addPaymentTerms` to accept omitted optional parameters by defaulting the nullable arguments to `null`
+
+### Changed
+- Updated Belgian implementation guide to include explicit `null` placeholders for unused payment parameters
+
 ## [1.2.3] - 2025-09-02
 ### Fixed
 - Fixed PEPPOL UBL validation errors for complete compliance
