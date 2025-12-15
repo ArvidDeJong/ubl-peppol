@@ -446,9 +446,18 @@ class UblBeBis3Service
     {
         $invoiceLine = $this->addChildElement($this->rootElement, 'cac', 'InvoiceLine');
 
+        $lineExtensionAmount = $lineData['line_extension_amount']
+            ?? ((isset($lineData['price_amount'], $lineData['quantity']))
+                ? (float)$lineData['price_amount'] * (float)$lineData['quantity']
+                : null);
+
+        if ($lineExtensionAmount === null) {
+            throw new \InvalidArgumentException('Invoice line requires line_extension_amount or both price_amount and quantity to derive it.');
+        }
+
         $this->addChildElement($invoiceLine, 'cbc', 'ID', $lineData['id']);
         $this->addChildElement($invoiceLine, 'cbc', 'InvoicedQuantity', $this->formatAmount((float)$lineData['quantity']), ['unitCode' => $lineData['unit_code']]);
-        $this->addChildElement($invoiceLine, 'cbc', 'LineExtensionAmount', $this->formatAmount((float)$lineData['line_extension_amount']), ['currencyID' => $lineData['currency']]);
+        $this->addChildElement($invoiceLine, 'cbc', 'LineExtensionAmount', $this->formatAmount((float)$lineExtensionAmount), ['currencyID' => $lineData['currency']]);
 
         if (!empty($lineData['accounting_cost'])) {
             $this->addChildElement($invoiceLine, 'cbc', 'AccountingCost', $lineData['accounting_cost']);

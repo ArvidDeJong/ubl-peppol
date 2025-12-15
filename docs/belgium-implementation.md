@@ -77,6 +77,7 @@ $ubl->addInvoiceLine([
     'quantity' => 2,
     'unit_code' => 'C62',
     'price_amount' => 100.00,
+    'line_extension_amount' => 200.00, // Optional; defaults to quantity * price when omitted
     'currency' => 'EUR',
     'name' => 'Consultancy services',
     'description' => 'IT consultancy - 2 days',

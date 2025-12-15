@@ -2,9 +2,12 @@
 
 All notable changes to this package will be documented in this file.
 
-## [1.2.4] - 2025-12-15
+## [1.2.5] - 2025-12-15
 ### Fixed
 - Allowed `UblBeBis3Service::addPaymentMeans` and `addPaymentTerms` to accept omitted optional parameters by defaulting the nullable arguments to `null`
+
+## [1.2.4] - 2025-12-15
+- Prevented undefined index errors in `UblBeBis3Service::addInvoiceLine` by deriving `line_extension_amount` from `quantity * price_amount` when not provided
 
 ### Changed
 - Updated Belgian implementation guide to include explicit `null` placeholders for unused payment parameters
