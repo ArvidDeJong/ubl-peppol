@@ -769,7 +769,8 @@ class UblBeBis3Service
         $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $paymentId);
 
         $payeeFinancialAccount = $this->addChildElement($paymentMeans, 'cac', 'PayeeFinancialAccount');
-        $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $account_iban, ['schemeID' => 'IBAN']);
+        // IBAN zonder schemeID per UBL-CR-654
+        $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $account_iban);
         if ($account_name) {
             $this->addChildElement($payeeFinancialAccount, 'cbc', 'Name', $account_name);
         }
@@ -830,7 +831,8 @@ class UblBeBis3Service
         ?string $registrationNumber = null,
         ?string $contactName = null,
         ?string $contactPhone = null,
-        ?string $contactEmail = null
+        ?string $contactEmail = null,
+        ?string $vatNumber = null
     ): self {
         $customerParty = $this->addChildElement($this->rootElement, 'cac', 'AccountingCustomerParty');
         $party = $this->addChildElement($customerParty, 'cac', 'Party');
@@ -853,11 +855,26 @@ class UblBeBis3Service
         $countryElement = $this->addChildElement($postalAddress, 'cac', 'Country');
         $this->addChildElement($countryElement, 'cbc', 'IdentificationCode', $country);
 
+        // PartyTaxScheme - only add if VAT number is provided (BR-CO-09: must start with country code)
+        if ($vatNumber) {
+            // Validate that VAT number starts with a 2-letter country code
+            $vatCountryCode = strtoupper(substr($vatNumber, 0, 2));
+            if (!preg_match('/^[A-Z]{2}/', $vatNumber)) {
+                throw new \InvalidArgumentException(
+                    "VAT number must start with a 2-letter ISO 3166-1 alpha-2 country code (e.g., 'NL', 'BE'). Got: '{$vatNumber}'"
+                );
+            }
+            $partyTaxScheme = $this->addChildElement($party, 'cac', 'PartyTaxScheme');
+            $this->addChildElement($partyTaxScheme, 'cbc', 'CompanyID', $vatNumber);
+            $taxScheme = $this->addChildElement($partyTaxScheme, 'cac', 'TaxScheme');
+            $this->addChildElement($taxScheme, 'cbc', 'ID', 'VAT');
+        }
+
         $partyLegalEntity = $this->addChildElement($party, 'cac', 'PartyLegalEntity');
         $this->addChildElement($partyLegalEntity, 'cbc', 'RegistrationName', $name);
         if ($registrationNumber) {
-            // Voor Nederlandse klanten: gebruik juiste schemeID (0106 voor KVK, 0190 voor OIN)
-            $schemeID = (strtoupper($country) === 'NL') ? '0106' : '0106';
+            // For Dutch customers: use correct schemeID (0106 for KVK, 0190 for OIN)
+            $schemeID = (strtoupper($country) === 'NL') ? '0106' : '0208';
             $this->addChildElement($partyLegalEntity, 'cbc', 'CompanyID', $registrationNumber, ['schemeID' => $schemeID]);
         }
 

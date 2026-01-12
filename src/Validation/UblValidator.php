@@ -90,26 +90,158 @@ class UblValidator
      */
     public static function isValidVatNumber(string $vatNumber): bool
     {
+        return self::validateVatNumber($vatNumber) === null;
+    }
+
+    /**
+     * Validates a VAT number and returns an error message if invalid.
+     * Use this method for pre-validation before generating UBL to show user-friendly errors.
+     *
+     * @param string|null $vatNumber The VAT number to validate (null or empty is allowed for B2C)
+     * @return string|null Error message if invalid, null if valid or empty
+     */
+    public static function validateVatNumber(?string $vatNumber): ?string
+    {
+        // Empty VAT number is allowed (B2C or unknown)
+        if (empty($vatNumber)) {
+            return null;
+        }
+
+        $vatNumber = trim($vatNumber);
+
         // Basic check: at least 2 characters for country code + 1 character for the number
         if (strlen($vatNumber) < 3) {
-            return false;
+            return 'VAT number must be at least 3 characters (2-letter country code + number)';
         }
 
         $countryCode = strtoupper(substr($vatNumber, 0, 2));
         $number = substr($vatNumber, 2);
 
-        // Check if country code is valid (ISO 3166-1 alpha-2)
+        // Check if it starts with 2 letters
+        if (!preg_match('/^[A-Z]{2}/', strtoupper($vatNumber))) {
+            return "VAT number must start with a 2-letter country code (e.g., 'NL', 'BE'). Got: '{$vatNumber}'";
+        }
+
+        // Check if country code is valid (EU + XI for Northern Ireland)
         $validCountryCodes = [
             'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'EL', 'ES', 'FI', 'FR', 'GB', 'HR', 'HU', 'IE', 'IT', 'LT',
             'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK', 'XI'
         ];
 
         if (!in_array($countryCode, $validCountryCodes, true)) {
-            return false;
+            return "Invalid country code '{$countryCode}' in VAT number. Must be a valid EU country code.";
         }
 
         // Basic format check (alphanumeric, no spaces)
-        return ctype_alnum($number) && !preg_match('/\s/', $number);
+        if (!ctype_alnum($number) || preg_match('/\s/', $number)) {
+            return 'VAT number can only contain letters and numbers (no spaces or special characters)';
+        }
+
+        return null;
+    }
+
+    /**
+     * Validates invoice data before UBL generation.
+     * Returns an array of error messages, empty if all valid.
+     *
+     * @param array $data Invoice data to validate
+     * @return array Array of error messages (empty if valid)
+     */
+    public static function validateInvoiceData(array $data): array
+    {
+        $errors = [];
+
+        // Validate supplier VAT number
+        if (isset($data['supplier_vat_number'])) {
+            $error = self::validateVatNumber($data['supplier_vat_number']);
+            if ($error) {
+                $errors[] = "Supplier: {$error}";
+            }
+        }
+
+        // Validate customer VAT number (optional for B2C)
+        if (isset($data['customer_vat_number']) && !empty($data['customer_vat_number'])) {
+            $error = self::validateVatNumber($data['customer_vat_number']);
+            if ($error) {
+                $errors[] = "Customer: {$error}";
+            }
+        }
+
+        // Validate IBAN if provided
+        if (isset($data['iban']) && !empty($data['iban'])) {
+            $error = self::validateIban($data['iban']);
+            if ($error) {
+                $errors[] = "Bank account: {$error}";
+            }
+        }
+
+        // Validate required fields
+        $requiredFields = [
+            'invoice_number' => 'Invoice number',
+            'issue_date' => 'Invoice date',
+            'due_date' => 'Due date',
+            'supplier_name' => 'Supplier name',
+            'customer_name' => 'Customer name',
+        ];
+
+        foreach ($requiredFields as $field => $label) {
+            if (!isset($data[$field]) || empty(trim($data[$field] ?? ''))) {
+                $errors[] = "{$label} is required";
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Validates an IBAN and returns an error message if invalid.
+     *
+     * @param string|null $iban The IBAN to validate
+     * @return string|null Error message if invalid, null if valid or empty
+     */
+    public static function validateIban(?string $iban): ?string
+    {
+        if (empty($iban)) {
+            return null;
+        }
+
+        // Normalize IBAN (remove spaces and convert to uppercase)
+        $iban = strtoupper(str_replace(' ', '', $iban));
+
+        // Check minimum length
+        if (strlen($iban) < 15) {
+            return 'IBAN is too short';
+        }
+
+        // Check maximum length
+        if (strlen($iban) > 34) {
+            return 'IBAN is too long';
+        }
+
+        // Check format: 2 letters + 2 digits + alphanumeric
+        if (!preg_match('/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/', $iban)) {
+            return 'Invalid IBAN format';
+        }
+
+        // Move first 4 characters to the end
+        $moved = substr($iban, 4) . substr($iban, 0, 4);
+
+        // Convert letters to numbers (A=10, B=11, ..., Z=35)
+        $converted = '';
+        foreach (str_split($moved) as $char) {
+            if (ctype_alpha($char)) {
+                $converted .= (ord($char) - 55);
+            } else {
+                $converted .= $char;
+            }
+        }
+
+        // Check if the number is valid using modulo 97
+        if ((int)bcmod($converted, '97') !== 1) {
+            return 'Invalid IBAN checksum';
+        }
+
+        return null;
     }
 
     /**

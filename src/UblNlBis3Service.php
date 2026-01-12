@@ -517,274 +517,16 @@ class UblNLBis3Service
         ?string $contactName = null,
         ?string $contactPhone = null,
         ?string $contactEmail = null,
+        ?string $vatNumber = null,
         string $taxSchemeId = 'VAT'
     ): self {
         if (empty(trim($endpointId))) {
             throw new \InvalidArgumentException('Endpoint ID is required');
         }
 
-        // Validate VAT number format (if provided) - must start with a valid ISO 3166-1 alpha-2 country code
-        if (!empty($companyId)) {
-            $iso3166Alpha2Codes = [
-                '1A',
-                'AD',
-                'AE',
-                'AF',
-                'AG',
-                'AI',
-                'AL',
-                'AM',
-                'AO',
-                'AQ',
-                'AR',
-                'AS',
-                'AT',
-                'AU',
-                'AW',
-                'AX',
-                'AZ',
-                'BA',
-                'BB',
-                'BD',
-                'BE',
-                'BF',
-                'BG',
-                'BH',
-                'BI',
-                'BJ',
-                'BL',
-                'BM',
-                'BN',
-                'BO',
-                'BQ',
-                'BR',
-                'BS',
-                'BT',
-                'BV',
-                'BW',
-                'BY',
-                'BZ',
-                'CA',
-                'CC',
-                'CD',
-                'CF',
-                'CG',
-                'CH',
-                'CI',
-                'CK',
-                'CL',
-                'CM',
-                'CN',
-                'CO',
-                'CR',
-                'CU',
-                'CV',
-                'CW',
-                'CX',
-                'CY',
-                'CZ',
-                'DE',
-                'DJ',
-                'DK',
-                'DM',
-                'DO',
-                'DZ',
-                'EC',
-                'EE',
-                'EG',
-                'EH',
-                'EL',
-                'ER',
-                'ES',
-                'ET',
-                'FI',
-                'FJ',
-                'FK',
-                'FM',
-                'FO',
-                'FR',
-                'GA',
-                'GB',
-                'GD',
-                'GE',
-                'GF',
-                'GG',
-                'GH',
-                'GI',
-                'GL',
-                'GM',
-                'GN',
-                'GP',
-                'GQ',
-                'GR',
-                'GS',
-                'GT',
-                'GU',
-                'GW',
-                'GY',
-                'HK',
-                'HM',
-                'HN',
-                'HR',
-                'HT',
-                'HU',
-                'ID',
-                'IE',
-                'IL',
-                'IM',
-                'IN',
-                'IO',
-                'IQ',
-                'IR',
-                'IS',
-                'IT',
-                'JE',
-                'JM',
-                'JO',
-                'JP',
-                'KE',
-                'KG',
-                'KH',
-                'KI',
-                'KM',
-                'KN',
-                'KP',
-                'KR',
-                'KW',
-                'KY',
-                'KZ',
-                'LA',
-                'LB',
-                'LC',
-                'LI',
-                'LK',
-                'LR',
-                'LS',
-                'LT',
-                'LU',
-                'LV',
-                'LY',
-                'MA',
-                'MC',
-                'MD',
-                'ME',
-                'MF',
-                'MG',
-                'MH',
-                'MK',
-                'ML',
-                'MM',
-                'MN',
-                'MO',
-                'MP',
-                'MQ',
-                'MR',
-                'MS',
-                'MT',
-                'MU',
-                'MV',
-                'MW',
-                'MX',
-                'MY',
-                'MZ',
-                'NA',
-                'NC',
-                'NE',
-                'NF',
-                'NG',
-                'NI',
-                'NL',
-                'NO',
-                'NP',
-                'NR',
-                'NU',
-                'NZ',
-                'OM',
-                'PA',
-                'PE',
-                'PF',
-                'PG',
-                'PH',
-                'PK',
-                'PL',
-                'PM',
-                'PN',
-                'PR',
-                'PS',
-                'PT',
-                'PW',
-                'PY',
-                'QA',
-                'RE',
-                'RO',
-                'RS',
-                'RU',
-                'RW',
-                'SA',
-                'SB',
-                'SC',
-                'SD',
-                'SE',
-                'SG',
-                'SH',
-                'SI',
-                'SJ',
-                'SK',
-                'SL',
-                'SM',
-                'SN',
-                'SO',
-                'SR',
-                'SS',
-                'ST',
-                'SV',
-                'SX',
-                'SY',
-                'SZ',
-                'TC',
-                'TD',
-                'TF',
-                'TG',
-                'TH',
-                'TJ',
-                'TK',
-                'TL',
-                'TM',
-                'TN',
-                'TO',
-                'TR',
-                'TT',
-                'TV',
-                'TW',
-                'TZ',
-                'UA',
-                'UG',
-                'UM',
-                'US',
-                'UY',
-                'UZ',
-                'VA',
-                'VC',
-                'VE',
-                'VG',
-                'VI',
-                'VN',
-                'VU',
-                'WF',
-                'WS',
-                'XI',
-                'YE',
-                'YT',
-                'ZA',
-                'ZM',
-                'ZW'
-            ];
-
-            $countryCode = strtoupper(substr($companyId, 0, 2));
-            if (!in_array($countryCode, $iso3166Alpha2Codes, true)) {
-                throw new \InvalidArgumentException(sprintf('Invalid VAT number format. Must start with a valid ISO 3166-1 alpha-2 country code. Current value: "%s", extracted country code: "%s"', $companyId, $countryCode));
-            }
-        }
+        // CompanyId validation removed - this is a Chamber of Commerce number, not a VAT number
+        // VAT number validation happens separately via vatNumber parameter
+        
         $errors = [];
 
         // Validate required fields
@@ -810,15 +552,8 @@ class UblNLBis3Service
             $errors[] = 'Country code must be exactly 2 characters (e.g., "NL")';
         }
 
-        // Validate email format if provided
-        if (!empty($contactEmail) && !filter_var($contactEmail, FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Invalid email format for contact email';
-        }
-
-        // Validate phone number if provided (basic validation)
-        if (!empty($contactPhone) && !preg_match('/^[+0-9\s\-\(\)]{6,20}$/', $contactPhone)) {
-            $errors[] = 'Invalid phone number format. Only numbers, +, -, spaces and parentheses are allowed';
-        }
+        // Email and phone validation removed - accept all values or null
+        // The calling code is responsible for validation if desired
 
         // Throw exception with all validation errors
         if (!empty($errors)) {
@@ -882,12 +617,19 @@ class UblNLBis3Service
         $countryCodeElement = $this->createElement('cbc', 'IdentificationCode', strtoupper($countryCode));
         $country->appendChild($countryCodeElement);
 
-        // PartyTaxScheme
-        $partyTaxScheme = $this->createElement('cac', 'PartyTaxScheme');
-        $partyTaxScheme = $party->appendChild($partyTaxScheme);
+        // PartyTaxScheme - only add if VAT number is provided (BR-CO-09: must start with country code)
+        if (!empty($vatNumber)) {
+            // Validate that VAT number starts with a 2-letter country code
+            if (!preg_match('/^[A-Z]{2}/', strtoupper($vatNumber))) {
+                throw new \InvalidArgumentException(
+                    "VAT number must start with a 2-letter ISO 3166-1 alpha-2 country code (e.g., 'NL', 'BE'). Got: '{$vatNumber}'"
+                );
+            }
+            
+            $partyTaxScheme = $this->createElement('cac', 'PartyTaxScheme');
+            $partyTaxScheme = $party->appendChild($partyTaxScheme);
 
-        if ($companyId) {
-            $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId);
+            $companyIDElement = $this->createElement('cbc', 'CompanyID', strtoupper($vatNumber));
             $partyTaxScheme->appendChild($companyIDElement);
 
             $taxScheme = $this->createElement('cac', 'TaxScheme');
@@ -904,8 +646,8 @@ class UblNLBis3Service
         $registrationNameElement = $this->createElement('cbc', 'RegistrationName', $partyName);
         $partyLegalEntity->appendChild($registrationNameElement);
 
-        if ($companyId) {
-            // Add CompanyID with schemeID for Dutch legal entity identifier (KVK)
+        // CompanyID in PartyLegalEntity is the Chamber of Commerce number (registration number)
+        if (!empty($companyId)) {
             $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId, ['schemeID' => '0106']);
             $partyLegalEntity->appendChild($companyIDElement);
         }
@@ -1117,7 +859,7 @@ class UblNLBis3Service
         if ($accountId !== null) {
             $payeeFinancialAccount = $this->createElement('cac', 'PayeeFinancialAccount');
 
-            // Add account ID (IBAN)
+            // Add account ID (IBAN) - zonder schemeID per UBL-CR-654
             $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $accountId);
 
             // Add financial institution branch (BIC/SWIFT) if provided
@@ -1489,13 +1231,17 @@ class UblNLBis3Service
             ['unitCode' => $lineData['unit_code']]
         );
 
-        // Add LineExtensionAmount
-        $baseQuantity = $lineData['base_quantity'] ?? 1;
-        if ($baseQuantity == 0) {
-            $baseQuantity = 1;
-        } // Prevent division by zero
-        $lineExtensionAmountValue = $lineData['quantity'] * ($lineData['price_amount'] / $baseQuantity);
-        $this->addChildElement($invoiceLine, 'cbc', 'LineExtensionAmount', $this->formatAmount($lineExtensionAmountValue), ['currencyID' => $lineData['currency']]);
+        // Add LineExtensionAmount - gebruik meegegeven waarde of bereken als fallback
+        $lineExtensionAmount = $lineData['line_extension_amount']
+            ?? ((isset($lineData['price_amount'], $lineData['quantity']))
+                ? (float)$lineData['price_amount'] * (float)$lineData['quantity']
+                : null);
+
+        if ($lineExtensionAmount === null) {
+            throw new \InvalidArgumentException('Invoice line requires line_extension_amount or both price_amount and quantity to derive it.');
+        }
+
+        $this->addChildElement($invoiceLine, 'cbc', 'LineExtensionAmount', $this->formatAmount((float)$lineExtensionAmount), ['currencyID' => $lineData['currency']]);
 
         // AccountingCost
         if (isset($lineData['accounting_cost'])) {
