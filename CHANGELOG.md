@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented in this file.
 
+## [1.4.1] - 2026-01-12
+### Changed
+- Simplified README.md, moved detailed documentation to `/docs`
+
 ## [1.4.0] - 2026-01-12
 ### Added
 - Laravel integration documentation (`docs/laravel-integration.md`)
