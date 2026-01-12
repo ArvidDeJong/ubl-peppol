@@ -33,6 +33,14 @@ class UblBeBis3Service
     protected string $ns_prefix_cac = 'cac';
     protected string $ns_prefix_cbc = 'cbc';
 
+    // Tracking arrays for validation
+    protected array $invoiceLines = [];
+    protected array $totals = [];
+    protected array $taxTotals = [];
+    protected float $allowanceTotalAmount = 0.0;
+    protected float $chargeTotalAmount = 0.0;
+    protected float $prepaidAmount = 0.0;
+
     /**
      * Constructor - Initializes a new UBL document
      */
@@ -71,12 +79,168 @@ class UblBeBis3Service
     /**
      * Generate the XML string
      * 
+     * @param bool $validateFirst If true, validates the invoice before generating XML
      * @return string The generated XML as a string
      * @throws \RuntimeException If the document is not initialized
+     * @throws \InvalidArgumentException If validation fails and $validateFirst is true
      */
-    public function generateXml(): string
+    public function generateXml(bool $validateFirst = false): string
     {
+        if ($validateFirst) {
+            $validationResult = $this->validate();
+            if (!$validationResult->isValid()) {
+                throw new \InvalidArgumentException(
+                    "UBL/Peppol validation failed:\n" . $validationResult->getErrorsAsString("\n") .
+                    "\n\nSuggested corrections:\n" . json_encode($validationResult->getCorrections(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+                );
+            }
+        }
+        
         return $this->dom->saveXML();
+    }
+
+    /**
+     * Validate the invoice according to EN16931/Peppol BIS Billing 3.0 rules
+     * 
+     * This validates:
+     * - BR-CO-10: Sum of Invoice line net amounts = Line extension amount
+     * - BR-CO-13: Invoice total amount without VAT = Line extension amount - allowances + charges
+     * - BR-CO-15: Invoice total amount with VAT = Invoice total without VAT + Invoice total VAT amount
+     * - BR-CO-16: Amount due for payment = Invoice total with VAT - Paid amount
+     * 
+     * @return Validation\InvoiceValidationResult
+     */
+    public function validate(): Validation\InvoiceValidationResult
+    {
+        // Check if we have the required data
+        if (empty($this->invoiceLines)) {
+            return new Validation\InvoiceValidationResult(
+                isValid: false,
+                errors: ['No invoice lines found. Add lines first using addInvoiceLine().'],
+                warnings: [],
+                corrections: []
+            );
+        }
+
+        if (empty($this->totals)) {
+            return new Validation\InvoiceValidationResult(
+                isValid: false,
+                errors: ['No totals found. Add totals first using addLegalMonetaryTotal().'],
+                warnings: [],
+                corrections: []
+            );
+        }
+
+        if (empty($this->taxTotals)) {
+            return new Validation\InvoiceValidationResult(
+                isValid: false,
+                errors: ['No VAT totals found. Add VAT first using addTaxTotal().'],
+                warnings: [],
+                corrections: []
+            );
+        }
+
+        return UblValidator::validateInvoiceTotals(
+            $this->invoiceLines,
+            $this->totals,
+            $this->taxTotals,
+            $this->allowanceTotalAmount,
+            $this->chargeTotalAmount,
+            $this->prepaidAmount
+        );
+    }
+
+    /**
+     * Get the tracked invoice lines
+     * 
+     * @return array
+     */
+    public function getInvoiceLines(): array
+    {
+        return $this->invoiceLines;
+    }
+
+    /**
+     * Get the tracked totals
+     * 
+     * @return array
+     */
+    public function getTotals(): array
+    {
+        return $this->totals;
+    }
+
+    /**
+     * Get the tracked tax totals
+     * 
+     * @return array
+     */
+    public function getTaxTotals(): array
+    {
+        return $this->taxTotals;
+    }
+
+    /**
+     * Calculate correct totals based on invoice lines
+     * 
+     * @return array Array with calculated totals
+     */
+    public function calculateTotals(): array
+    {
+        $lineExtensionAmount = 0.0;
+        $taxByCategory = [];
+
+        foreach ($this->invoiceLines as $line) {
+            $lineAmount = (float)($line['line_extension_amount'] ?? 0);
+            $lineExtensionAmount += $lineAmount;
+
+            $taxCategoryId = $line['tax_category_id'] ?? 'S';
+            $taxPercent = (float)($line['tax_percent'] ?? 21);
+            $key = $taxCategoryId . '_' . $taxPercent;
+
+            if (!isset($taxByCategory[$key])) {
+                $taxByCategory[$key] = [
+                    'taxable_amount' => 0.0,
+                    'tax_percent' => $taxPercent,
+                    'tax_category_id' => $taxCategoryId,
+                    'tax_scheme_id' => $line['tax_scheme_id'] ?? 'VAT',
+                    'currency' => $line['currency'] ?? 'EUR',
+                ];
+            }
+            $taxByCategory[$key]['taxable_amount'] += $lineAmount;
+        }
+
+        $totalTaxAmount = 0.0;
+        $taxSubtotals = [];
+        foreach ($taxByCategory as $category) {
+            $taxAmount = round($category['taxable_amount'] * ($category['tax_percent'] / 100), 2);
+            $totalTaxAmount += $taxAmount;
+            $taxSubtotals[] = [
+                'taxable_amount' => round($category['taxable_amount'], 2),
+                'tax_amount' => $taxAmount,
+                'tax_percent' => $category['tax_percent'],
+                'tax_category_id' => $category['tax_category_id'],
+                'tax_scheme_id' => $category['tax_scheme_id'],
+                'currency' => $category['currency'],
+            ];
+        }
+
+        $taxExclusiveAmount = $lineExtensionAmount - $this->allowanceTotalAmount + $this->chargeTotalAmount;
+        $taxInclusiveAmount = $taxExclusiveAmount + $totalTaxAmount;
+        $payableAmount = $taxInclusiveAmount - $this->prepaidAmount;
+
+        return [
+            'totals' => [
+                'line_extension_amount' => round($lineExtensionAmount, 2),
+                'tax_exclusive_amount' => round($taxExclusiveAmount, 2),
+                'tax_inclusive_amount' => round($taxInclusiveAmount, 2),
+                'charge_total_amount' => round($this->chargeTotalAmount, 2),
+                'allowance_total_amount' => round($this->allowanceTotalAmount, 2),
+                'payable_amount' => round($payableAmount, 2),
+            ],
+            'tax_totals' => $taxSubtotals,
+            'total_tax_amount' => round($totalTaxAmount, 2),
+        ];
     }
 
     /**
@@ -455,6 +619,11 @@ class UblBeBis3Service
             throw new \InvalidArgumentException('Invoice line requires line_extension_amount or both price_amount and quantity to derive it.');
         }
 
+        // Track line data for validation
+        $this->invoiceLines[] = array_merge($lineData, [
+            'line_extension_amount' => $lineExtensionAmount,
+        ]);
+
         $this->addChildElement($invoiceLine, 'cbc', 'ID', $lineData['id']);
         $this->addChildElement($invoiceLine, 'cbc', 'InvoicedQuantity', $this->formatAmount((float)$lineData['quantity']), ['unitCode' => $lineData['unit_code']]);
         $this->addChildElement($invoiceLine, 'cbc', 'LineExtensionAmount', $this->formatAmount((float)$lineExtensionAmount), ['currencyID' => $lineData['currency']]);
@@ -490,6 +659,12 @@ class UblBeBis3Service
 
     public function addLegalMonetaryTotal(array $totals, string $currency): self
     {
+        // Track totals for validation
+        $this->totals = $totals;
+        $this->chargeTotalAmount = (float)($totals['charge_total_amount'] ?? 0);
+        $this->allowanceTotalAmount = (float)($totals['allowance_total_amount'] ?? 0);
+        $this->prepaidAmount = (float)($totals['prepaid_amount'] ?? 0);
+
         $monetaryTotal = $this->addChildElement($this->rootElement, 'cac', 'LegalMonetaryTotal');
 
         $this->addChildElement($monetaryTotal, 'cbc', 'LineExtensionAmount', $this->formatAmount((float)$totals['line_extension_amount']), ['currencyID' => $currency]);
@@ -503,6 +678,9 @@ class UblBeBis3Service
 
     public function addTaxTotal(array $taxTotals): self
     {
+        // Track tax totals for validation
+        $this->taxTotals = $taxTotals;
+
         // Find and remove existing TaxTotal to prevent duplicates
         $existingTaxTotals = $this->dom->getElementsByTagName('TaxTotal');
         while ($existingTaxTotals->length > 0) {
@@ -591,7 +769,7 @@ class UblBeBis3Service
         $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $paymentId);
 
         $payeeFinancialAccount = $this->addChildElement($paymentMeans, 'cac', 'PayeeFinancialAccount');
-        $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $account_iban);
+        $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $account_iban, ['schemeID' => 'IBAN']);
         if ($account_name) {
             $this->addChildElement($payeeFinancialAccount, 'cbc', 'Name', $account_name);
         }

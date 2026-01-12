@@ -2,6 +2,36 @@
 
 All notable changes to this package will be documented in this file.
 
+## [1.3.0] - 2026-01-12
+### Added
+- **Invoice Validation System** - Complete EN16931/Peppol BIS Billing 3.0 compliance validation
+  - `UblValidator::validateInvoiceTotals()` - Validates invoice totals according to Peppol rules
+  - `InvoiceValidationResult` class - Structured validation result with errors, warnings, and corrections
+  - `UblBeBis3Service::validate()` - Validate invoice before generating XML
+  - `UblBeBis3Service::calculateTotals()` - Calculate correct totals based on invoice lines
+  - `UblBeBis3Service::generateXml(bool $validateFirst)` - Optional validation before XML generation
+
+### Validation Rules Implemented
+- **BR-CO-10**: Sum of Invoice line net amounts = Line extension amount
+- **BR-CO-13**: Invoice total amount without VAT = Line extension amount - allowances + charges
+- **BR-CO-15**: Invoice total amount with VAT = Invoice total without VAT + Invoice total VAT amount
+- **BR-CO-16**: Amount due for payment = Invoice total with VAT - Paid amount
+- Tax amount calculation per category (taxable_amount × tax_percent)
+- Taxable amount per category matches sum of invoice lines
+
+### Changed
+- `UblBeBis3Service` now tracks invoice lines, totals, and tax totals internally for validation
+- Added tracking properties: `$invoiceLines`, `$totals`, `$taxTotals`, `$allowanceTotalAmount`, `$chargeTotalAmount`, `$prepaidAmount`
+- `addInvoiceLine()` now stores line data for validation
+- `addLegalMonetaryTotal()` now stores totals for validation
+- `addTaxTotal()` now stores tax totals for validation
+
+### Features
+- Automatic correction suggestions when validation fails
+- Dutch error messages for better user experience
+- Support for multiple tax categories (different VAT percentages)
+- Tolerance of €0.01 for rounding differences
+
 ## [1.2.5] - 2025-12-15
 ### Fixed
 - Allowed `UblBeBis3Service::addPaymentMeans` and `addPaymentTerms` to accept omitted optional parameters by defaulting the nullable arguments to `null`

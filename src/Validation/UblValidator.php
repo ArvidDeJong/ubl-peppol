@@ -3,6 +3,7 @@
 namespace Darvis\UblPeppol\Validation;
 
 use Darvis\UblPeppol\Constants\UnitCodes;
+use Darvis\UblPeppol\Validation\InvoiceValidationResult;
 
 class UblValidator
 {
@@ -109,5 +110,225 @@ class UblValidator
 
         // Basic format check (alphanumeric, no spaces)
         return ctype_alnum($number) && !preg_match('/\s/', $number);
+    }
+
+    /**
+     * Validates invoice totals according to EN16931/Peppol BIS Billing 3.0 rules.
+     * 
+     * This validates:
+     * - BR-CO-10: Sum of Invoice line net amounts = Line extension amount
+     * - BR-CO-13: Invoice total amount without VAT = Line extension amount - allowances + charges
+     * - BR-CO-15: Invoice total amount with VAT = Invoice total without VAT + Invoice total VAT amount
+     * - BR-CO-16: Amount due for payment = Invoice total with VAT - Paid amount
+     * 
+     * @param array $invoiceLines Array of invoice lines with 'line_extension_amount' key
+     * @param array $totals Array with keys: line_extension_amount, tax_exclusive_amount, tax_inclusive_amount, payable_amount
+     * @param array $taxTotals Array of tax subtotals with 'taxable_amount', 'tax_amount', 'tax_percent' keys
+     * @param float $allowanceTotalAmount Total of allowances (default 0)
+     * @param float $chargeTotalAmount Total of charges (default 0)
+     * @param float $prepaidAmount Amount already paid (default 0)
+     * @return InvoiceValidationResult
+     */
+    public static function validateInvoiceTotals(
+        array $invoiceLines,
+        array $totals,
+        array $taxTotals,
+        float $allowanceTotalAmount = 0.0,
+        float $chargeTotalAmount = 0.0,
+        float $prepaidAmount = 0.0
+    ): InvoiceValidationResult {
+        $errors = [];
+        $warnings = [];
+        
+        // Calculate sum of invoice line amounts and validate each line
+        $sumOfLineAmounts = 0.0;
+        foreach ($invoiceLines as $index => $line) {
+            $lineId = $line['id'] ?? ($index + 1);
+            
+            if (!isset($line['line_extension_amount'])) {
+                // Calculate from price_amount * quantity if not set
+                if (isset($line['price_amount'], $line['quantity'])) {
+                    $lineAmount = (float)$line['price_amount'] * (float)$line['quantity'];
+                } else {
+                    $errors[] = "Line {$lineId}: Missing line_extension_amount or price_amount/quantity";
+                    continue;
+                }
+            } else {
+                $lineAmount = (float)$line['line_extension_amount'];
+                
+                // BR-CALC-01: Validate that line_extension_amount = price_amount × quantity
+                if (isset($line['price_amount'], $line['quantity'])) {
+                    $expectedLineAmount = round((float)$line['price_amount'] * (float)$line['quantity'], 2);
+                    if (abs($lineAmount - $expectedLineAmount) > 0.01) {
+                        $errors[] = sprintf(
+                            "Line %s: LineExtensionAmount (%.2f) does not match PriceAmount (%.2f) × Quantity (%.2f) = %.2f",
+                            $lineId,
+                            $lineAmount,
+                            (float)$line['price_amount'],
+                            (float)$line['quantity'],
+                            $expectedLineAmount
+                        );
+                    }
+                }
+            }
+            $sumOfLineAmounts += $lineAmount;
+        }
+        
+        // BR-CO-10: Sum of Invoice line net amounts = Line extension amount
+        $lineExtensionAmount = (float)($totals['line_extension_amount'] ?? 0);
+        if (abs($sumOfLineAmounts - $lineExtensionAmount) > 0.01) {
+            $errors[] = sprintf(
+                "BR-CO-10: Sum of invoice lines (%.2f) does not match LineExtensionAmount (%.2f). Difference: %.2f",
+                $sumOfLineAmounts,
+                $lineExtensionAmount,
+                $sumOfLineAmounts - $lineExtensionAmount
+            );
+        }
+        
+        // Calculate expected tax exclusive amount
+        $expectedTaxExclusiveAmount = $lineExtensionAmount - $allowanceTotalAmount + $chargeTotalAmount;
+        $taxExclusiveAmount = (float)($totals['tax_exclusive_amount'] ?? 0);
+        
+        // BR-CO-13: Invoice total amount without VAT
+        if (abs($expectedTaxExclusiveAmount - $taxExclusiveAmount) > 0.01) {
+            $errors[] = sprintf(
+                "BR-CO-13: TaxExclusiveAmount (%.2f) must equal LineExtensionAmount (%.2f) - allowances (%.2f) + charges (%.2f) = %.2f",
+                $taxExclusiveAmount,
+                $lineExtensionAmount,
+                $allowanceTotalAmount,
+                $chargeTotalAmount,
+                $expectedTaxExclusiveAmount
+            );
+        }
+        
+        // Calculate and validate tax amounts per category
+        $calculatedTaxByCategory = [];
+        foreach ($invoiceLines as $line) {
+            $taxCategoryId = $line['tax_category_id'] ?? 'S';
+            $taxPercent = (float)($line['tax_percent'] ?? 21);
+            $lineAmount = (float)($line['line_extension_amount'] ?? ((float)$line['price_amount'] * (float)$line['quantity']));
+            
+            $key = $taxCategoryId . '_' . $taxPercent;
+            if (!isset($calculatedTaxByCategory[$key])) {
+                $calculatedTaxByCategory[$key] = [
+                    'taxable_amount' => 0.0,
+                    'tax_percent' => $taxPercent,
+                    'tax_category_id' => $taxCategoryId,
+                ];
+            }
+            $calculatedTaxByCategory[$key]['taxable_amount'] += $lineAmount;
+        }
+        
+        // Calculate expected tax amounts
+        $totalCalculatedTax = 0.0;
+        foreach ($calculatedTaxByCategory as $key => &$category) {
+            $category['calculated_tax'] = round($category['taxable_amount'] * ($category['tax_percent'] / 100), 2);
+            $totalCalculatedTax += $category['calculated_tax'];
+        }
+        unset($category);
+        
+        // Validate tax subtotals
+        $totalProvidedTax = 0.0;
+        $totalProvidedTaxableAmount = 0.0;
+        foreach ($taxTotals as $index => $taxSubtotal) {
+            $taxableAmount = (float)($taxSubtotal['taxable_amount'] ?? 0);
+            $taxAmount = (float)($taxSubtotal['tax_amount'] ?? 0);
+            $taxPercent = (float)($taxSubtotal['tax_percent'] ?? 0);
+            $taxCategoryId = $taxSubtotal['tax_category_id'] ?? 'S';
+            
+            $totalProvidedTax += $taxAmount;
+            $totalProvidedTaxableAmount += $taxableAmount;
+            
+            // Check if taxable amount matches calculated
+            $key = $taxCategoryId . '_' . $taxPercent;
+            if (isset($calculatedTaxByCategory[$key])) {
+                $expectedTaxableAmount = $calculatedTaxByCategory[$key]['taxable_amount'];
+                if (abs($taxableAmount - $expectedTaxableAmount) > 0.01) {
+                    $errors[] = sprintf(
+                        "TaxSubtotal %d: TaxableAmount (%.2f) does not match sum of lines for category %s %.0f%% (%.2f)",
+                        $index + 1,
+                        $taxableAmount,
+                        $taxCategoryId,
+                        $taxPercent,
+                        $expectedTaxableAmount
+                    );
+                }
+                
+                // Check tax amount calculation
+                $expectedTaxAmount = round($taxableAmount * ($taxPercent / 100), 2);
+                if (abs($taxAmount - $expectedTaxAmount) > 0.01) {
+                    $errors[] = sprintf(
+                        "TaxSubtotal %d: TaxAmount (%.2f) does not match calculation: %.2f × %.0f%% = %.2f",
+                        $index + 1,
+                        $taxAmount,
+                        $taxableAmount,
+                        $taxPercent,
+                        $expectedTaxAmount
+                    );
+                }
+            }
+        }
+        
+        // Check if total taxable amount matches line extension amount
+        if (abs($totalProvidedTaxableAmount - $lineExtensionAmount) > 0.01) {
+            $errors[] = sprintf(
+                "Total TaxableAmount (%.2f) does not match LineExtensionAmount (%.2f)",
+                $totalProvidedTaxableAmount,
+                $lineExtensionAmount
+            );
+        }
+        
+        // BR-CO-15: Invoice total amount with VAT = Invoice total without VAT + Invoice total VAT amount
+        $taxInclusiveAmount = (float)($totals['tax_inclusive_amount'] ?? 0);
+        $expectedTaxInclusiveAmount = $taxExclusiveAmount + $totalProvidedTax;
+        if (abs($taxInclusiveAmount - $expectedTaxInclusiveAmount) > 0.01) {
+            $errors[] = sprintf(
+                "BR-CO-15: TaxInclusiveAmount (%.2f) must equal TaxExclusiveAmount (%.2f) + TaxAmount (%.2f) = %.2f",
+                $taxInclusiveAmount,
+                $taxExclusiveAmount,
+                $totalProvidedTax,
+                $expectedTaxInclusiveAmount
+            );
+        }
+        
+        // BR-CO-16: Amount due for payment = Invoice total with VAT - Paid amount
+        $payableAmount = (float)($totals['payable_amount'] ?? 0);
+        $expectedPayableAmount = $taxInclusiveAmount - $prepaidAmount;
+        if (abs($payableAmount - $expectedPayableAmount) > 0.01) {
+            $errors[] = sprintf(
+                "BR-CO-16: PayableAmount (%.2f) must equal TaxInclusiveAmount (%.2f) - PrepaidAmount (%.2f) = %.2f",
+                $payableAmount,
+                $taxInclusiveAmount,
+                $prepaidAmount,
+                $expectedPayableAmount
+            );
+        }
+        
+        // Add correction suggestions
+        $corrections = [];
+        if (!empty($errors)) {
+            $corrections = [
+                'line_extension_amount' => round($sumOfLineAmounts, 2),
+                'tax_exclusive_amount' => round($sumOfLineAmounts - $allowanceTotalAmount + $chargeTotalAmount, 2),
+                'total_tax_amount' => round($totalCalculatedTax, 2),
+                'tax_inclusive_amount' => round($sumOfLineAmounts - $allowanceTotalAmount + $chargeTotalAmount + $totalCalculatedTax, 2),
+                'payable_amount' => round($sumOfLineAmounts - $allowanceTotalAmount + $chargeTotalAmount + $totalCalculatedTax - $prepaidAmount, 2),
+                'tax_subtotals' => array_values(array_map(function($cat) {
+                    return [
+                        'tax_category_id' => $cat['tax_category_id'],
+                        'tax_percent' => $cat['tax_percent'],
+                        'taxable_amount' => round($cat['taxable_amount'], 2),
+                        'tax_amount' => $cat['calculated_tax'],
+                    ];
+                }, $calculatedTaxByCategory)),
+            ];
+        }
+        
+        return new InvoiceValidationResult(
+            isValid: empty($errors),
+            errors: $errors,
+            warnings: $warnings,
+            corrections: $corrections
+        );
     }
 }

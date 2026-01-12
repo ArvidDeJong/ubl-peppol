@@ -156,7 +156,7 @@ class UblNLBis3Service
             $errors[] = 'Invoice number cannot exceed 35 characters';
         }
 
-        // Valideer en converteer factuurdatum
+        // Validate and convert invoice date
         $issueDateObj = null;
         if ($issueDate instanceof \DateTime) {
             $issueDateObj = $issueDate;
@@ -178,7 +178,7 @@ class UblNLBis3Service
             $errors[] = 'Invoice date must be a string (YYYY-MM-DD) or DateTime object';
         }
 
-        // Valideer en converteer vervaldatum
+        // Validate and convert due date
         $dueDateObj = null;
         if ($dueDate instanceof \DateTime) {
             $dueDateObj = $dueDate;
@@ -196,7 +196,7 @@ class UblNLBis3Service
             $errors[] = 'Due date must be a string (YYYY-MM-DD) or DateTime object';
         }
 
-        // Gooi een uitzondering met alle validatiefouten
+        // Throw exception with all validation errors
         if (!empty($errors)) {
             $errorMessage = "Validation error(s) in invoice header:\n" .
                 implode("\n- ", array_merge([''], $errors));
@@ -224,39 +224,39 @@ class UblNLBis3Service
         );
         $this->rootElement->appendChild($profileIDElement);
 
-        // ID (factuurnummer)
+        // ID (invoice number)
         $idElement = $this->createElement('cbc', 'ID', $invoiceNumber);
         $this->rootElement->appendChild($idElement);
 
-        // IssueDate (factuurdatum)
+        // IssueDate (invoice date)
         $issueDateElement = $this->createElement('cbc', 'IssueDate', $issueDate);
         $this->rootElement->appendChild($issueDateElement);
 
-        // DueDate (vervaldatum) - controleer of deze niet leeg is
-        // Als de waarde leeg is, gebruik dan een standaarddatum gebaseerd op issueDate + 30 dagen
+        // DueDate (due date) - check if not empty
+        // If empty, use a default date based on issueDate + 30 days
         if (empty($dueDate)) {
-            // Gebruik issueDate als basis en voeg 30 dagen toe als standaard betaaltermijn
+            // Use issueDate as base and add 30 days as default payment term
             try {
                 $issueDateObj = new \DateTime($issueDate);
                 $dueDateObj = clone $issueDateObj;
                 $dueDateObj->modify('+30 days');
                 $dueDate = $dueDateObj->format('Y-m-d');
             } catch (\Exception $e) {
-                // Als er iets fout gaat, gebruik de huidige datum + 30 dagen als fallback
+                // If something goes wrong, use current date + 30 days as fallback
                 $dueDate = (new \DateTime())->modify('+30 days')->format('Y-m-d');
             }
         } else {
-            // Controleer of het een geldige datum is in het formaat Y-m-d
+            // Check if it's a valid date in Y-m-d format
             try {
                 $dueDateObj = new \DateTime($dueDate);
-                $dueDate = $dueDateObj->format('Y-m-d'); // Normaliseren naar YYYY-MM-DD
+                $dueDate = $dueDateObj->format('Y-m-d'); // Normalize to YYYY-MM-DD
             } catch (\Exception $e) {
-                // Als het geen geldige datum is, gebruik de huidige datum + 30 dagen als fallback
+                // If not a valid date, use current date + 30 days as fallback
                 $dueDate = (new \DateTime())->modify('+30 days')->format('Y-m-d');
             }
         }
 
-        // Nu we zeker weten dat $dueDate een geldige datum is in het juiste formaat
+        // Now we're sure $dueDate is a valid date in the correct format
         $dueDateElement = $this->createElement('cbc', 'DueDate', $dueDate);
         $this->rootElement->appendChild($dueDateElement);
 
@@ -272,16 +272,16 @@ class UblNLBis3Service
         $accountingCostElement = $this->createElement('cbc', 'AccountingCost', '4025:123:4343');
         $this->rootElement->appendChild($accountingCostElement);
 
-        // BuyerReference wordt nu apart toegevoegd via addBuyerReference() om dubbele elementen te voorkomen
+        // BuyerReference is now added separately via addBuyerReference() to prevent duplicate elements
 
         return $this;
     }
 
     /**
-     * Format een bedrag voor gebruik in UBL
+     * Format an amount for use in UBL
      * 
-     * @param float $amount Bedrag
-     * @return string Geformatteerd bedrag (2 decimalen)
+     * @param float $amount Amount
+     * @return string Formatted amount (2 decimals)
      */
     protected function formatAmount(float $amount): string
     {
@@ -289,14 +289,14 @@ class UblNLBis3Service
     }
 
     /**
-     * Voeg BuyerReference toe (verplicht voor PEPPOL)
+     * Add BuyerReference (required for PEPPOL)
      *
-     * @param string|null $buyerRef Referentie van de koper (bijv. debiteurnummer)
+     * @param string|null $buyerRef Buyer reference (e.g., debtor number)
      * @return self
      */
     public function addBuyerReference(?string $buyerRef = 'BUYER_REF'): self
     {
-        // Fallback naar default waarde als null wordt doorgegeven
+        // Fallback to default value if null is passed
         $buyerRefValue = $buyerRef ?? 'BUYER_REF';
 
         $buyerRefElement = $this->createElement('cbc', 'BuyerReference', $buyerRefValue);
@@ -306,9 +306,9 @@ class UblNLBis3Service
     }
 
     /**
-     * Voeg OrderReference toe aan UBL document
+     * Add OrderReference to UBL document
      * 
-     * @param string $orderNumber Ordernummer referentie
+     * @param string $orderNumber Order number reference
      * @return self
      */
     public function addOrderReference(string $orderNumber = 'PO-001'): self
@@ -341,20 +341,20 @@ class UblNLBis3Service
     }
 
     /**
-     * Voeg AccountingSupplierParty (verkooppartij) toe
+     * Add AccountingSupplierParty (seller party)
      * 
-     * @param string $endpointId Unieke identificatie van de leverancier (bijv. KVK nummer)
-     * @param string $endpointSchemeID Het schema van de endpoint ID (bijv. '0106' voor KVK)
-     * @param string $partyId Interne identificatie van de partij
-     * @param string $partyName Naam van de leverancier
-     * @param string $street Straatnaam en huisnummer
-     * @param string $postalCode Postcode
-     * @param string $city Plaatsnaam
-     * @param string $countryCode Landcode (2 letters, bijv. 'NL')
-     * @param string $companyId BTW-nummer of ander fiscaal identificatienummer
-     * @param string|null $additionalStreet Toevoeging adres (optioneel)
+     * @param string $endpointId Unique identifier of the supplier (e.g., Chamber of Commerce number)
+     * @param string $endpointSchemeID The scheme of the endpoint ID (e.g., '0106' for KVK)
+     * @param string $partyId Internal party identifier
+     * @param string $partyName Name of the supplier
+     * @param string $street Street name and number
+     * @param string $postalCode Postal code
+     * @param string $city City name
+     * @param string $countryCode Country code (2 letters, e.g., 'NL')
+     * @param string $companyId VAT number or other tax identification number
+     * @param string|null $additionalStreet Additional address line (optional)
      * @return self
-     * @throws \InvalidArgumentException Bij ongeldige invoer
+     * @throws \InvalidArgumentException On invalid input
      */
     public function addAccountingSupplierParty(
         string $endpointId,
@@ -376,43 +376,43 @@ class UblNLBis3Service
         $party = $this->createElement('cac', 'Party');
         $party = $accountingSupplierParty->appendChild($party);
 
-        // Valideer invoer
+        // Validate input
         $errors = [];
 
-        // Verzamel alle validatiefouten
+        // Collect all validation errors
         if (empty(trim($endpointId ?? ''))) {
-            $errors[] = 'Endpoint ID (bijv. KVK-nummer) is verplicht';
+            $errors[] = 'Endpoint ID (e.g., Chamber of Commerce number) is required';
         }
         if (empty(trim($endpointSchemeID ?? ''))) {
-            $errors[] = 'Endpoint Scheme ID (bijv. "0106" voor KVK) is verplicht';
+            $errors[] = 'Endpoint Scheme ID (e.g., "0106" for KVK) is required';
         }
         if (empty(trim($partyId ?? ''))) {
-            $errors[] = 'Interne partij ID is verplicht';
+            $errors[] = 'Internal party ID is required';
         }
         if (empty(trim($partyName ?? ''))) {
-            $errors[] = 'Bedrijfsnaam is verplicht';
+            $errors[] = 'Company name is required';
         }
         if (empty(trim($street ?? ''))) {
-            $errors[] = 'Straat en huisnummer zijn verplicht';
+            $errors[] = 'Street and house number are required';
         }
         if (empty(trim($postalCode ?? ''))) {
-            $errors[] = 'Postcode is verplicht';
+            $errors[] = 'Postal code is required';
         }
         if (empty(trim($city ?? ''))) {
-            $errors[] = 'Plaatsnaam is verplicht';
+            $errors[] = 'City name is required';
         }
         if (empty(trim($countryCode ?? ''))) {
-            $errors[] = 'Landcode is verplicht';
+            $errors[] = 'Country code is required';
         } elseif (strlen(trim($countryCode)) !== 2) {
-            $errors[] = 'Landcode moet uit precies 2 tekens bestaan (bijv. "NL")';
+            $errors[] = 'Country code must be exactly 2 characters (e.g., "NL")';
         }
         if (empty(trim($companyId ?? ''))) {
-            $errors[] = 'BTW-nummer of fiscaal identificatienummer is verplicht';
+            $errors[] = 'VAT number or tax identification number is required';
         }
 
-        // Gooi een uitzondering met alle validatiefouten
+        // Throw exception with all validation errors
         if (!empty($errors)) {
-            $errorMessage = "Validatiefout(en) in addAccountingSupplierParty():\n" .
+            $errorMessage = "Validation error(s) in addAccountingSupplierParty():\n" .
                 implode("\n- ", array_merge([''], $errors));
             throw new \InvalidArgumentException($errorMessage);
         }
@@ -910,7 +910,7 @@ class UblNLBis3Service
             $partyLegalEntity->appendChild($companyIDElement);
         }
 
-        // Alleen een Contact element toevoegen als er minstens één contactgegeven is opgegeven
+        // Only add a Contact element if at least one contact detail is provided
         if ($contactName || $contactPhone || $contactEmail) {
             $contact = $this->createElement('cac', 'Contact');
             $contact = $party->appendChild($contact);
@@ -1062,7 +1062,7 @@ class UblNLBis3Service
     }
 
     /**
-     * Add payment means (betalingsgegevens) to the invoice
+     * Add payment means to the invoice
      *
      * @param string $paymentMeansCode Payment means code (e.g., '30' for credit transfer)
      * @param string $paymentMeansName Payment means name (e.g., 'Credit transfer')
