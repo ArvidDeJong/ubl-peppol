@@ -45,6 +45,11 @@ Checks business rules:
 - **ubl-BE-10**: Correct BTCC tax category names
 - **ubl-BE-14**: TaxTotal position in InvoiceLine
 
+#### Important Compliance Rules
+- **BR-CO-09**: VAT number must start with ISO 3166-1 alpha-2 country code (e.g., `NL123456789B01`, `BE0123456789`)
+- **BR-CO-10**: Sum of invoice lines must equal LineExtensionAmount
+- **UBL-CR-654**: PayeeFinancialAccount/ID must NOT have schemeID attribute (IBAN without schemeID)
+
 ## Validation Workflow
 
 ### 1. Local Validation

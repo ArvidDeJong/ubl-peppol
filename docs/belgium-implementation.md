@@ -146,6 +146,55 @@ if (!preg_match('/^BE[0-9]{10}$/', $vatNumber)) {
 }
 ```
 
+## Belgian KBO Numbers (EndpointID)
+
+Format: 10 digits with mod97 checksum validation.
+
+The last 2 digits are a checksum: `97 - (first 8 digits mod 97)`
+
+```php
+// Example: 0681845662
+// Basis: 06818456
+// Checksum: 97 - (6818456 % 97) = 97 - 35 = 62 ✓
+
+// Validation
+function isValidKboNumber(string $kbo): bool {
+    if (strlen($kbo) !== 10 || !ctype_digit($kbo)) {
+        return false;
+    }
+    $basis = (int) substr($kbo, 0, 8);
+    $checksum = (int) substr($kbo, 8, 2);
+    return $checksum === (97 - ($basis % 97));
+}
+```
+
+## AllowanceCharge for Minimum Order Surcharges
+
+For minimum order amounts, use `AllowanceCharge` instead of invoice lines:
+
+```php
+// Minimum order surcharge as AllowanceCharge
+$ubl->addAllowanceCharge(
+    true,                           // isCharge (true = surcharge)
+    74.63,                          // amount
+    'Minimum order surcharge',      // reason
+    'S',                            // taxCategoryId
+    21.0,                           // taxPercent
+    'EUR'                           // currency
+);
+
+// Totals must reflect the charge
+$ubl->addLegalMonetaryTotal([
+    'line_extension_amount' => 0.37,    // Sum of invoice lines only
+    'tax_exclusive_amount' => 75.00,    // Lines + charges
+    'tax_inclusive_amount' => 90.75,
+    'charge_total_amount' => 74.63,     // Sum of charges
+    'payable_amount' => 90.75
+], 'EUR');
+```
+
+**Formula**: `TaxExclusiveAmount = LineExtensionAmount + ChargeTotalAmount`
+
 ## Validation
 
 ### Belgian PEPPOL Validator

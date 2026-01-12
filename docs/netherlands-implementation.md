@@ -49,14 +49,20 @@ $ubl->addAccountingSupplierParty(
 
 // 4. Customer
 $ubl->addAccountingCustomerParty(
-    'NL987654321B01',
-    '0106',
-    '87654321',
+    '87654321',                   // KVK as endpoint
+    '0106',                       // KVK scheme
+    '87654321',                   // Party ID
     'Customer Company BV',
     'Nieuwezijds Voorburgwal 123',
     '1012 RJ',
     'Amsterdam',
-    'NL'
+    'NL',
+    null,                         // additionalStreet
+    '87654321',                   // registrationNumber (KVK)
+    null,                         // contactName
+    null,                         // contactPhone
+    null,                         // contactEmail
+    'NL987654321B01'              // vatNumber (with country prefix!)
 );
 
 // 5. Invoice lines

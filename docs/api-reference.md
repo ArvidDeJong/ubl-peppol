@@ -77,12 +77,15 @@ $ubl->addAccountingCustomerParty(
     string $city,
     string $country,
     ?string $additionalStreet = null,
-    ?string $registrationNumber = null,
+    ?string $registrationNumber = null,  // KVK/KBO number
     ?string $contactName = null,
     ?string $contactPhone = null,
-    ?string $contactEmail = null
+    ?string $contactEmail = null,
+    ?string $vatNumber = null            // VAT number with country prefix (e.g., NL123456789B01)
 );
 ```
+
+**Important**: The `vatNumber` parameter must include the country prefix (e.g., `BE0123456789`, `NL123456789B01`) per BR-CO-09 validation rule. If no VAT number is provided, the `PartyTaxScheme` element will be omitted.
 
 ### Invoice Lines
 
@@ -137,13 +140,15 @@ $ubl->addPaymentMeans(
     string $paymentMeansCode,     // '30' = Credit transfer
     ?string $paymentMeansName,    // 'Credit transfer'
     string $paymentId,            // Payment reference
-    string $account_iban,         // IBAN number
+    string $account_iban,         // IBAN number (without schemeID per UBL-CR-654)
     ?string $account_name,        // Account holder
     ?string $bic,                 // BIC code
     ?string $channel_code,
     ?string $due_date
 );
 ```
+
+**Note**: The IBAN is added without `schemeID` attribute per UBL-CR-654 compliance rule.
 
 #### `addPaymentTerms(?string $note, ?float $discount_percent, ?float $discount_amount, ?string $discount_date): self`
 ```php
