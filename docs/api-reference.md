@@ -230,3 +230,70 @@ $ubl = new UblNlBis3Service();
 - `0208` - Belgium VAT number
 - `0106` - Netherlands KVK number
 - `0190` - Netherlands OIN number
+
+## PeppolService
+
+For sending UBL invoices to the Peppol network.
+
+### Constructor
+
+```php
+$peppolService = new PeppolService();
+```
+
+Reads configuration from `config/ubl-peppol.php` or environment variables.
+
+### `sendInvoice(object $invoice, string $ublXml): array`
+
+Send an invoice to the Peppol network.
+
+```php
+$result = $peppolService->sendInvoice($invoice, $ublXml);
+// Returns: ['success' => bool, 'status_code' => int, 'message' => string, 'log_id' => int]
+```
+
+### `sendUblXml(string $ublXml, ?string $invoiceNumber = null): array`
+
+Send UBL XML directly without an Invoice model.
+
+```php
+$result = $peppolService->sendUblXml($ublXml, 'INV-2024-001');
+```
+
+### `testConnection(): array`
+
+Test the connection to the Peppol provider.
+
+```php
+$result = $peppolService->testConnection();
+// Returns: ['success' => bool, 'status_code' => int, 'message' => string]
+```
+
+### `getConfig(): array`
+
+Get current configuration (password hidden).
+
+```php
+$config = $peppolService->getConfig();
+// Returns: ['url' => string, 'username' => string, 'password_configured' => bool]
+```
+
+## PeppolLog Model
+
+For tracking sent invoices.
+
+### Scopes
+
+```php
+PeppolLog::success();      // Status = success
+PeppolLog::error();        // Status = error
+PeppolLog::pending();      // Status = pending
+PeppolLog::recent(7);      // Last 7 days
+PeppolLog::olderThan(60);  // Older than 60 days
+```
+
+### Static Methods
+
+```php
+PeppolLog::cleanupOldLogs(60);  // Delete logs older than 60 days
+```

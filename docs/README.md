@@ -14,6 +14,7 @@ Welcome to the comprehensive documentation for the UBL-PEPPOL package. This docu
 - [**Netherlands**](netherlands-implementation.md) - Dutch UBL specifications
 
 ### Advanced Topics
+- [**Peppol Service**](peppol-service.md) - Send invoices to the Peppol network
 - [**Validation & Compliance**](validation.md) - PEPPOL validators and rules
 - [**Troubleshooting**](troubleshooting.md) - Common problems and solutions
 - [**Best Practices**](best-practices.md) - Recommended approaches

@@ -2,6 +2,18 @@
 
 All notable changes to this package will be documented in this file.
 
+## [1.4.0] - 2026-01-12
+### Added
+- Laravel integration documentation (`docs/laravel-integration.md`)
+- `loadMigrationsFrom()` for automatic migration loading in Laravel
+
+### Changed
+- Translated `PeppolService` from Dutch to English (log messages, error messages, docblocks)
+- Made package standalone-compatible (UBL services work without Laravel)
+- Moved `illuminate/support` from `require` to `suggest` in composer.json
+- Updated `pestphp/pest` to ^3.0 for Laravel 12 compatibility
+- Added `orchestra/testbench` ^9.0|^10.0 for package testing
+
 ## [1.3.0] - 2026-01-12
 ### Added
 - **Invoice Validation System** - Complete EN16931/Peppol BIS Billing 3.0 compliance validation

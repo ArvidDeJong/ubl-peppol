@@ -123,6 +123,72 @@ For detailed implementation examples with full invoice data structures, validati
 - Automatic calculation of totals and VAT amounts
 - Input data validation with country-specific requirements
 - XSD and Schematron validation compliance
+- **PeppolService**: Send invoices to the Peppol network via access point providers
+- **PeppolLog**: Track sent invoices with success/error logging
+
+## Peppol Network Integration
+
+This package includes a `PeppolService` for sending UBL invoices to the Peppol network via access point providers.
+
+### Configuration
+
+Add the following to your `.env` file:
+
+```env
+PEPPOL_URL=https://your-provider.com/api/endpoint
+PEPPOL_USERNAME=your_username
+PEPPOL_PASSWORD=your_password
+```
+
+### Publish Config & Migrations
+
+```bash
+php artisan vendor:publish --tag=ubl-peppol-config
+php artisan vendor:publish --tag=ubl-peppol-migrations
+php artisan migrate
+```
+
+### Usage
+
+```php
+use Darvis\UblPeppol\PeppolService;
+use Darvis\UblPeppol\UblBeBis3Service;
+
+// Generate UBL XML
+$ublService = new UblBeBis3Service();
+// ... configure invoice ...
+$ublXml = $ublService->generateXml();
+
+// Send to Peppol network
+$peppolService = new PeppolService();
+$result = $peppolService->sendInvoice($invoice, $ublXml);
+
+if ($result['success']) {
+    echo "Invoice sent successfully!";
+} else {
+    echo "Error: " . $result['error'];
+}
+
+// Or send XML directly without Invoice model
+$result = $peppolService->sendUblXml($ublXml, 'INV-2024-001');
+
+// Test connection
+$result = $peppolService->testConnection();
+```
+
+### PeppolLog Model
+
+All sent invoices are logged in the `peppol_logs` table:
+
+```php
+use Darvis\UblPeppol\Models\PeppolLog;
+
+// Get recent errors
+$errors = PeppolLog::error()->recent(7)->get();
+
+// Cleanup old logs (default 60 days)
+PeppolLog::cleanupOldLogs(60);
+```
 
 ## Validation Testing
 
