@@ -48,22 +48,22 @@ $ubl->addAdditionalDocumentReference('PEPPOL', 'PEPPOLInvoice');
 
 // 4. Supplier (Belgian company)
 $ubl->addAccountingSupplierParty(
-    'BE0123456789',           // VAT number as endpoint
-    '0208',                   // Belgian VAT scheme
+    '0123456789',             // VAT number WITHOUT "BE" prefix as endpoint
+    '0208',                   // Belgian VAT scheme (0208)
     'BE0123456789',           // Party ID
     'My Belgian Company BV',
     'Grote Markt 1',
     '1000',
     'Brussel',
     'BE',
-    'BE0123456789'            // VAT number
+    'BE0123456789'            // VAT number (with prefix)
 );
 
 // 5. Customer
 $ubl->addAccountingCustomerParty(
-    'BE0987654321',
-    '0208',
-    'BE0987654321',
+    '0987654321',             // VAT number WITHOUT "BE" prefix as endpoint
+    '0208',                   // Belgian VAT scheme (0208)
+    'BE0987654321',           // Party ID
     'Customer Company NV',
     'Kerkstraat 123',
     '2000',
@@ -146,18 +146,37 @@ if (!preg_match('/^BE[0-9]{10}$/', $vatNumber)) {
 }
 ```
 
-## Belgian KBO Numbers (EndpointID)
+## Belgian EndpointID
 
-Format: 10 digits with mod97 checksum validation.
+**Important**: For Belgium, the `EndpointID` should be the **VAT number WITHOUT the "BE" prefix**, not the KBO number.
 
-The last 2 digits are a checksum: `97 - (first 8 digits mod 97)`
+Format: 10 digits (VAT number without country code)
+
+```php
+// Example VAT number: BE0999000228
+// EndpointID should be: 0999000228 (without "BE")
+// Scheme ID: 0208 (Belgian VAT)
+
+// Extract EndpointID from VAT number
+$vatNumber = 'BE0999000228';
+$endpointId = preg_replace('/^BE/i', '', $vatNumber); // Result: 0999000228
+$endpointId = preg_replace('/[^0-9]/', '', $endpointId); // Remove non-numeric
+
+// Validation
+if (strlen($endpointId) !== 10 || !ctype_digit($endpointId)) {
+    throw new InvalidArgumentException('Invalid Belgian VAT number for EndpointID');
+}
+```
+
+### KBO Number Validation (for reference)
+
+KBO numbers use mod97 checksum validation. The last 2 digits are: `97 - (first 8 digits mod 97)`
 
 ```php
 // Example: 0681845662
 // Basis: 06818456
 // Checksum: 97 - (6818456 % 97) = 97 - 35 = 62 ✓
 
-// Validation
 function isValidKboNumber(string $kbo): bool {
     if (strlen($kbo) !== 10 || !ctype_digit($kbo)) {
         return false;

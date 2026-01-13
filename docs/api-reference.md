@@ -52,7 +52,7 @@ $ubl->addAdditionalDocumentReference('DOC-001', 'Contract');
 #### `addAccountingSupplierParty(...): self`
 ```php
 $ubl->addAccountingSupplierParty(
-    string $endpointId,           // VAT number
+    string $endpointId,           // VAT number WITHOUT country prefix (e.g., '0123456789' not 'BE0123456789')
     string $endpointSchemeID,     // '0208' for Belgium
     string $partyId,              // Company ID
     string $name,                 // Company name
@@ -60,16 +60,18 @@ $ubl->addAccountingSupplierParty(
     string $postalCode,           // Postal code
     string $city,                 // City name
     string $country,              // 'BE'
-    string $vatNumber,            // VAT number
+    string $vatNumber,            // VAT number WITH prefix (e.g., 'BE0123456789')
     ?string $additionalStreet = null
 );
 ```
 
+**Important for Belgium**: The `endpointId` parameter should be the VAT number **WITHOUT** the "BE" prefix (e.g., `0123456789`), while the `vatNumber` parameter should include the prefix (e.g., `BE0123456789`).
+
 #### `addAccountingCustomerParty(...): self`
 ```php
 $ubl->addAccountingCustomerParty(
-    string $endpointId,
-    string $endpointSchemeID,
+    string $endpointId,                  // VAT number WITHOUT country prefix for BE (e.g., '0987654321')
+    string $endpointSchemeID,            // '0208' for Belgium, '0106' for Netherlands
     string $partyId,
     string $name,
     string $street,
@@ -81,11 +83,15 @@ $ubl->addAccountingCustomerParty(
     ?string $contactName = null,
     ?string $contactPhone = null,
     ?string $contactEmail = null,
-    ?string $vatNumber = null            // VAT number with country prefix (e.g., NL123456789B01)
+    ?string $vatNumber = null            // VAT number WITH country prefix (e.g., BE0987654321, NL123456789B01)
 );
 ```
 
-**Important**: The `vatNumber` parameter must include the country prefix (e.g., `BE0123456789`, `NL123456789B01`) per BR-CO-09 validation rule. If no VAT number is provided, the `PartyTaxScheme` element will be omitted.
+**Important**: 
+- For **Belgium**: The `endpointId` should be the VAT number **WITHOUT** the "BE" prefix (e.g., `0987654321`), while `vatNumber` includes the prefix (e.g., `BE0987654321`)
+- For **Netherlands**: The `endpointId` is typically the KVK number (8 digits)
+- The `vatNumber` parameter must include the country prefix per BR-CO-09 validation rule
+- If no VAT number is provided, the `PartyTaxScheme` element will be omitted
 
 ### Invoice Lines
 
@@ -227,8 +233,8 @@ $ubl = new UblNlBis3Service();
 - `FR` - France
 
 ### Endpoint Scheme IDs
-- `0208` - Belgium VAT number
-- `0106` - Netherlands KVK number
+- `0208` - Belgium VAT number (WITHOUT "BE" prefix - use only the 10 digits)
+- `0106` - Netherlands KVK number (8 digits)
 - `0190` - Netherlands OIN number
 
 ## PeppolService

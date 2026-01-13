@@ -41,6 +41,8 @@ php artisan migrate
 - [API Reference](docs/api-reference.md)
 - [Belgian Implementation](docs/belgium-implementation.md)
 - [Dutch Implementation](docs/netherlands-implementation.md)
+- [VIES VAT Validation](docs/vies-validation.md)
+- [Company Registration Validation](docs/company-registration-validation.md)
 - [Laravel Integration](docs/laravel-integration.md)
 - [Validation](docs/validation.md)
 - [Troubleshooting](docs/troubleshooting.md)

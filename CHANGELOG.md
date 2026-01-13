@@ -2,6 +2,55 @@
 
 All notable changes to this package will be documented in this file.
 
+## [1.5.0] - 2026-01-13
+### Added
+- **ViesService** - EU VAT number validation via VIES (VAT Information Exchange System)
+  - `checkVat(string $countryCode, string $vatNumber)` - Validate VAT number with country code
+  - `checkFullVatNumber(string $fullVatNumber)` - Validate full VAT number (e.g., BE0999000228)
+  - Real-time validation against EU VIES database
+  - Returns company name, address, and registration status
+  - Automatic input cleaning (removes spaces, country prefixes)
+  - Error message translation for common VIES errors
+  - Framework-independent implementation (no Laravel dependencies)
+  - Complete documentation in `docs/vies-validation.md`
+
+- **CompanyRegistrationService** - Company registration number validation for multiple EU countries
+  - `validate(string $number, string $countryCode)` - Validate registration number
+  - `getSupportedCountries()` - Get list of supported countries with format info
+  - Support for 5 European countries:
+    - **Netherlands (NL)**: KVK - 8 digits
+    - **Belgium (BE)**: KBO - 10 digits with mod97 checksum validation
+    - **Luxembourg (LU)**: RCS - 1 letter + 6 digits
+    - **France (FR)**: SIREN (9 digits) or SIRET (14 digits)
+    - **Germany (DE)**: Handelsregister - HRA/HRB + 1-6 digits
+  - Automatic input cleaning (removes spaces, dots, dashes)
+  - Detailed validation responses with formatted numbers
+  - Country-specific format validation and checksum verification
+  - Framework-independent implementation
+  - Complete documentation in `docs/company-registration-validation.md`
+
+### Changed
+- **Belgian EndpointID specification** - EndpointID now uses VAT number WITHOUT country prefix
+  - For Belgium: EndpointID should be `0999000228` (not `BE0999000228`)
+  - Scheme ID `0208` remains the same (Belgian VAT)
+  - VAT number parameter still includes prefix (e.g., `BE0999000228`)
+  - Updated documentation in `docs/belgium-implementation.md`
+  - Updated code examples in `docs/api-reference.md`
+  - Added clear distinction between EndpointID and VAT number formats
+
+### Documentation
+- Added comprehensive VIES validation guide (`docs/vies-validation.md`)
+  - Basic usage examples
+  - Response structure documentation
+  - All EU member states listed
+  - Error handling best practices
+  - Caching and rate limiting strategies
+  - Laravel integration examples
+  - Testing and mocking examples
+- Updated Belgian implementation guide with correct EndpointID format
+- Updated API reference with EndpointID parameter clarifications
+- Added EndpointID format examples for Belgium and Netherlands
+
 ## [1.4.1] - 2026-01-12
 ### Changed
 - Simplified README.md, moved detailed documentation to `/docs`
