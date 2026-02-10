@@ -249,16 +249,21 @@ class UblValidator
      * 
      * This validates:
      * - BR-CO-10: Sum of Invoice line net amounts = Line extension amount
+     * - BR-CO-11: Sum of allowances on document level = AllowanceTotalAmount
+     * - BR-CO-12: Sum of charges on document level = ChargeTotalAmount
      * - BR-CO-13: Invoice total amount without VAT = Line extension amount - allowances + charges
      * - BR-CO-15: Invoice total amount with VAT = Invoice total without VAT + Invoice total VAT amount
      * - BR-CO-16: Amount due for payment = Invoice total with VAT - Paid amount
+     * - BR-S-08: For each VAT category: TaxableAmount = sum of line amounts - allowances + charges for that category
      * 
      * @param array $invoiceLines Array of invoice lines with 'line_extension_amount' key
      * @param array $totals Array with keys: line_extension_amount, tax_exclusive_amount, tax_inclusive_amount, payable_amount
      * @param array $taxTotals Array of tax subtotals with 'taxable_amount', 'tax_amount', 'tax_percent' keys
-     * @param float $allowanceTotalAmount Total of allowances (default 0)
-     * @param float $chargeTotalAmount Total of charges (default 0)
+     * @param float $allowanceTotalAmount Total of allowances from LegalMonetaryTotal (default 0)
+     * @param float $chargeTotalAmount Total of charges from LegalMonetaryTotal (default 0)
      * @param float $prepaidAmount Amount already paid (default 0)
+     * @param array $documentAllowances Array of document-level allowances with 'amount', optionally 'tax_category_id', 'tax_percent'
+     * @param array $documentCharges Array of document-level charges with 'amount', optionally 'tax_category_id', 'tax_percent'
      * @return InvoiceValidationResult
      */
     public static function validateInvoiceTotals(
@@ -267,10 +272,38 @@ class UblValidator
         array $taxTotals,
         float $allowanceTotalAmount = 0.0,
         float $chargeTotalAmount = 0.0,
-        float $prepaidAmount = 0.0
+        float $prepaidAmount = 0.0,
+        array $documentAllowances = [],
+        array $documentCharges = []
     ): InvoiceValidationResult {
         $errors = [];
         $warnings = [];
+        
+        // BR-CO-11: Sum of allowances on document level = AllowanceTotalAmount
+        $sumOfAllowances = 0.0;
+        foreach ($documentAllowances as $allowance) {
+            $sumOfAllowances += (float)($allowance['amount'] ?? 0);
+        }
+        if (abs($sumOfAllowances - $allowanceTotalAmount) > 0.01) {
+            $errors[] = sprintf(
+                "BR-CO-11: Sum of document allowances (%.2f) does not match AllowanceTotalAmount (%.2f)",
+                $sumOfAllowances,
+                $allowanceTotalAmount
+            );
+        }
+        
+        // BR-CO-12: Sum of charges on document level = ChargeTotalAmount
+        $sumOfCharges = 0.0;
+        foreach ($documentCharges as $charge) {
+            $sumOfCharges += (float)($charge['amount'] ?? 0);
+        }
+        if (abs($sumOfCharges - $chargeTotalAmount) > 0.01) {
+            $errors[] = sprintf(
+                "BR-CO-12: Sum of document charges (%.2f) does not match ChargeTotalAmount (%.2f)",
+                $sumOfCharges,
+                $chargeTotalAmount
+            );
+        }
         
         // Calculate sum of invoice line amounts and validate each line
         $sumOfLineAmounts = 0.0;
@@ -333,8 +366,11 @@ class UblValidator
             );
         }
         
-        // Calculate and validate tax amounts per category
+        // Calculate and validate tax amounts per category (BR-S-08)
+        // TaxableAmount per category = sum of line amounts - allowances + charges for that category
         $calculatedTaxByCategory = [];
+        
+        // First, sum line amounts by category
         foreach ($invoiceLines as $line) {
             $taxCategoryId = $line['tax_category_id'] ?? 'S';
             $taxPercent = (float)($line['tax_percent'] ?? 21);
@@ -343,13 +379,62 @@ class UblValidator
             $key = $taxCategoryId . '_' . $taxPercent;
             if (!isset($calculatedTaxByCategory[$key])) {
                 $calculatedTaxByCategory[$key] = [
+                    'line_amount' => 0.0,
+                    'allowance_amount' => 0.0,
+                    'charge_amount' => 0.0,
                     'taxable_amount' => 0.0,
                     'tax_percent' => $taxPercent,
                     'tax_category_id' => $taxCategoryId,
                 ];
             }
-            $calculatedTaxByCategory[$key]['taxable_amount'] += $lineAmount;
+            $calculatedTaxByCategory[$key]['line_amount'] += $lineAmount;
         }
+        
+        // Subtract document-level allowances per category
+        foreach ($documentAllowances as $allowance) {
+            $taxCategoryId = $allowance['tax_category_id'] ?? 'S';
+            $taxPercent = (float)($allowance['tax_percent'] ?? 21);
+            $amount = (float)($allowance['amount'] ?? 0);
+            
+            $key = $taxCategoryId . '_' . $taxPercent;
+            if (!isset($calculatedTaxByCategory[$key])) {
+                $calculatedTaxByCategory[$key] = [
+                    'line_amount' => 0.0,
+                    'allowance_amount' => 0.0,
+                    'charge_amount' => 0.0,
+                    'taxable_amount' => 0.0,
+                    'tax_percent' => $taxPercent,
+                    'tax_category_id' => $taxCategoryId,
+                ];
+            }
+            $calculatedTaxByCategory[$key]['allowance_amount'] += $amount;
+        }
+        
+        // Add document-level charges per category
+        foreach ($documentCharges as $charge) {
+            $taxCategoryId = $charge['tax_category_id'] ?? 'S';
+            $taxPercent = (float)($charge['tax_percent'] ?? 21);
+            $amount = (float)($charge['amount'] ?? 0);
+            
+            $key = $taxCategoryId . '_' . $taxPercent;
+            if (!isset($calculatedTaxByCategory[$key])) {
+                $calculatedTaxByCategory[$key] = [
+                    'line_amount' => 0.0,
+                    'allowance_amount' => 0.0,
+                    'charge_amount' => 0.0,
+                    'taxable_amount' => 0.0,
+                    'tax_percent' => $taxPercent,
+                    'tax_category_id' => $taxCategoryId,
+                ];
+            }
+            $calculatedTaxByCategory[$key]['charge_amount'] += $amount;
+        }
+        
+        // Calculate final taxable amounts per category
+        foreach ($calculatedTaxByCategory as $key => &$category) {
+            $category['taxable_amount'] = $category['line_amount'] - $category['allowance_amount'] + $category['charge_amount'];
+        }
+        unset($category);
         
         // Calculate expected tax amounts
         $totalCalculatedTax = 0.0;
@@ -359,7 +444,7 @@ class UblValidator
         }
         unset($category);
         
-        // Validate tax subtotals
+        // Validate tax subtotals (BR-S-08)
         $totalProvidedTax = 0.0;
         $totalProvidedTaxableAmount = 0.0;
         foreach ($taxTotals as $index => $taxSubtotal) {
@@ -371,17 +456,21 @@ class UblValidator
             $totalProvidedTax += $taxAmount;
             $totalProvidedTaxableAmount += $taxableAmount;
             
-            // Check if taxable amount matches calculated
+            // BR-S-08: Check if taxable amount matches calculated (line amounts - allowances + charges)
             $key = $taxCategoryId . '_' . $taxPercent;
             if (isset($calculatedTaxByCategory[$key])) {
                 $expectedTaxableAmount = $calculatedTaxByCategory[$key]['taxable_amount'];
                 if (abs($taxableAmount - $expectedTaxableAmount) > 0.01) {
+                    $cat = $calculatedTaxByCategory[$key];
                     $errors[] = sprintf(
-                        "TaxSubtotal %d: TaxableAmount (%.2f) does not match sum of lines for category %s %.0f%% (%.2f)",
+                        "BR-S-08 TaxSubtotal %d: TaxableAmount (%.2f) does not match calculated for category %s %.0f%% (lines: %.2f - allowances: %.2f + charges: %.2f = %.2f)",
                         $index + 1,
                         $taxableAmount,
                         $taxCategoryId,
                         $taxPercent,
+                        $cat['line_amount'],
+                        $cat['allowance_amount'],
+                        $cat['charge_amount'],
                         $expectedTaxableAmount
                     );
                 }
@@ -401,12 +490,16 @@ class UblValidator
             }
         }
         
-        // Check if total taxable amount matches line extension amount
-        if (abs($totalProvidedTaxableAmount - $lineExtensionAmount) > 0.01) {
+        // Check if total taxable amount matches tax exclusive amount (with allowances/charges)
+        $expectedTotalTaxableAmount = $lineExtensionAmount - $allowanceTotalAmount + $chargeTotalAmount;
+        if (abs($totalProvidedTaxableAmount - $expectedTotalTaxableAmount) > 0.01) {
             $errors[] = sprintf(
-                "Total TaxableAmount (%.2f) does not match LineExtensionAmount (%.2f)",
+                "Sum of TaxableAmounts (%.2f) does not match TaxExclusiveAmount (LineExtension %.2f - Allowances %.2f + Charges %.2f = %.2f)",
                 $totalProvidedTaxableAmount,
-                $lineExtensionAmount
+                $lineExtensionAmount,
+                $allowanceTotalAmount,
+                $chargeTotalAmount,
+                $expectedTotalTaxableAmount
             );
         }
         
@@ -441,14 +534,19 @@ class UblValidator
         if (!empty($errors)) {
             $corrections = [
                 'line_extension_amount' => round($sumOfLineAmounts, 2),
-                'tax_exclusive_amount' => round($sumOfLineAmounts - $allowanceTotalAmount + $chargeTotalAmount, 2),
+                'allowance_total_amount' => round($sumOfAllowances, 2),
+                'charge_total_amount' => round($sumOfCharges, 2),
+                'tax_exclusive_amount' => round($sumOfLineAmounts - $sumOfAllowances + $sumOfCharges, 2),
                 'total_tax_amount' => round($totalCalculatedTax, 2),
-                'tax_inclusive_amount' => round($sumOfLineAmounts - $allowanceTotalAmount + $chargeTotalAmount + $totalCalculatedTax, 2),
-                'payable_amount' => round($sumOfLineAmounts - $allowanceTotalAmount + $chargeTotalAmount + $totalCalculatedTax - $prepaidAmount, 2),
+                'tax_inclusive_amount' => round($sumOfLineAmounts - $sumOfAllowances + $sumOfCharges + $totalCalculatedTax, 2),
+                'payable_amount' => round($sumOfLineAmounts - $sumOfAllowances + $sumOfCharges + $totalCalculatedTax - $prepaidAmount, 2),
                 'tax_subtotals' => array_values(array_map(function($cat) {
                     return [
                         'tax_category_id' => $cat['tax_category_id'],
                         'tax_percent' => $cat['tax_percent'],
+                        'line_amount' => round($cat['line_amount'], 2),
+                        'allowance_amount' => round($cat['allowance_amount'], 2),
+                        'charge_amount' => round($cat['charge_amount'], 2),
                         'taxable_amount' => round($cat['taxable_amount'], 2),
                         'tax_amount' => $cat['calculated_tax'],
                     ];

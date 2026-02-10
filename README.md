@@ -60,3 +60,26 @@ Contributions are welcome! Feel free to create issues or submit pull requests.
 ## License
 
 This package is open-source software licensed under the [MIT License](LICENSE).
+
+## Credit Notes Support (v1.6.0)
+
+Generate PEPPOL-compliant Credit Notes with automatic validation:
+
+```php
+use Darvis\UblPeppol\UblBeBis3Service;
+
+$service = new UblBeBis3Service();
+$service->createCreditNoteDocument();  // Not createDocument()!
+$service->addCreditNoteHeader('C2026-001', '2026-01-21');
+$service->addBillingReference('F2026-050', '2026-01-15'); // REQUIRED (BR-55)
+// ... add parties, lines, totals ...
+$xml = $service->generateXml();
+```
+
+### Key Points
+- Use `createCreditNoteDocument()` instead of `createDocument()`
+- `addBillingReference()` is **REQUIRED** (PEPPOL BR-55)
+- All amounts must be **POSITIVE** (credit nature = document type 381)
+- Use `addCreditNoteLine()` instead of `addInvoiceLine()`
+
+See [docs/CREDIT_NOTES.md](docs/CREDIT_NOTES.md) for full documentation.

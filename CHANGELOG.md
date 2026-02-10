@@ -2,6 +2,36 @@
 
 All notable changes to this package will be documented in this file.
 
+## [1.6.0] - 2026-02-10
+
+### Added
+- **Credit Notes Support** - Full PEPPOL BIS Billing 3.0 / EN 16931 compliant Credit Notes
+  - `createCreditNoteDocument()` - Initialize a Credit Note document (root element `<CreditNote>`)
+  - `addCreditNoteHeader(string $creditNoteNumber, $issueDate)` - Add Credit Note header with type code 381
+  - `addBillingReference(string $invoiceNumber, ?string $issueDate)` - Reference to original invoice (required by BR-55)
+  - `addCreditNoteLine(array $lineData)` - Add credit note lines with `<CreditedQuantity>` element
+  - `isCreditNote()` - Check if current document is a Credit Note
+  - Automatic conversion of negative amounts to positive (PEPPOL requires positive amounts)
+  - BR-55 validation: Credit Notes must have a BillingReference
+  - Complete documentation in `docs/CREDIT_NOTES.md`
+  - Full test coverage in `tests/Feature/CreditNoteBeTest.php`
+
+- **UblValidator** - Enhanced validation with document-level allowances and charges
+  - Added BR-CO-11 validation: Sum of document allowances must match AllowanceTotalAmount
+  - Added BR-CO-12 validation: Sum of document charges must match ChargeTotalAmount
+  - Added BR-S-08 validation: TaxableAmount per VAT category = line amounts - allowances + charges
+  - New parameters `$documentAllowances` and `$documentCharges` for `validateInvoiceTotals()`
+  - Improved error messages with detailed breakdown per category
+  - Corrections now include `allowance_total_amount`, `charge_total_amount`, and per-category details
+
+- **UblNlBis3Service** - BR-27 validation for invoice lines
+  - Validates that item net price (BT-146) is not negative
+  - Validates that line extension amount is not negative
+  - Clear error messages with Dutch solution suggestions
+
+### Changed
+- **UblNlBis3Service** - Code style improvements (PSR-12 compliance, consistent spacing)
+
 ## [1.5.0] - 2026-01-13
 ### Added
 - **ViesService** - EU VAT number validation via VIES (VAT Information Exchange System)
