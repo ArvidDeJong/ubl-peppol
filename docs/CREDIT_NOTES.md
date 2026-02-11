@@ -4,13 +4,13 @@ This document explains how to generate PEPPOL-compliant Credit Notes using the `
 
 ## Key Differences: Invoice vs Credit Note
 
-| Aspect | Invoice | Credit Note |
-|--------|---------|-------------|
-| Root element | `<Invoice>` | `<CreditNote>` |
-| Type code | `380` | `381` |
-| Quantity element | `InvoicedQuantity` | `CreditedQuantity` |
-| BillingReference | Optional | **REQUIRED (BR-55)** |
-| Amounts | Positive | **Positive** (not negative!) |
+| Aspect           | Invoice            | Credit Note                  |
+| ---------------- | ------------------ | ---------------------------- |
+| Root element     | `<Invoice>`        | `<CreditNote>`               |
+| Type code        | `380`              | `381`                        |
+| Quantity element | `InvoicedQuantity` | `CreditedQuantity`           |
+| BillingReference | Optional           | **REQUIRED (BR-55)**         |
+| Amounts          | Positive           | **Positive** (not negative!) |
 
 ## Quick Start
 
@@ -29,7 +29,6 @@ $service->addCreditNoteHeader('C2026-001', '2026-01-21');
 $service->addBillingReference('F2026-050', '2026-01-15');
 
 // 4. Add other elements (same as invoice)
-$service->addBuyerReference('CUST-123');
 $service->addAccountingSupplierParty(...);
 $service->addAccountingCustomerParty(...);
 
@@ -58,6 +57,7 @@ $xml = $service->generateXml();
 ## Business Rules
 
 ### BR-55: BillingReference is REQUIRED
+
 Every Credit Note MUST reference the original invoice being credited.
 
 ```php
@@ -69,6 +69,7 @@ $xml = $service->generateXml(); // ❌ InvalidArgumentException
 ```
 
 **Error message:**
+
 ```
 [BR-55] PEPPOL Credit Note MUST have a BillingReference.
 A Credit Note SHALL have a preceding invoice reference (BG-3).
@@ -76,6 +77,7 @@ Solution: Call addBillingReference($originalInvoiceNumber, $originalIssueDate) b
 ```
 
 ### BR-27: Positive Amounts Only
+
 In PEPPOL, the credit nature is indicated by the document type code (381), NOT by negative amounts.
 
 ```php
@@ -96,16 +98,21 @@ $service->addCreditNoteLine([
 
 ## Validation
 
+## BuyerReference in Credit Notes
+
+The CreditNote schema does not allow `BuyerReference` in the same position as Invoice documents.
+Avoid calling `addBuyerReference()` for credit notes.
+
 The package automatically validates Credit Note specific rules when calling `generateXml()`:
 
-| Rule | Description |
-|------|-------------|
-| BR-55 | BillingReference must be present |
-| BR-27 | Price amounts must not be negative |
+| Rule     | Description                             |
+| -------- | --------------------------------------- |
+| BR-55    | BillingReference must be present        |
+| BR-27    | Price amounts must not be negative      |
 | BR-CN-01 | Line extension amounts must be positive |
-| BR-CN-02 | Credited quantities must be positive |
-| BR-CN-03 | Total line extension must be positive |
-| BR-CN-04 | Payable amount must be positive |
+| BR-CN-02 | Credited quantities must be positive    |
+| BR-CN-03 | Total line extension must be positive   |
+| BR-CN-04 | Payable amount must be positive         |
 
 ## Checking Document Type
 
@@ -124,14 +131,14 @@ echo $service->isCreditNote(); // false
 <CreditNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
             xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
             xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
-    
+
     <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0</cbc:CustomizationID>
     <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
     <cbc:ID>C2026-001</cbc:ID>
     <cbc:IssueDate>2026-01-21</cbc:IssueDate>
     <cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>
     <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
-    
+
     <!-- REQUIRED for Credit Notes (BR-55) -->
     <cac:BillingReference>
         <cac:InvoiceDocumentReference>
@@ -139,11 +146,11 @@ echo $service->isCreditNote(); // false
             <cbc:IssueDate>2026-01-15</cbc:IssueDate>
         </cac:InvoiceDocumentReference>
     </cac:BillingReference>
-    
+
     <cbc:BuyerReference>CUST-123</cbc:BuyerReference>
-    
+
     <!-- ... supplier, customer, totals ... -->
-    
+
     <cac:CreditNoteLine>
         <cbc:ID>1</cbc:ID>
         <cbc:CreditedQuantity unitCode="C62">5.00</cbc:CreditedQuantity>

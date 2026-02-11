@@ -2,6 +2,7 @@
 
 namespace Darvis\UblPeppol;
 
+use Darvis\UblPeppol\Validation\UblValidator;
 use DOMDocument;
 use DOMElement;
 
@@ -13,6 +14,8 @@ use DOMElement;
  */
 class UblNlBis3Service
 {
+    use Validation\ValidationTrackingTrait;
+
     /**
      * @var DOMDocument The main XML document instance
      */
@@ -34,6 +37,21 @@ class UblNlBis3Service
     protected string $ns_prefix_cac = 'cac';
 
     protected string $ns_prefix_cbc = 'cbc';
+
+    // Tracking for NL-specific rules
+    protected ?string $supplierCountryCode = null;
+
+    protected ?string $customerCountryCode = null;
+
+    protected ?string $supplierEndpointSchemeId = null;
+
+    protected ?string $customerEndpointSchemeId = null;
+
+    protected bool $hasPaymentMeans = false;
+
+    protected bool $hasOrderReference = false;
+
+    protected bool $hasOrderLineReference = false;
 
     /**
      * Constructor - Initializes a new UBL document
@@ -76,9 +94,96 @@ class UblNlBis3Service
      *
      * @throws \RuntimeException If the document is not initialized
      */
-    public function generateXml(): string
+    public function generateXml(bool $validateFirst = false): string
     {
+        if ($validateFirst) {
+            $validationResult = $this->validate();
+            if (! $validationResult->isValid()) {
+                throw new \InvalidArgumentException(
+                    "UBL/Peppol validation failed:\n".$validationResult->getErrorsAsString("\n")
+                );
+            }
+        }
+
         return $this->dom->saveXML();
+    }
+
+    /**
+     * Validate basic code formats (currency, scheme IDs, payment means, unit codes, tax categories).
+     */
+    public function validate(): Validation\InvoiceValidationResult
+    {
+        $basicResult = UblValidator::validateBasicCodes([
+            'currency_codes' => $this->usedCurrencyCodes,
+            'scheme_ids' => $this->usedSchemeIds,
+            'payment_means_codes' => $this->usedPaymentMeansCodes,
+            'unit_codes' => $this->usedUnitCodes,
+            'tax_category_ids' => $this->usedTaxCategoryIds,
+        ]);
+
+        $errors = $basicResult->errors;
+        $warnings = $basicResult->warnings;
+
+        // NL-R-003 / NL-R-005: Endpoint scheme must be KVK or OIN (0106 or 0190)
+        if ($this->supplierCountryCode === 'NL' && $this->supplierEndpointSchemeId !== null) {
+            if (! in_array($this->supplierEndpointSchemeId, ['0106', '0190'], true)) {
+                $errors[] = "NL-R-003: Supplier endpoint schemeID must be 0106 (KVK) or 0190 (OIN).";
+            }
+        }
+
+        if ($this->customerCountryCode === 'NL' && $this->customerEndpointSchemeId !== null) {
+            if (! in_array($this->customerEndpointSchemeId, ['0106', '0190'], true)) {
+                $errors[] = "NL-R-005: Customer endpoint schemeID must be 0106 (KVK) or 0190 (OIN).";
+            }
+        }
+
+        // NL-R-007: Payment means required when payment is from customer to supplier
+        if ($this->supplierCountryCode === 'NL' && ! $this->hasPaymentMeans) {
+            $warnings[] = 'NL-R-007: PaymentMeans is required when payment is from customer to supplier.';
+        }
+
+        // NL-R-008: Allowed payment means codes for domestic NL invoices
+        if ($this->supplierCountryCode === 'NL' && $this->customerCountryCode === 'NL') {
+            $allowedCodes = ['30', '48', '49', '57', '58', '59'];
+            foreach ($this->usedPaymentMeansCodes as $code) {
+                if (! in_array($code, $allowedCodes, true)) {
+                    $errors[] = "NL-R-008: Payment means code '{$code}' is not allowed for domestic NL invoices.";
+                }
+            }
+        }
+
+        // NL-R-009: Order line reference requires document-level order reference
+        if ($this->supplierCountryCode === 'NL' && $this->hasOrderLineReference && ! $this->hasOrderReference) {
+            $errors[] = 'NL-R-009: Order line reference requires a document-level OrderReference.';
+        }
+
+        if ($this->strictCodelistValidation) {
+            if (!$this->codelistRegistry) {
+                $errors[] = 'Strict codelist validation is enabled but no codelist registry is configured.';
+            } else {
+                $strictResult = UblValidator::validateStrictCodelists([
+                    'currency_codes' => $this->usedCurrencyCodes,
+                    'endpoint_scheme_ids' => $this->usedEndpointSchemeIds,
+                    'party_scheme_ids' => $this->usedPartySchemeIds,
+                    'registration_scheme_ids' => $this->usedRegistrationSchemeIds,
+                    'payment_means_codes' => $this->usedPaymentMeansCodes,
+                    'tax_category_ids' => $this->usedTaxCategoryIds,
+                    'item_classification_ids' => [],
+                    'tax_exemption_reason_codes' => [],
+                    'allowance_reason_codes' => [],
+                    'charge_reason_codes' => [],
+                ], $this->codelistRegistry);
+
+                $errors = array_merge($errors, $strictResult->errors);
+            }
+        }
+
+        return new Validation\InvoiceValidationResult(
+            isValid: empty($errors),
+            errors: $errors,
+            warnings: $warnings,
+            corrections: []
+        );
     }
 
     /**
@@ -272,6 +377,8 @@ class UblNlBis3Service
         $documentCurrencyCodeElement = $this->createElement('cbc', 'DocumentCurrencyCode', 'EUR');
         $this->rootElement->appendChild($documentCurrencyCodeElement);
 
+        $this->usedCurrencyCodes[] = 'EUR';
+
         // AccountingCost
         $accountingCostElement = $this->createElement('cbc', 'AccountingCost', '4025:123:4343');
         $this->rootElement->appendChild($accountingCostElement);
@@ -315,6 +422,8 @@ class UblNlBis3Service
      */
     public function addOrderReference(string $orderNumber = 'PO-001'): self
     {
+        $this->hasOrderReference = true;
+
         // OrderReference container
         $orderRefElement = $this->createElement('cac', 'OrderReference');
         $this->rootElement->appendChild($orderRefElement);
@@ -368,6 +477,11 @@ class UblNlBis3Service
         string $companyId,
         ?string $additionalStreet = null
     ): self {
+        $this->supplierCountryCode = strtoupper($countryCode);
+        $this->supplierEndpointSchemeId = $endpointSchemeID;
+        $this->usedEndpointSchemeIds[] = $endpointSchemeID;
+        $this->usedSchemeIds[] = $endpointSchemeID;
+
         // AccountingSupplierParty container
         $accountingSupplierParty = $this->createElement('cac', 'AccountingSupplierParty');
         $accountingSupplierParty = $this->rootElement->appendChild($accountingSupplierParty);
@@ -484,6 +598,9 @@ class UblNlBis3Service
         $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId, ['schemeID' => '0106']);
         $partyLegalEntity->appendChild($companyIDElement);
 
+        $this->usedSchemeIds[] = '0106';
+        $this->usedRegistrationSchemeIds[] = '0106';
+
         return $this;
     }
 
@@ -520,6 +637,11 @@ class UblNlBis3Service
         ?string $vatNumber = null,
         string $taxSchemeId = 'VAT'
     ): self {
+        $this->customerCountryCode = strtoupper($countryCode);
+        $this->customerEndpointSchemeId = $endpointSchemeID;
+        $this->usedEndpointSchemeIds[] = $endpointSchemeID;
+        $this->usedSchemeIds[] = $endpointSchemeID;
+
         if (empty(trim($endpointId))) {
             throw new \InvalidArgumentException('Endpoint ID is required');
         }
@@ -574,6 +696,9 @@ class UblNlBis3Service
         // instead of the Italian Tax Code (0210)
         $effectiveSchemeID = (strtoupper($countryCode) === 'NL' && $endpointSchemeID === '0210') ? '0106' : $endpointSchemeID;
 
+        $this->usedSchemeIds[] = $effectiveSchemeID;
+        $this->usedEndpointSchemeIds[] = $effectiveSchemeID;
+
         // EndpointID
         $endpointIDElement = $this->createElement('cbc', 'EndpointID', $endpointId, ['schemeID' => $effectiveSchemeID]);
         $party->appendChild($endpointIDElement);
@@ -584,6 +709,7 @@ class UblNlBis3Service
 
         $idElement = $this->createElement('cbc', 'ID', $partyId, ['schemeID' => $effectiveSchemeID]);
         $partyIdentification->appendChild($idElement);
+        $this->usedPartySchemeIds[] = $effectiveSchemeID;
 
         // PartyName
         $partyNameElement = $this->createElement('cac', 'PartyName');
@@ -650,6 +776,9 @@ class UblNlBis3Service
         if (! empty($companyId)) {
             $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId, ['schemeID' => '0106']);
             $partyLegalEntity->appendChild($companyIDElement);
+
+            $this->usedSchemeIds[] = '0106';
+            $this->usedRegistrationSchemeIds[] = '0106';
         }
 
         // Only add a Contact element if at least one contact detail is provided
@@ -700,6 +829,9 @@ class UblNlBis3Service
         ?string $countryCode = null,
         ?string $partyName = null
     ): self {
+        $this->usedSchemeIds[] = $locationSchemeId;
+        $this->usedPartySchemeIds[] = $locationSchemeId;
+
         // Delivery container
         $delivery = $this->createElement('cac', 'Delivery');
         $delivery = $this->rootElement->appendChild($delivery);
@@ -824,6 +956,9 @@ class UblNlBis3Service
         ?string $paymentChannelCode = null,
         ?string $paymentDueDate = null
     ): self {
+        $this->hasPaymentMeans = true;
+        $this->usedPaymentMeansCodes[] = $paymentMeansCode;
+
         // Validate payment means code (should be a valid UNCL4461 code)
         if (! preg_match('/^[0-9]+$/', $paymentMeansCode)) {
             throw new \InvalidArgumentException('Payment means code must be a numeric value');
@@ -920,6 +1055,9 @@ class UblNlBis3Service
         float $taxPercent = 0.0,
         string $currency = 'EUR'
     ): self {
+        $this->usedCurrencyCodes[] = $currency;
+        $this->usedTaxCategoryIds[] = $taxCategoryId;
+
         // Validate input values
         if ($amount < 0) {
             throw new \InvalidArgumentException('Amount cannot be negative');
@@ -1000,6 +1138,15 @@ class UblNlBis3Service
     {
         if (empty($taxes)) {
             throw new \InvalidArgumentException('At least one tax entry is required');
+        }
+
+        foreach ($taxes as $tax) {
+            if (isset($tax['currency'])) {
+                $this->usedCurrencyCodes[] = $tax['currency'];
+            }
+            if (isset($tax['tax_category_id'])) {
+                $this->usedTaxCategoryIds[] = $tax['tax_category_id'];
+            }
         }
 
         // Validate each tax entry
@@ -1136,6 +1283,8 @@ class UblNlBis3Service
      */
     public function addLegalMonetaryTotal(array $amounts, string $currency = 'EUR'): self
     {
+        $this->usedCurrencyCodes[] = $currency;
+
         // Validate required fields
         $requiredFields = [
             'line_extension_amount' => 'Line extension amount is required',
@@ -1215,6 +1364,20 @@ class UblNlBis3Service
                 'Oplossing: Negatieve bedragen (kortingen) moeten als AllowanceCharge worden toegevoegd, '.
                 'niet als factuurregels. Gebruik addAllowanceCharge() met isCharge=false voor kortingen.'
             );
+        }
+
+        if (isset($lineData['currency'])) {
+            $this->usedCurrencyCodes[] = $lineData['currency'];
+        }
+        if (isset($lineData['unit_code'])) {
+            $this->usedUnitCodes[] = $lineData['unit_code'];
+        }
+        if (isset($lineData['tax_category_id'])) {
+            $this->usedTaxCategoryIds[] = $lineData['tax_category_id'];
+        }
+
+        if (! empty($lineData['order_line_id'])) {
+            $this->hasOrderLineReference = true;
         }
 
         // Set default values

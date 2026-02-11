@@ -4,6 +4,7 @@ namespace Darvis\UblPeppol\Validation;
 
 use Darvis\UblPeppol\Constants\UnitCodes;
 use Darvis\UblPeppol\Validation\InvoiceValidationResult;
+use Darvis\UblPeppol\Validation\CodelistRegistry;
 
 class UblValidator
 {
@@ -16,6 +17,39 @@ class UblValidator
     public static function isValidUnitCode(string $unitCode): bool
     {
         return UnitCodes::isValid($unitCode);
+    }
+
+    /**
+     * Validates if the given currency code matches ISO 4217 format.
+     *
+     * @param string $currencyCode The currency code to validate
+     * @return bool True if valid, false otherwise
+     */
+    public static function isValidCurrencyCodeFormat(string $currencyCode): bool
+    {
+        return preg_match('/^[A-Z]{3}$/', strtoupper(trim($currencyCode))) === 1;
+    }
+
+    /**
+     * Validates if the given scheme ID matches the PEPPOL format (4 digits).
+     *
+     * @param string $schemeId The scheme ID to validate
+     * @return bool True if valid, false otherwise
+     */
+    public static function isValidSchemeIdFormat(string $schemeId): bool
+    {
+        return preg_match('/^[0-9]{4}$/', trim($schemeId)) === 1;
+    }
+
+    /**
+     * Validates if the given payment means code matches UNCL 4461 format (1-3 digits).
+     *
+     * @param string $paymentMeansCode The payment means code to validate
+     * @return bool True if valid, false otherwise
+     */
+    public static function isValidPaymentMeansCodeFormat(string $paymentMeansCode): bool
+    {
+        return preg_match('/^[0-9]{1,3}$/', trim($paymentMeansCode)) === 1;
     }
 
     /**
@@ -80,6 +114,113 @@ class UblValidator
     {
         $validCategories = ['S', 'Z', 'E', 'AE', 'K', 'G', 'O'];
         return in_array(strtoupper($categoryId), $validCategories, true);
+    }
+
+    /**
+     * Validates basic code list formats used in UBL/PEPPOL documents.
+     *
+     * @param array $codes Expected keys: currency_codes, scheme_ids, payment_means_codes, unit_codes, tax_category_ids
+     * @return InvoiceValidationResult
+     */
+    public static function validateBasicCodes(array $codes): InvoiceValidationResult
+    {
+        $errors = [];
+        $warnings = [];
+
+        $currencyCodes = array_unique(array_filter($codes['currency_codes'] ?? []));
+        foreach ($currencyCodes as $currencyCode) {
+            if (!self::isValidCurrencyCodeFormat($currencyCode)) {
+                $errors[] = "Invalid currency code format: '{$currencyCode}'. Expected ISO 4217 alpha-3 (e.g., EUR).";
+            }
+        }
+
+        $schemeIds = array_unique(array_filter($codes['scheme_ids'] ?? []));
+        foreach ($schemeIds as $schemeId) {
+            if (!self::isValidSchemeIdFormat($schemeId)) {
+                $errors[] = "Invalid schemeID format: '{$schemeId}'. Expected 4 digits (e.g., 0106).";
+            }
+        }
+
+        $paymentMeansCodes = array_unique(array_filter($codes['payment_means_codes'] ?? []));
+        foreach ($paymentMeansCodes as $paymentMeansCode) {
+            if (!self::isValidPaymentMeansCodeFormat($paymentMeansCode)) {
+                $errors[] = "Invalid payment means code format: '{$paymentMeansCode}'. Expected 1-3 digits.";
+            }
+        }
+
+        $taxCategoryIds = array_unique(array_filter($codes['tax_category_ids'] ?? []));
+        foreach ($taxCategoryIds as $taxCategoryId) {
+            if (!self::isValidTaxCategory($taxCategoryId)) {
+                $errors[] = "Invalid tax category ID: '{$taxCategoryId}'. Expected one of S, Z, E, AE, K, G, O.";
+            }
+        }
+
+        $unitCodes = array_unique(array_filter($codes['unit_codes'] ?? []));
+        foreach ($unitCodes as $unitCode) {
+            if (!self::isValidUnitCode($unitCode)) {
+                $warnings[] = "Unknown unit code: '{$unitCode}'. Ensure it exists in UN/ECE Rec 20/21.";
+            }
+        }
+
+        return new InvoiceValidationResult(
+            isValid: empty($errors),
+            errors: $errors,
+            warnings: $warnings,
+            corrections: []
+        );
+    }
+
+    /**
+     * Validates codes against strict codelists when lists are loaded.
+     *
+     * @param array $codes Expected keys: currency_codes, endpoint_scheme_ids, party_scheme_ids,
+     *                     registration_scheme_ids, payment_means_codes, tax_category_ids,
+     *                     item_classification_ids, tax_exemption_reason_codes,
+     *                     allowance_reason_codes, charge_reason_codes
+     * @param CodelistRegistry $registry Loaded codelists
+     * @return InvoiceValidationResult
+     */
+    public static function validateStrictCodelists(array $codes, CodelistRegistry $registry): InvoiceValidationResult
+    {
+        $errors = [];
+
+        $listMapping = [
+            'currency_codes' => ['list' => 'iso4217', 'label' => 'ISO4217'],
+            'endpoint_scheme_ids' => ['list' => 'eas', 'label' => 'EAS'],
+            'party_scheme_ids' => ['list' => 'icd', 'label' => 'ICD'],
+            'registration_scheme_ids' => ['list' => 'icd', 'label' => 'ICD'],
+            'payment_means_codes' => ['list' => 'uncl4461', 'label' => 'UNCL4461'],
+            'tax_category_ids' => ['list' => 'uncl5305', 'label' => 'UNCL5305'],
+            'item_classification_ids' => ['list' => 'uncl7143', 'label' => 'UNCL7143'],
+            'tax_exemption_reason_codes' => ['list' => 'vatex', 'label' => 'VATEX'],
+            'allowance_reason_codes' => ['list' => 'uncl5189', 'label' => 'UNCL5189'],
+            'charge_reason_codes' => ['list' => 'uncl7161', 'label' => 'UNCL7161'],
+        ];
+
+        foreach ($listMapping as $codeKey => $meta) {
+            $values = array_unique(array_filter($codes[$codeKey] ?? []));
+            if (empty($values)) {
+                continue;
+            }
+
+            if (!$registry->isLoaded($meta['list'])) {
+                $errors[] = "Strict codelist validation requires list {$meta['label']} to be loaded.";
+                continue;
+            }
+
+            foreach ($values as $value) {
+                if (!$registry->has($meta['list'], (string)$value)) {
+                    $errors[] = "Invalid {$meta['label']} code: '{$value}'.";
+                }
+            }
+        }
+
+        return new InvoiceValidationResult(
+            isValid: empty($errors),
+            errors: $errors,
+            warnings: [],
+            corrections: []
+        );
     }
 
     /**
