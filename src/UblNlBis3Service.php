@@ -11,7 +11,7 @@ use DOMElement;
  * This version has been completely rewritten to follow the exact XML structure
  * of the PEPPOL standard according to the base-example.xml reference.
  */
-class UblNLBis3Service
+class UblNlBis3Service
 {
     /**
      * @var DOMDocument The main XML document instance

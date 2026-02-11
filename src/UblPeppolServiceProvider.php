@@ -15,7 +15,7 @@ class UblPeppolServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/ubl-peppol.php', 'ubl-peppol');
 
         $this->app->singleton('ubl-peppol', function ($app) {
-            return new UblNLBis3Service();
+            return new UblNlBis3Service();
         });
 
         $this->app->singleton(PeppolService::class, function ($app) {

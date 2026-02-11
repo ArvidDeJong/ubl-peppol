@@ -13,12 +13,15 @@ https://docs.peppol.eu/poacc/billing/3.0/
 ## Validation Testing
 
 ### Netherlands
+
 https://test.peppolautoriteit.nl/validate
 
 ### Belgium
+
 https://ecosio.com/en/peppol-and-xml-document-validator/
 
 ### Italy (General PEPPOL)
+
 https://peppol-docs.agid.gov.it/docs/validator/
 
 ## Recent Updates (v1.2.0)
@@ -51,32 +54,35 @@ https://peppol-docs.agid.gov.it/docs/validator/
 ## Quick Start
 
 1. Install the package via Composer:
+
    ```bash
    composer require darvis/ubl-peppol
    ```
 
 2. Run the examples:
+
    ```bash
    # Belgian UBL invoice example
    php examples/be/generate_invoice_be.php
-   
-   # Dutch UBL invoice example  
+
+   # Dutch UBL invoice example
    php examples/nl/generate_invoice_nl.php
-   
+
    # Basic demonstration
    php examples/index.php
    ```
 
 3. Basic Example:
+
    ```php
    use Darvis\UblPeppol\UblBeBis3Service;
-   
+
    // Load test data structure
    $invoiceData = require 'examples/test_data.php';
-   
+
    $ubl = new UblBeBis3Service();
    $xml = $ubl->generateInvoice($invoiceData);
-   
+
    file_put_contents('invoice.xml', $xml);
    ```
 
@@ -96,7 +102,7 @@ The `examples/` directory contains complete working examples:
 
 ## Requirements
 
-- PHP 8.1 or higher
+- PHP 8.2 or higher
 - PHP extensions: DOM, SimpleXML, XMLWriter
 
 ## License
