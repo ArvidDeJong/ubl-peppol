@@ -1,141 +1,51 @@
 # UBL/PEPPOL Service
 
-A PHP library for generating invoices according to the UBL/PEPPOL standard. This package allows you to generate UBL 2.1 documents that comply with the PEPPOL BIS Billing 3.0 standard for e-invoicing, with full support for Belgian implementation (EN 16931) and multi-country validation.
-
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/darvis/ubl-peppol.svg?style=flat-square)](https://packagist.org/packages/darvis/ubl-peppol)
 [![Total Downloads](https://img.shields.io/packagist/dt/darvis/ubl-peppol.svg?style=flat-square)](https://packagist.org/packages/darvis/ubl-peppol)
 
-
-# UBL PEPPOL Generator for PHP
-
-An easy-to-use PHP package for generating UBL XML documents that comply with the PEPPOL BIS Billing 3.0 standard, specifically tailored for the Belgian implementation (EN 16931).
-
-## Objective
-
-This package enables developers to easily generate UBL documents that comply with PEPPOL standards, without requiring in-depth knowledge of the UBL specification. The package supports multiple PEPPOL validation standards including Belgium, Netherlands, and Italy.
-
-## Documentation
-
-https://docs.peppol.eu/poacc/billing/3.0/
-
-## Validation Testing
-
-### Netherlands
-https://test.peppolautoriteit.nl/validate
-
-### Belgium
-https://ecosio.com/en/peppol-and-xml-document-validator/
-Ruleset: OpenPeppol UBL Invoice (2024.11) (aka BIS Billing 3.0.18)
-
-### Italy (General PEPPOL)
-https://peppol-docs.agid.gov.it/docs/validator/
+PHP library for generating UBL 2.1 invoices compliant with PEPPOL BIS Billing 3.0. Supports Belgian (EN 16931) and Dutch implementations.
 
 ## Installation
-
-You can install this package via Composer:
 
 ```bash
 composer require darvis/ubl-peppol
 ```
 
-## Laravel Installation
+**Requirements:** PHP 8.2+, DOM extension
 
-If you're using Laravel, the service provider will be automatically registered via package discovery. You can then use the UblNLBis3Service through dependency injection or via the facade:
-
-```php
-use Darvis\UblPeppol\UblNLBis3Service;
-
-class InvoiceController extends Controller
-{
-    public function generate(UblNLBis3Service $UblNLBis3Service)
-    {
-        // Use the UblNLBis3Service...
-    }
-}
-```
-
-Or via the app container:
-
-```php
-$UblNLBis3Service = app('ubl-peppol');
-```
-
-## Usage
-
-### Quick Start
-
-For a quick start, see the complete examples in the `examples/` directory:
-
-- **`examples/be/generate_invoice_be.php`** - Complete Belgian UBL invoice example
-- **`examples/nl/generate_invoice_nl.php`** - Complete Dutch UBL invoice example  
-- **`examples/test_data.php`** - Sample invoice data structure
-- **`examples/index.php`** - Basic usage demonstration
-
-### Basic Example
+## Quick Start (Standalone)
 
 ```php
 use Darvis\UblPeppol\UblBeBis3Service;
 
-// Create a new UBL Service instance for Belgian invoices
 $ublService = new UblBeBis3Service();
-
-// Load test data (see examples/test_data.php for structure)
-$invoiceData = require 'examples/test_data.php';
-
-// Generate the UBL XML document
-$ublXml = $ublService->generateInvoice($invoiceData);
-
-// Save the generated invoice
-file_put_contents('invoice.xml', $ublXml);
+$xml = $ublService->generateInvoice($invoiceData);
+file_put_contents('invoice.xml', $xml);
 ```
 
-### Country-Specific Services
+See `examples/` for complete implementations.
 
-- **`UblBeBis3Service`** - For Belgian UBL invoices (EN 16931 compliant)
-- **`UblNlBis3Service`** - For Dutch UBL invoices
+## Laravel Integration
 
-### Complete Examples
+Additional features: Peppol network integration, logging, artisan commands.
 
-For detailed implementation examples with full invoice data structures, validation, and country-specific requirements, check the `examples/` directory. Each example includes:
+```bash
+php artisan vendor:publish --tag=ubl-peppol-config
+php artisan migrate
+```
 
-- Complete invoice data setup
-- Supplier and customer information
-- Invoice lines with tax calculations
-- Payment terms and delivery information
-- Country-specific validation requirements
+📖 **[Laravel Documentation](docs/laravel-integration.md)**
 
-## Features
+## Documentation
 
-- Generate UBL 2.1 invoices according to the PEPPOL standard
-- **Belgian Implementation (EN 16931)**: Full compliance with Belgian UBL Schematron rules
-- **Multi-Country Validation**: Tested against Belgian, Dutch, and Italian PEPPOL validators
-- **Correct BTCC Values**: Proper Belgian tax category names ("Taux standard", "Taux zéro")
-- Support for different VAT rates and tax categories
-- Automatic calculation of totals and VAT amounts
-- Input data validation with country-specific requirements
-- XSD and Schematron validation compliance
-
-## Validation Testing
-
-The package has been validated against multiple PEPPOL validators:
-
-- **Netherlands**: https://test.peppolautoriteit.nl/validate
-- **Belgium**: https://ecosio.com/en/peppol-and-xml-document-validator/
-- **Italy (General PEPPOL)**: https://peppol-docs.agid.gov.it/docs/validator/
-
-## Recent Updates (v1.2.0)
-
-- Fixed Belgian UBL Schematron validation errors (ubl-BE-01, ubl-BE-10, ubl-BE-14)
-- Added proper BTCC values for Belgian tax categories
-- Enhanced XSD validation compliance
-- Fixed PEPPOL Italy validator warnings
-- Added automatic schemeID handling for Dutch KVK numbers
-- Improved Italian Codice Fiscale format validation
-
-## Requirements
-
-- PHP 8.2 or higher
-- DOM extension
+- [API Reference](docs/api-reference.md)
+- [Belgian Implementation](docs/belgium-implementation.md)
+- [Dutch Implementation](docs/netherlands-implementation.md)
+- [VIES VAT Validation](docs/vies-validation.md)
+- [Company Registration Validation](docs/company-registration-validation.md)
+- [Laravel Integration](docs/laravel-integration.md)
+- [Validation](docs/validation.md)
+- [Troubleshooting](docs/troubleshooting.md)
 
 ## Author
 
@@ -150,3 +60,26 @@ Contributions are welcome! Feel free to create issues or submit pull requests.
 ## License
 
 This package is open-source software licensed under the [MIT License](LICENSE).
+
+## Credit Notes Support (v1.6.0)
+
+Generate PEPPOL-compliant Credit Notes with automatic validation:
+
+```php
+use Darvis\UblPeppol\UblBeBis3Service;
+
+$service = new UblBeBis3Service();
+$service->createCreditNoteDocument();  // Not createDocument()!
+$service->addCreditNoteHeader('C2026-001', '2026-01-21');
+$service->addBillingReference('F2026-050', '2026-01-15'); // REQUIRED (BR-55)
+// ... add parties, lines, totals ...
+$xml = $service->generateXml();
+```
+
+### Key Points
+- Use `createCreditNoteDocument()` instead of `createDocument()`
+- `addBillingReference()` is **REQUIRED** (PEPPOL BR-55)
+- All amounts must be **POSITIVE** (credit nature = document type 381)
+- Use `addCreditNoteLine()` instead of `addInvoiceLine()`
+
+See [docs/CREDIT_NOTES.md](docs/CREDIT_NOTES.md) for full documentation.

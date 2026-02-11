@@ -2,18 +2,20 @@
 
 namespace Darvis\UblPeppol;
 
+use Darvis\UblPeppol\Validation\UblValidator;
 use DOMDocument;
 use DOMElement;
-use Darvis\UblPeppol\Validation\UblValidator;
 
 /**
  * UBL Service for generating UBL/PEPPOL invoices
- * 
- * This version has been completely rewritten to follow the exact XML structure 
+ *
+ * This version has been completely rewritten to follow the exact XML structure
  * of the PEPPOL standard according to the base-example.xml reference.
  */
-class UblNLBis3Service
+class UblNlBis3Service
 {
+    use Validation\ValidationTrackingTrait;
+
     /**
      * @var DOMDocument The main XML document instance
      */
@@ -26,12 +28,30 @@ class UblNLBis3Service
 
     // Namespace URIs
     protected string $ns_cac_uri = 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2';
+
     protected string $ns_cbc_uri = 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2';
+
     protected string $ns_invoice_uri = 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2';
 
     // Namespace prefixes
     protected string $ns_prefix_cac = 'cac';
+
     protected string $ns_prefix_cbc = 'cbc';
+
+    // Tracking for NL-specific rules
+    protected ?string $supplierCountryCode = null;
+
+    protected ?string $customerCountryCode = null;
+
+    protected ?string $supplierEndpointSchemeId = null;
+
+    protected ?string $customerEndpointSchemeId = null;
+
+    protected bool $hasPaymentMeans = false;
+
+    protected bool $hasOrderReference = false;
+
+    protected bool $hasOrderLineReference = false;
 
     /**
      * Constructor - Initializes a new UBL document
@@ -45,8 +65,7 @@ class UblNLBis3Service
 
     /**
      * Create the base XML document structure
-     * 
-     * @return self
+     *
      * @throws \RuntimeException When document is already initialized
      */
     public function createDocument(): self
@@ -70,56 +89,146 @@ class UblNLBis3Service
 
     /**
      * Generate the XML string
-     * 
+     *
      * @return string The generated XML as a string
+     *
      * @throws \RuntimeException If the document is not initialized
      */
-    public function generateXml(): string
+    public function generateXml(bool $validateFirst = false): string
     {
+        if ($validateFirst) {
+            $validationResult = $this->validate();
+            if (! $validationResult->isValid()) {
+                throw new \InvalidArgumentException(
+                    "UBL/Peppol validation failed:\n".$validationResult->getErrorsAsString("\n")
+                );
+            }
+        }
+
         return $this->dom->saveXML();
     }
 
     /**
+     * Validate basic code formats (currency, scheme IDs, payment means, unit codes, tax categories).
+     */
+    public function validate(): Validation\InvoiceValidationResult
+    {
+        $basicResult = UblValidator::validateBasicCodes([
+            'currency_codes' => $this->usedCurrencyCodes,
+            'scheme_ids' => $this->usedSchemeIds,
+            'payment_means_codes' => $this->usedPaymentMeansCodes,
+            'unit_codes' => $this->usedUnitCodes,
+            'tax_category_ids' => $this->usedTaxCategoryIds,
+        ]);
+
+        $errors = $basicResult->errors;
+        $warnings = $basicResult->warnings;
+
+        // NL-R-003 / NL-R-005: Endpoint scheme must be KVK or OIN (0106 or 0190)
+        if ($this->supplierCountryCode === 'NL' && $this->supplierEndpointSchemeId !== null) {
+            if (! in_array($this->supplierEndpointSchemeId, ['0106', '0190'], true)) {
+                $errors[] = "NL-R-003: Supplier endpoint schemeID must be 0106 (KVK) or 0190 (OIN).";
+            }
+        }
+
+        if ($this->customerCountryCode === 'NL' && $this->customerEndpointSchemeId !== null) {
+            if (! in_array($this->customerEndpointSchemeId, ['0106', '0190'], true)) {
+                $errors[] = "NL-R-005: Customer endpoint schemeID must be 0106 (KVK) or 0190 (OIN).";
+            }
+        }
+
+        // NL-R-007: Payment means required when payment is from customer to supplier
+        if ($this->supplierCountryCode === 'NL' && ! $this->hasPaymentMeans) {
+            $warnings[] = 'NL-R-007: PaymentMeans is required when payment is from customer to supplier.';
+        }
+
+        // NL-R-008: Allowed payment means codes for domestic NL invoices
+        if ($this->supplierCountryCode === 'NL' && $this->customerCountryCode === 'NL') {
+            $allowedCodes = ['30', '48', '49', '57', '58', '59'];
+            foreach ($this->usedPaymentMeansCodes as $code) {
+                if (! in_array($code, $allowedCodes, true)) {
+                    $errors[] = "NL-R-008: Payment means code '{$code}' is not allowed for domestic NL invoices.";
+                }
+            }
+        }
+
+        // NL-R-009: Order line reference requires document-level order reference
+        if ($this->supplierCountryCode === 'NL' && $this->hasOrderLineReference && ! $this->hasOrderReference) {
+            $errors[] = 'NL-R-009: Order line reference requires a document-level OrderReference.';
+        }
+
+        if ($this->strictCodelistValidation) {
+            if (!$this->codelistRegistry) {
+                $errors[] = 'Strict codelist validation is enabled but no codelist registry is configured.';
+            } else {
+                $strictResult = UblValidator::validateStrictCodelists([
+                    'currency_codes' => $this->usedCurrencyCodes,
+                    'endpoint_scheme_ids' => $this->usedEndpointSchemeIds,
+                    'party_scheme_ids' => $this->usedPartySchemeIds,
+                    'registration_scheme_ids' => $this->usedRegistrationSchemeIds,
+                    'payment_means_codes' => $this->usedPaymentMeansCodes,
+                    'tax_category_ids' => $this->usedTaxCategoryIds,
+                    'item_classification_ids' => [],
+                    'tax_exemption_reason_codes' => [],
+                    'allowance_reason_codes' => [],
+                    'charge_reason_codes' => [],
+                ], $this->codelistRegistry);
+
+                $errors = array_merge($errors, $strictResult->errors);
+            }
+        }
+
+        return new Validation\InvoiceValidationResult(
+            isValid: empty($errors),
+            errors: $errors,
+            warnings: $warnings,
+            corrections: []
+        );
+    }
+
+    /**
      * Helper method to create and append a child element
-     * 
-     * @param \DOMElement $parent The parent element
-     * @param string $prefix The namespace prefix (e.g., 'cbc' or 'cac')
-     * @param string $name The element name
-     * @param string|null $value The element value (optional)
-     * @param array $attributes Associative array of attributes (optional)
+     *
+     * @param  \DOMElement  $parent  The parent element
+     * @param  string  $prefix  The namespace prefix (e.g., 'cbc' or 'cac')
+     * @param  string  $name  The element name
+     * @param  string|null  $value  The element value (optional)
+     * @param  array  $attributes  Associative array of attributes (optional)
      * @return \DOMElement The created and appended element
      */
     protected function addChildElement(\DOMElement $parent, string $prefix, string $name, ?string $value = null, array $attributes = []): \DOMElement
     {
         $element = $this->createElement($prefix, $name, $value, $attributes);
         $parent->appendChild($element);
+
         return $element;
     }
 
     /**
      * Create an XML element with the given prefix, name, value, and attributes
      *
-     * @param string $prefix The namespace prefix (e.g., 'cbc' or 'cac')
-     * @param string $name The element name
-     * @param string|null $value The element value (optional)
-     * @param array $attributes Associative array of attributes (optional)
+     * @param  string  $prefix  The namespace prefix (e.g., 'cbc' or 'cac')
+     * @param  string  $name  The element name
+     * @param  string|null  $value  The element value (optional)
+     * @param  array  $attributes  Associative array of attributes (optional)
      * @return \DOMElement The created DOMElement
+     *
      * @throws \RuntimeException If the document is not initialized
      */
     protected function createElement(string $prefix, string $name, ?string $value = null, array $attributes = []): \DOMElement
     {
         // Check if the DOM document exists
-        if (!isset($this->dom)) {
+        if (! isset($this->dom)) {
             throw new \RuntimeException('DOM document is not initialized. Call createDocument() before adding elements.');
         }
 
         // Check if the rootElement exists
-        if (!isset($this->rootElement)) {
+        if (! isset($this->rootElement)) {
             throw new \RuntimeException('Root element is not initialized. Call createDocument() before adding elements.');
         }
 
         // Create element without namespace declaration (uses inherited namespace)
-        $element = $this->dom->createElement($prefix . ':' . $name);
+        $element = $this->dom->createElement($prefix.':'.$name);
 
         // Add value if not null
         if ($value !== null) {
@@ -138,10 +247,10 @@ class UblNLBis3Service
     /**
      * Add the invoice header
      *
-     * @param string $invoiceNumber Invoice number (required, cannot be empty)
-     * @param string|\DateTime $issueDate Invoice date (required, format: YYYY-MM-DD)
-     * @param string|\DateTime $dueDate Due date (required, must be after invoice date)
-     * @return self
+     * @param  string  $invoiceNumber  Invoice number (required, cannot be empty)
+     * @param  string|\DateTime  $issueDate  Invoice date (required, format: YYYY-MM-DD)
+     * @param  string|\DateTime  $dueDate  Due date (required, must be after invoice date)
+     *
      * @throws \InvalidArgumentException On invalid input
      */
     public function addInvoiceHeader(string $invoiceNumber, $issueDate, $dueDate): self
@@ -156,7 +265,7 @@ class UblNLBis3Service
             $errors[] = 'Invoice number cannot exceed 35 characters';
         }
 
-        // Valideer en converteer factuurdatum
+        // Validate and convert invoice date
         $issueDateObj = null;
         if ($issueDate instanceof \DateTime) {
             $issueDateObj = $issueDate;
@@ -165,7 +274,7 @@ class UblNLBis3Service
             $issueDate = trim($issueDate);
             $issueDateObj = \DateTime::createFromFormat('Y-m-d', $issueDate);
 
-            if (!$issueDateObj || $issueDateObj->format('Y-m-d') !== $issueDate) {
+            if (! $issueDateObj || $issueDateObj->format('Y-m-d') !== $issueDate) {
                 $errors[] = 'Invalid invoice date. Please use YYYY-MM-DD format';
             } else {
                 // Check if the date is in the past or today
@@ -178,7 +287,7 @@ class UblNLBis3Service
             $errors[] = 'Invoice date must be a string (YYYY-MM-DD) or DateTime object';
         }
 
-        // Valideer en converteer vervaldatum
+        // Validate and convert due date
         $dueDateObj = null;
         if ($dueDate instanceof \DateTime) {
             $dueDateObj = $dueDate;
@@ -187,7 +296,7 @@ class UblNLBis3Service
             $dueDate = trim($dueDate);
             $dueDateObj = \DateTime::createFromFormat('Y-m-d', $dueDate);
 
-            if (!$dueDateObj || $dueDateObj->format('Y-m-d') !== $dueDate) {
+            if (! $dueDateObj || $dueDateObj->format('Y-m-d') !== $dueDate) {
                 $errors[] = 'Invalid due date. Please use YYYY-MM-DD format';
             } elseif (isset($issueDateObj) && $dueDateObj <= $issueDateObj) {
                 $errors[] = 'Due date must be after the invoice date';
@@ -196,9 +305,9 @@ class UblNLBis3Service
             $errors[] = 'Due date must be a string (YYYY-MM-DD) or DateTime object';
         }
 
-        // Gooi een uitzondering met alle validatiefouten
-        if (!empty($errors)) {
-            $errorMessage = "Validation error(s) in invoice header:\n" .
+        // Throw exception with all validation errors
+        if (! empty($errors)) {
+            $errorMessage = "Validation error(s) in invoice header:\n".
                 implode("\n- ", array_merge([''], $errors));
             throw new \InvalidArgumentException($errorMessage);
         }
@@ -224,39 +333,39 @@ class UblNLBis3Service
         );
         $this->rootElement->appendChild($profileIDElement);
 
-        // ID (factuurnummer)
+        // ID (invoice number)
         $idElement = $this->createElement('cbc', 'ID', $invoiceNumber);
         $this->rootElement->appendChild($idElement);
 
-        // IssueDate (factuurdatum)
+        // IssueDate (invoice date)
         $issueDateElement = $this->createElement('cbc', 'IssueDate', $issueDate);
         $this->rootElement->appendChild($issueDateElement);
 
-        // DueDate (vervaldatum) - controleer of deze niet leeg is
-        // Als de waarde leeg is, gebruik dan een standaarddatum gebaseerd op issueDate + 30 dagen
+        // DueDate (due date) - check if not empty
+        // If empty, use a default date based on issueDate + 30 days
         if (empty($dueDate)) {
-            // Gebruik issueDate als basis en voeg 30 dagen toe als standaard betaaltermijn
+            // Use issueDate as base and add 30 days as default payment term
             try {
                 $issueDateObj = new \DateTime($issueDate);
                 $dueDateObj = clone $issueDateObj;
                 $dueDateObj->modify('+30 days');
                 $dueDate = $dueDateObj->format('Y-m-d');
             } catch (\Exception $e) {
-                // Als er iets fout gaat, gebruik de huidige datum + 30 dagen als fallback
-                $dueDate = (new \DateTime())->modify('+30 days')->format('Y-m-d');
+                // If something goes wrong, use current date + 30 days as fallback
+                $dueDate = (new \DateTime)->modify('+30 days')->format('Y-m-d');
             }
         } else {
-            // Controleer of het een geldige datum is in het formaat Y-m-d
+            // Check if it's a valid date in Y-m-d format
             try {
                 $dueDateObj = new \DateTime($dueDate);
-                $dueDate = $dueDateObj->format('Y-m-d'); // Normaliseren naar YYYY-MM-DD
+                $dueDate = $dueDateObj->format('Y-m-d'); // Normalize to YYYY-MM-DD
             } catch (\Exception $e) {
-                // Als het geen geldige datum is, gebruik de huidige datum + 30 dagen als fallback
-                $dueDate = (new \DateTime())->modify('+30 days')->format('Y-m-d');
+                // If not a valid date, use current date + 30 days as fallback
+                $dueDate = (new \DateTime)->modify('+30 days')->format('Y-m-d');
             }
         }
 
-        // Nu we zeker weten dat $dueDate een geldige datum is in het juiste formaat
+        // Now we're sure $dueDate is a valid date in the correct format
         $dueDateElement = $this->createElement('cbc', 'DueDate', $dueDate);
         $this->rootElement->appendChild($dueDateElement);
 
@@ -268,20 +377,22 @@ class UblNLBis3Service
         $documentCurrencyCodeElement = $this->createElement('cbc', 'DocumentCurrencyCode', 'EUR');
         $this->rootElement->appendChild($documentCurrencyCodeElement);
 
+        $this->usedCurrencyCodes[] = 'EUR';
+
         // AccountingCost
         $accountingCostElement = $this->createElement('cbc', 'AccountingCost', '4025:123:4343');
         $this->rootElement->appendChild($accountingCostElement);
 
-        // BuyerReference wordt nu apart toegevoegd via addBuyerReference() om dubbele elementen te voorkomen
+        // BuyerReference is now added separately via addBuyerReference() to prevent duplicate elements
 
         return $this;
     }
 
     /**
-     * Format een bedrag voor gebruik in UBL
-     * 
-     * @param float $amount Bedrag
-     * @return string Geformatteerd bedrag (2 decimalen)
+     * Format an amount for use in UBL
+     *
+     * @param  float  $amount  Amount
+     * @return string Formatted amount (2 decimals)
      */
     protected function formatAmount(float $amount): string
     {
@@ -289,14 +400,13 @@ class UblNLBis3Service
     }
 
     /**
-     * Voeg BuyerReference toe (verplicht voor PEPPOL)
+     * Add BuyerReference (required for PEPPOL)
      *
-     * @param string|null $buyerRef Referentie van de koper (bijv. debiteurnummer)
-     * @return self
+     * @param  string|null  $buyerRef  Buyer reference (e.g., debtor number)
      */
     public function addBuyerReference(?string $buyerRef = 'BUYER_REF'): self
     {
-        // Fallback naar default waarde als null wordt doorgegeven
+        // Fallback to default value if null is passed
         $buyerRefValue = $buyerRef ?? 'BUYER_REF';
 
         $buyerRefElement = $this->createElement('cbc', 'BuyerReference', $buyerRefValue);
@@ -306,13 +416,14 @@ class UblNLBis3Service
     }
 
     /**
-     * Voeg OrderReference toe aan UBL document
-     * 
-     * @param string $orderNumber Ordernummer referentie
-     * @return self
+     * Add OrderReference to UBL document
+     *
+     * @param  string  $orderNumber  Order number reference
      */
     public function addOrderReference(string $orderNumber = 'PO-001'): self
     {
+        $this->hasOrderReference = true;
+
         // OrderReference container
         $orderRefElement = $this->createElement('cac', 'OrderReference');
         $this->rootElement->appendChild($orderRefElement);
@@ -327,34 +438,32 @@ class UblNLBis3Service
     /**
      * Add an Additional Document Reference to the invoice.
      *
-     * @param string $id The identifier of the referenced document.
-     * @param string|null $documentType The type of the referenced document.
-     * @return self
+     * @param  string  $id  The identifier of the referenced document.
+     * @param  string|null  $documentType  The type of the referenced document.
      */
     public function addAdditionalDocumentReference(string $id, ?string $documentType = null): self
     {
         $docRef = $this->addChildElement($this->rootElement, 'cac', 'AdditionalDocumentReference');
         $this->addChildElement($docRef, 'cbc', 'ID', $id);
 
-
         return $this;
     }
 
     /**
-     * Voeg AccountingSupplierParty (verkooppartij) toe
-     * 
-     * @param string $endpointId Unieke identificatie van de leverancier (bijv. KVK nummer)
-     * @param string $endpointSchemeID Het schema van de endpoint ID (bijv. '0106' voor KVK)
-     * @param string $partyId Interne identificatie van de partij
-     * @param string $partyName Naam van de leverancier
-     * @param string $street Straatnaam en huisnummer
-     * @param string $postalCode Postcode
-     * @param string $city Plaatsnaam
-     * @param string $countryCode Landcode (2 letters, bijv. 'NL')
-     * @param string $companyId BTW-nummer of ander fiscaal identificatienummer
-     * @param string|null $additionalStreet Toevoeging adres (optioneel)
-     * @return self
-     * @throws \InvalidArgumentException Bij ongeldige invoer
+     * Add AccountingSupplierParty (seller party)
+     *
+     * @param  string  $endpointId  Unique identifier of the supplier (e.g., Chamber of Commerce number)
+     * @param  string  $endpointSchemeID  The scheme of the endpoint ID (e.g., '0106' for KVK)
+     * @param  string  $partyId  Internal party identifier
+     * @param  string  $partyName  Name of the supplier
+     * @param  string  $street  Street name and number
+     * @param  string  $postalCode  Postal code
+     * @param  string  $city  City name
+     * @param  string  $countryCode  Country code (2 letters, e.g., 'NL')
+     * @param  string  $companyId  VAT number or other tax identification number
+     * @param  string|null  $additionalStreet  Additional address line (optional)
+     *
+     * @throws \InvalidArgumentException On invalid input
      */
     public function addAccountingSupplierParty(
         string $endpointId,
@@ -368,6 +477,11 @@ class UblNLBis3Service
         string $companyId,
         ?string $additionalStreet = null
     ): self {
+        $this->supplierCountryCode = strtoupper($countryCode);
+        $this->supplierEndpointSchemeId = $endpointSchemeID;
+        $this->usedEndpointSchemeIds[] = $endpointSchemeID;
+        $this->usedSchemeIds[] = $endpointSchemeID;
+
         // AccountingSupplierParty container
         $accountingSupplierParty = $this->createElement('cac', 'AccountingSupplierParty');
         $accountingSupplierParty = $this->rootElement->appendChild($accountingSupplierParty);
@@ -376,43 +490,43 @@ class UblNLBis3Service
         $party = $this->createElement('cac', 'Party');
         $party = $accountingSupplierParty->appendChild($party);
 
-        // Valideer invoer
+        // Validate input
         $errors = [];
 
-        // Verzamel alle validatiefouten
+        // Collect all validation errors
         if (empty(trim($endpointId ?? ''))) {
-            $errors[] = 'Endpoint ID (bijv. KVK-nummer) is verplicht';
+            $errors[] = 'Endpoint ID (e.g., Chamber of Commerce number) is required';
         }
         if (empty(trim($endpointSchemeID ?? ''))) {
-            $errors[] = 'Endpoint Scheme ID (bijv. "0106" voor KVK) is verplicht';
+            $errors[] = 'Endpoint Scheme ID (e.g., "0106" for KVK) is required';
         }
         if (empty(trim($partyId ?? ''))) {
-            $errors[] = 'Interne partij ID is verplicht';
+            $errors[] = 'Internal party ID is required';
         }
         if (empty(trim($partyName ?? ''))) {
-            $errors[] = 'Bedrijfsnaam is verplicht';
+            $errors[] = 'Company name is required';
         }
         if (empty(trim($street ?? ''))) {
-            $errors[] = 'Straat en huisnummer zijn verplicht';
+            $errors[] = 'Street and house number are required';
         }
         if (empty(trim($postalCode ?? ''))) {
-            $errors[] = 'Postcode is verplicht';
+            $errors[] = 'Postal code is required';
         }
         if (empty(trim($city ?? ''))) {
-            $errors[] = 'Plaatsnaam is verplicht';
+            $errors[] = 'City name is required';
         }
         if (empty(trim($countryCode ?? ''))) {
-            $errors[] = 'Landcode is verplicht';
+            $errors[] = 'Country code is required';
         } elseif (strlen(trim($countryCode)) !== 2) {
-            $errors[] = 'Landcode moet uit precies 2 tekens bestaan (bijv. "NL")';
+            $errors[] = 'Country code must be exactly 2 characters (e.g., "NL")';
         }
         if (empty(trim($companyId ?? ''))) {
-            $errors[] = 'BTW-nummer of fiscaal identificatienummer is verplicht';
+            $errors[] = 'VAT number or tax identification number is required';
         }
 
-        // Gooi een uitzondering met alle validatiefouten
-        if (!empty($errors)) {
-            $errorMessage = "Validatiefout(en) in addAccountingSupplierParty():\n" .
+        // Throw exception with all validation errors
+        if (! empty($errors)) {
+            $errorMessage = "Validation error(s) in addAccountingSupplierParty():\n".
                 implode("\n- ", array_merge([''], $errors));
             throw new \InvalidArgumentException($errorMessage);
         }
@@ -484,23 +598,26 @@ class UblNLBis3Service
         $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId, ['schemeID' => '0106']);
         $partyLegalEntity->appendChild($companyIDElement);
 
+        $this->usedSchemeIds[] = '0106';
+        $this->usedRegistrationSchemeIds[] = '0106';
+
         return $this;
     }
 
     /**
      * Add AccountingCustomerParty (customer information)
-     * 
-     * @param string $endpointId Customer's unique identifier (e.g., VAT number)
-     * @param string $endpointSchemeID Scheme of the endpoint ID (e.g., '0002' for GLN)
-     * @param string $partyId Internal party ID
-     * @param string $partyName Customer's company name
-     * @param string $street Street name and number
-     * @param string $postalCode Postal code
-     * @param string $city City name
-     * @param string $countryCode Country code (2 letters, e.g., 'NL')
-     * @param string|null $additionalStreet Additional address line (optional)
-     * @param string|null $companyId Company registration number (optional)
-     * @return self
+     *
+     * @param  string  $endpointId  Customer's unique identifier (e.g., VAT number)
+     * @param  string  $endpointSchemeID  Scheme of the endpoint ID (e.g., '0002' for GLN)
+     * @param  string  $partyId  Internal party ID
+     * @param  string  $partyName  Customer's company name
+     * @param  string  $street  Street name and number
+     * @param  string  $postalCode  Postal code
+     * @param  string  $city  City name
+     * @param  string  $countryCode  Country code (2 letters, e.g., 'NL')
+     * @param  string|null  $additionalStreet  Additional address line (optional)
+     * @param  string|null  $companyId  Company registration number (optional)
+     *
      * @throws \InvalidArgumentException On invalid input
      */
     public function addAccountingCustomerParty(
@@ -517,274 +634,21 @@ class UblNLBis3Service
         ?string $contactName = null,
         ?string $contactPhone = null,
         ?string $contactEmail = null,
+        ?string $vatNumber = null,
         string $taxSchemeId = 'VAT'
     ): self {
+        $this->customerCountryCode = strtoupper($countryCode);
+        $this->customerEndpointSchemeId = $endpointSchemeID;
+        $this->usedEndpointSchemeIds[] = $endpointSchemeID;
+        $this->usedSchemeIds[] = $endpointSchemeID;
+
         if (empty(trim($endpointId))) {
             throw new \InvalidArgumentException('Endpoint ID is required');
         }
 
-        // Validate VAT number format (if provided) - must start with a valid ISO 3166-1 alpha-2 country code
-        if (!empty($companyId)) {
-            $iso3166Alpha2Codes = [
-                '1A',
-                'AD',
-                'AE',
-                'AF',
-                'AG',
-                'AI',
-                'AL',
-                'AM',
-                'AO',
-                'AQ',
-                'AR',
-                'AS',
-                'AT',
-                'AU',
-                'AW',
-                'AX',
-                'AZ',
-                'BA',
-                'BB',
-                'BD',
-                'BE',
-                'BF',
-                'BG',
-                'BH',
-                'BI',
-                'BJ',
-                'BL',
-                'BM',
-                'BN',
-                'BO',
-                'BQ',
-                'BR',
-                'BS',
-                'BT',
-                'BV',
-                'BW',
-                'BY',
-                'BZ',
-                'CA',
-                'CC',
-                'CD',
-                'CF',
-                'CG',
-                'CH',
-                'CI',
-                'CK',
-                'CL',
-                'CM',
-                'CN',
-                'CO',
-                'CR',
-                'CU',
-                'CV',
-                'CW',
-                'CX',
-                'CY',
-                'CZ',
-                'DE',
-                'DJ',
-                'DK',
-                'DM',
-                'DO',
-                'DZ',
-                'EC',
-                'EE',
-                'EG',
-                'EH',
-                'EL',
-                'ER',
-                'ES',
-                'ET',
-                'FI',
-                'FJ',
-                'FK',
-                'FM',
-                'FO',
-                'FR',
-                'GA',
-                'GB',
-                'GD',
-                'GE',
-                'GF',
-                'GG',
-                'GH',
-                'GI',
-                'GL',
-                'GM',
-                'GN',
-                'GP',
-                'GQ',
-                'GR',
-                'GS',
-                'GT',
-                'GU',
-                'GW',
-                'GY',
-                'HK',
-                'HM',
-                'HN',
-                'HR',
-                'HT',
-                'HU',
-                'ID',
-                'IE',
-                'IL',
-                'IM',
-                'IN',
-                'IO',
-                'IQ',
-                'IR',
-                'IS',
-                'IT',
-                'JE',
-                'JM',
-                'JO',
-                'JP',
-                'KE',
-                'KG',
-                'KH',
-                'KI',
-                'KM',
-                'KN',
-                'KP',
-                'KR',
-                'KW',
-                'KY',
-                'KZ',
-                'LA',
-                'LB',
-                'LC',
-                'LI',
-                'LK',
-                'LR',
-                'LS',
-                'LT',
-                'LU',
-                'LV',
-                'LY',
-                'MA',
-                'MC',
-                'MD',
-                'ME',
-                'MF',
-                'MG',
-                'MH',
-                'MK',
-                'ML',
-                'MM',
-                'MN',
-                'MO',
-                'MP',
-                'MQ',
-                'MR',
-                'MS',
-                'MT',
-                'MU',
-                'MV',
-                'MW',
-                'MX',
-                'MY',
-                'MZ',
-                'NA',
-                'NC',
-                'NE',
-                'NF',
-                'NG',
-                'NI',
-                'NL',
-                'NO',
-                'NP',
-                'NR',
-                'NU',
-                'NZ',
-                'OM',
-                'PA',
-                'PE',
-                'PF',
-                'PG',
-                'PH',
-                'PK',
-                'PL',
-                'PM',
-                'PN',
-                'PR',
-                'PS',
-                'PT',
-                'PW',
-                'PY',
-                'QA',
-                'RE',
-                'RO',
-                'RS',
-                'RU',
-                'RW',
-                'SA',
-                'SB',
-                'SC',
-                'SD',
-                'SE',
-                'SG',
-                'SH',
-                'SI',
-                'SJ',
-                'SK',
-                'SL',
-                'SM',
-                'SN',
-                'SO',
-                'SR',
-                'SS',
-                'ST',
-                'SV',
-                'SX',
-                'SY',
-                'SZ',
-                'TC',
-                'TD',
-                'TF',
-                'TG',
-                'TH',
-                'TJ',
-                'TK',
-                'TL',
-                'TM',
-                'TN',
-                'TO',
-                'TR',
-                'TT',
-                'TV',
-                'TW',
-                'TZ',
-                'UA',
-                'UG',
-                'UM',
-                'US',
-                'UY',
-                'UZ',
-                'VA',
-                'VC',
-                'VE',
-                'VG',
-                'VI',
-                'VN',
-                'VU',
-                'WF',
-                'WS',
-                'XI',
-                'YE',
-                'YT',
-                'ZA',
-                'ZM',
-                'ZW'
-            ];
+        // CompanyId validation removed - this is a Chamber of Commerce number, not a VAT number
+        // VAT number validation happens separately via vatNumber parameter
 
-            $countryCode = strtoupper(substr($companyId, 0, 2));
-            if (!in_array($countryCode, $iso3166Alpha2Codes, true)) {
-                throw new \InvalidArgumentException(sprintf('Invalid VAT number format. Must start with a valid ISO 3166-1 alpha-2 country code. Current value: "%s", extracted country code: "%s"', $companyId, $countryCode));
-            }
-        }
         $errors = [];
 
         // Validate required fields
@@ -796,7 +660,7 @@ class UblNLBis3Service
             'Street' => $street,
             'Postal code' => $postalCode,
             'City' => $city,
-            'Country code' => $countryCode
+            'Country code' => $countryCode,
         ];
 
         foreach ($requiredFields as $field => $value) {
@@ -806,23 +670,16 @@ class UblNLBis3Service
         }
 
         // Validate country code format
-        if (!empty($countryCode) && strlen(trim($countryCode)) !== 2) {
+        if (! empty($countryCode) && strlen(trim($countryCode)) !== 2) {
             $errors[] = 'Country code must be exactly 2 characters (e.g., "NL")';
         }
 
-        // Validate email format if provided
-        if (!empty($contactEmail) && !filter_var($contactEmail, FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Invalid email format for contact email';
-        }
-
-        // Validate phone number if provided (basic validation)
-        if (!empty($contactPhone) && !preg_match('/^[+0-9\s\-\(\)]{6,20}$/', $contactPhone)) {
-            $errors[] = 'Invalid phone number format. Only numbers, +, -, spaces and parentheses are allowed';
-        }
+        // Email and phone validation removed - accept all values or null
+        // The calling code is responsible for validation if desired
 
         // Throw exception with all validation errors
-        if (!empty($errors)) {
-            $errorMessage = "Validation error(s) in customer information:\n" .
+        if (! empty($errors)) {
+            $errorMessage = "Validation error(s) in customer information:\n".
                 implode("\n- ", array_merge([''], $errors));
             throw new \InvalidArgumentException($errorMessage);
         }
@@ -839,6 +696,9 @@ class UblNLBis3Service
         // instead of the Italian Tax Code (0210)
         $effectiveSchemeID = (strtoupper($countryCode) === 'NL' && $endpointSchemeID === '0210') ? '0106' : $endpointSchemeID;
 
+        $this->usedSchemeIds[] = $effectiveSchemeID;
+        $this->usedEndpointSchemeIds[] = $effectiveSchemeID;
+
         // EndpointID
         $endpointIDElement = $this->createElement('cbc', 'EndpointID', $endpointId, ['schemeID' => $effectiveSchemeID]);
         $party->appendChild($endpointIDElement);
@@ -849,6 +709,7 @@ class UblNLBis3Service
 
         $idElement = $this->createElement('cbc', 'ID', $partyId, ['schemeID' => $effectiveSchemeID]);
         $partyIdentification->appendChild($idElement);
+        $this->usedPartySchemeIds[] = $effectiveSchemeID;
 
         // PartyName
         $partyNameElement = $this->createElement('cac', 'PartyName');
@@ -882,12 +743,19 @@ class UblNLBis3Service
         $countryCodeElement = $this->createElement('cbc', 'IdentificationCode', strtoupper($countryCode));
         $country->appendChild($countryCodeElement);
 
-        // PartyTaxScheme
-        $partyTaxScheme = $this->createElement('cac', 'PartyTaxScheme');
-        $partyTaxScheme = $party->appendChild($partyTaxScheme);
+        // PartyTaxScheme - only add if VAT number is provided (BR-CO-09: must start with country code)
+        if (! empty($vatNumber)) {
+            // Validate that VAT number starts with a 2-letter country code
+            if (! preg_match('/^[A-Z]{2}/', strtoupper($vatNumber))) {
+                throw new \InvalidArgumentException(
+                    "VAT number must start with a 2-letter ISO 3166-1 alpha-2 country code (e.g., 'NL', 'BE'). Got: '{$vatNumber}'"
+                );
+            }
 
-        if ($companyId) {
-            $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId);
+            $partyTaxScheme = $this->createElement('cac', 'PartyTaxScheme');
+            $partyTaxScheme = $party->appendChild($partyTaxScheme);
+
+            $companyIDElement = $this->createElement('cbc', 'CompanyID', strtoupper($vatNumber));
             $partyTaxScheme->appendChild($companyIDElement);
 
             $taxScheme = $this->createElement('cac', 'TaxScheme');
@@ -904,13 +772,16 @@ class UblNLBis3Service
         $registrationNameElement = $this->createElement('cbc', 'RegistrationName', $partyName);
         $partyLegalEntity->appendChild($registrationNameElement);
 
-        if ($companyId) {
-            // Add CompanyID with schemeID for Dutch legal entity identifier (KVK)
+        // CompanyID in PartyLegalEntity is the Chamber of Commerce number (registration number)
+        if (! empty($companyId)) {
             $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId, ['schemeID' => '0106']);
             $partyLegalEntity->appendChild($companyIDElement);
+
+            $this->usedSchemeIds[] = '0106';
+            $this->usedRegistrationSchemeIds[] = '0106';
         }
 
-        // Alleen een Contact element toevoegen als er minstens één contactgegeven is opgegeven
+        // Only add a Contact element if at least one contact detail is provided
         if ($contactName || $contactPhone || $contactEmail) {
             $contact = $this->createElement('cac', 'Contact');
             $contact = $party->appendChild($contact);
@@ -937,16 +808,15 @@ class UblNLBis3Service
     /**
      * Add delivery information
      *
-     * @param string $deliveryDate Delivery date (required)
-     * @param string|null $locationId Unique ID for the delivery location (optional)
-     * @param string $locationSchemeId Scheme ID for the location (optional, default: '0088' for GLN)
-     * @param string|null $street Street name (optional)
-     * @param string|null $additionalStreet Additional street information (optional)
-     * @param string|null $city City (optional)
-     * @param string|null $postalCode Postal code (optional)
-     * @param string|null $countryCode Country code (2 letters) (optional)
-     * @param string|null $partyName Name of the receiving party (optional)
-     * @return self
+     * @param  string  $deliveryDate  Delivery date (required)
+     * @param  string|null  $locationId  Unique ID for the delivery location (optional)
+     * @param  string  $locationSchemeId  Scheme ID for the location (optional, default: '0088' for GLN)
+     * @param  string|null  $street  Street name (optional)
+     * @param  string|null  $additionalStreet  Additional street information (optional)
+     * @param  string|null  $city  City (optional)
+     * @param  string|null  $postalCode  Postal code (optional)
+     * @param  string|null  $countryCode  Country code (2 letters) (optional)
+     * @param  string|null  $partyName  Name of the receiving party (optional)
      */
     public function addDelivery(
         string $deliveryDate,
@@ -959,6 +829,9 @@ class UblNLBis3Service
         ?string $countryCode = null,
         ?string $partyName = null
     ): self {
+        $this->usedSchemeIds[] = $locationSchemeId;
+        $this->usedPartySchemeIds[] = $locationSchemeId;
+
         // Delivery container
         $delivery = $this->createElement('cac', 'Delivery');
         $delivery = $this->rootElement->appendChild($delivery);
@@ -1030,8 +903,8 @@ class UblNLBis3Service
 
     /**
      * Validate IBAN (International Bank Account Number)
-     * 
-     * @param string $iban The IBAN to validate
+     *
+     * @param  string  $iban  The IBAN to validate
      * @return bool True if the IBAN is valid, false otherwise
      */
     private function isValidIban(string $iban): bool
@@ -1045,7 +918,7 @@ class UblNLBis3Service
         }
 
         // Move first 4 characters to the end
-        $moved = substr($iban, 4) . substr($iban, 0, 4);
+        $moved = substr($iban, 4).substr($iban, 0, 4);
 
         // Convert letters to numbers (A=10, B=11, ..., Z=35)
         $converted = '';
@@ -1058,21 +931,20 @@ class UblNLBis3Service
         }
 
         // Check if the number is valid using modulo 97
-        return (int)bcmod($converted, '97') === 1;
+        return (int) bcmod($converted, '97') === 1;
     }
 
     /**
-     * Add payment means (betalingsgegevens) to the invoice
+     * Add payment means to the invoice
      *
-     * @param string $paymentMeansCode Payment means code (e.g., '30' for credit transfer)
-     * @param string $paymentMeansName Payment means name (e.g., 'Credit transfer')
-     * @param string $paymentId Payment reference or ID
-     * @param string $accountId Bank account number (IBAN)
-     * @param string $accountName Name on the bank account
-     * @param string $financialInstitutionId BIC/SWIFT code of the financial institution
-     * @param string|null $paymentChannelCode Payment channel code (optional)
-     * @param string|null $paymentDueDate Payment due date in YYYY-MM-DD format (optional)
-     * @return self
+     * @param  string  $paymentMeansCode  Payment means code (e.g., '30' for credit transfer)
+     * @param  string  $paymentMeansName  Payment means name (e.g., 'Credit transfer')
+     * @param  string  $paymentId  Payment reference or ID
+     * @param  string  $accountId  Bank account number (IBAN)
+     * @param  string  $accountName  Name on the bank account
+     * @param  string  $financialInstitutionId  BIC/SWIFT code of the financial institution
+     * @param  string|null  $paymentChannelCode  Payment channel code (optional)
+     * @param  string|null  $paymentDueDate  Payment due date in YYYY-MM-DD format (optional)
      */
     public function addPaymentMeans(
         string $paymentMeansCode = '30',
@@ -1084,18 +956,21 @@ class UblNLBis3Service
         ?string $paymentChannelCode = null,
         ?string $paymentDueDate = null
     ): self {
+        $this->hasPaymentMeans = true;
+        $this->usedPaymentMeansCodes[] = $paymentMeansCode;
+
         // Validate payment means code (should be a valid UNCL4461 code)
-        if (!preg_match('/^[0-9]+$/', $paymentMeansCode)) {
+        if (! preg_match('/^[0-9]+$/', $paymentMeansCode)) {
             throw new \InvalidArgumentException('Payment means code must be a numeric value');
         }
 
         // Validate IBAN if provided
-        if ($accountId !== null && !$this->isValidIban($accountId)) {
+        if ($accountId !== null && ! $this->isValidIban($accountId)) {
             throw new \InvalidArgumentException('Invalid IBAN format');
         }
 
         // Validate BIC/SWIFT if provided
-        if ($financialInstitutionId !== null && !preg_match('/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/', $financialInstitutionId)) {
+        if ($financialInstitutionId !== null && ! preg_match('/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/', $financialInstitutionId)) {
             throw new \InvalidArgumentException('Invalid BIC/SWIFT code format');
         }
 
@@ -1117,7 +992,7 @@ class UblNLBis3Service
         if ($accountId !== null) {
             $payeeFinancialAccount = $this->createElement('cac', 'PayeeFinancialAccount');
 
-            // Add account ID (IBAN)
+            // Add account ID (IBAN) - zonder schemeID per UBL-CR-654
             $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $accountId);
 
             // Add financial institution branch (BIC/SWIFT) if provided
@@ -1137,12 +1012,12 @@ class UblNLBis3Service
 
     /**
      * Add payment terms to the invoice
-     * 
-     * @param string|null $note The payment terms (e.g., 'Payment within 30 days, 2% discount if paid within 10 days')
-     * @param string|null $settlementDiscountPercent The discount percentage for early payment (e.g., '2.00')
-     * @param string|null $settlementDiscountAmount The discount amount for early payment (e.g., '10.00')
-     * @param string|null $settlementDiscountDate Due date for the discount (e.g., '2025-10-15')
-     * @return self
+     *
+     * @param  string|null  $note  The payment terms (e.g., 'Payment within 30 days, 2% discount if paid within 10 days')
+     * @param  string|null  $settlementDiscountPercent  The discount percentage for early payment (e.g., '2.00')
+     * @param  string|null  $settlementDiscountAmount  The discount amount for early payment (e.g., '10.00')
+     * @param  string|null  $settlementDiscountDate  Due date for the discount (e.g., '2025-10-15')
+     *
      * @throws \InvalidArgumentException For missing or invalid values
      */
     public function addPaymentTerms(?string $note = null): self
@@ -1160,18 +1035,16 @@ class UblNLBis3Service
         return $this;
     }
 
-
-
     /**
      * Add an allowance or charge to the invoice
-     * 
-     * @param bool $isCharge True for a charge, false for an allowance
-     * @param float $amount The amount of the allowance or charge
-     * @param string $reason Reason for the allowance/charge (e.g., 'Insurance', 'Freight', 'Discount')
-     * @param string $taxCategoryId Tax category ID (e.g., 'S' for standard rate, 'Z' for zero rate)
-     * @param float $taxPercent Tax percentage (e.g., 21.0 for 21%)
-     * @param string $currency Currency code (default: 'EUR')
-     * @return self
+     *
+     * @param  bool  $isCharge  True for a charge, false for an allowance
+     * @param  float  $amount  The amount of the allowance or charge
+     * @param  string  $reason  Reason for the allowance/charge (e.g., 'Insurance', 'Freight', 'Discount')
+     * @param  string  $taxCategoryId  Tax category ID (e.g., 'S' for standard rate, 'Z' for zero rate)
+     * @param  float  $taxPercent  Tax percentage (e.g., 21.0 for 21%)
+     * @param  string  $currency  Currency code (default: 'EUR')
+     *
      * @throws \InvalidArgumentException For invalid input values
      */
     public function addAllowanceCharge(
@@ -1182,6 +1055,9 @@ class UblNLBis3Service
         float $taxPercent = 0.0,
         string $currency = 'EUR'
     ): self {
+        $this->usedCurrencyCodes[] = $currency;
+        $this->usedTaxCategoryIds[] = $taxCategoryId;
+
         // Validate input values
         if ($amount < 0) {
             throw new \InvalidArgumentException('Amount cannot be negative');
@@ -1212,7 +1088,7 @@ class UblNLBis3Service
         $allowanceCharge->appendChild($allowanceChargeReasonElement);
 
         // Add amount with currency
-        $amountElement = $this->createElement('cbc', 'Amount', (string)number_format($amount, 2, '.', ''), ['currencyID' => $currency]);
+        $amountElement = $this->createElement('cbc', 'Amount', (string) number_format($amount, 2, '.', ''), ['currencyID' => $currency]);
         $allowanceCharge->appendChild($amountElement);
 
         // Add tax information if tax percentage is greater than 0
@@ -1226,7 +1102,7 @@ class UblNLBis3Service
             $taxCategory->appendChild($idElement);
 
             // Tax percentage
-            $percentElement = $this->createElement('cbc', 'Percent', (string)number_format($taxPercent, 2, '.', ''));
+            $percentElement = $this->createElement('cbc', 'Percent', (string) number_format($taxPercent, 2, '.', ''));
             $taxCategory->appendChild($percentElement);
 
             // Tax scheme (always VAT for this implementation)
@@ -1242,26 +1118,35 @@ class UblNLBis3Service
 
     /**
      * Add tax total information to the invoice
-     * 
-     * @param array $taxes Array of tax entries with the following structure:
-     *   [
-     *     [
-     *       'taxable_amount' => 1000.00, // Required: Amount subject to tax (must be >= 0)
-     *       'tax_amount' => 210.00,      // Required: Tax amount (must be >= 0)
-     *       'currency' => 'EUR',         // Required: Currency code (3 letters)
-     *       'tax_category_id' => 'S',    // Required: Tax category ID (e.g., 'S' for standard rate)
-     *       'tax_category_name' => 'Standard rated', // Optional: The name of the tax category
-     *       'tax_percent' => 21.0,       // Required: Tax percentage (0-100)
-     *       'tax_scheme_id' => 'VAT'     // Required: Tax scheme ID (e.g., 'VAT')
-     *     ]
-     *   ]
-     * @return self
+     *
+     * @param  array  $taxes  Array of tax entries with the following structure:
+     *                        [
+     *                        [
+     *                        'taxable_amount' => 1000.00, // Required: Amount subject to tax (must be >= 0)
+     *                        'tax_amount' => 210.00,      // Required: Tax amount (must be >= 0)
+     *                        'currency' => 'EUR',         // Required: Currency code (3 letters)
+     *                        'tax_category_id' => 'S',    // Required: Tax category ID (e.g., 'S' for standard rate)
+     *                        'tax_category_name' => 'Standard rated', // Optional: The name of the tax category
+     *                        'tax_percent' => 21.0,       // Required: Tax percentage (0-100)
+     *                        'tax_scheme_id' => 'VAT'     // Required: Tax scheme ID (e.g., 'VAT')
+     *                        ]
+     *                        ]
+     *
      * @throws \InvalidArgumentException For invalid or missing required fields
      */
     public function addTaxTotal(array $taxes): self
     {
         if (empty($taxes)) {
             throw new \InvalidArgumentException('At least one tax entry is required');
+        }
+
+        foreach ($taxes as $tax) {
+            if (isset($tax['currency'])) {
+                $this->usedCurrencyCodes[] = $tax['currency'];
+            }
+            if (isset($tax['tax_category_id'])) {
+                $this->usedTaxCategoryIds[] = $tax['tax_category_id'];
+            }
         }
 
         // Validate each tax entry
@@ -1279,41 +1164,41 @@ class UblNLBis3Service
                 'currency' => 'Currency code is required and must be 3 characters long',
                 'tax_category_id' => 'Tax category ID is required',
                 'tax_percent' => 'Tax percentage is required and must be between 0 and 100',
-                'tax_scheme_id' => 'Tax scheme ID is required'
+                'tax_scheme_id' => 'Tax scheme ID is required',
             ];
 
             foreach ($requiredFields as $field => $errorMessage) {
-                if (!array_key_exists($field, $tax)) {
-                    throw new \InvalidArgumentException($errorPrefix . $errorMessage);
+                if (! array_key_exists($field, $tax)) {
+                    throw new \InvalidArgumentException($errorPrefix.$errorMessage);
                 }
             }
 
             // Validate field types and values
-            if (!is_numeric($tax['taxable_amount']) || $tax['taxable_amount'] < 0) {
-                throw new \InvalidArgumentException($errorPrefix . 'Taxable amount must be a non-negative number');
+            if (! is_numeric($tax['taxable_amount']) || $tax['taxable_amount'] < 0) {
+                throw new \InvalidArgumentException($errorPrefix.'Taxable amount must be a non-negative number');
             }
 
-            if (!is_numeric($tax['tax_amount']) || $tax['tax_amount'] < 0) {
-                throw new \InvalidArgumentException($errorPrefix . 'Tax amount must be a non-negative number');
+            if (! is_numeric($tax['tax_amount']) || $tax['tax_amount'] < 0) {
+                throw new \InvalidArgumentException($errorPrefix.'Tax amount must be a non-negative number');
             }
 
-            if (!is_string($tax['tax_category_id']) || empty(trim($tax['tax_category_id']))) {
-                throw new \InvalidArgumentException($errorPrefix . 'Tax category ID must be a non-empty string');
+            if (! is_string($tax['tax_category_id']) || empty(trim($tax['tax_category_id']))) {
+                throw new \InvalidArgumentException($errorPrefix.'Tax category ID must be a non-empty string');
             }
 
-            if (!is_numeric($tax['tax_percent']) || $tax['tax_percent'] < 0 || $tax['tax_percent'] > 100) {
-                throw new \InvalidArgumentException($errorPrefix . 'Tax percentage must be a number between 0 and 100');
+            if (! is_numeric($tax['tax_percent']) || $tax['tax_percent'] < 0 || $tax['tax_percent'] > 100) {
+                throw new \InvalidArgumentException($errorPrefix.'Tax percentage must be a number between 0 and 100');
             }
 
-            if (!is_string($tax['currency']) || strlen($tax['currency']) !== 3) {
-                throw new \InvalidArgumentException($errorPrefix . 'Currency code must be exactly 3 characters long');
+            if (! is_string($tax['currency']) || strlen($tax['currency']) !== 3) {
+                throw new \InvalidArgumentException($errorPrefix.'Currency code must be exactly 3 characters long');
             }
 
-            if (!is_string($tax['tax_scheme_id']) || empty(trim($tax['tax_scheme_id']))) {
-                throw new \InvalidArgumentException($errorPrefix . 'Tax scheme ID must be a non-empty string');
+            if (! is_string($tax['tax_scheme_id']) || empty(trim($tax['tax_scheme_id']))) {
+                throw new \InvalidArgumentException($errorPrefix.'Tax scheme ID must be a non-empty string');
             }
 
-            $totalTaxAmount += (float)$tax['tax_amount'];
+            $totalTaxAmount += (float) $tax['tax_amount'];
         }
 
         // Create TaxTotal container
@@ -1385,30 +1270,32 @@ class UblNLBis3Service
 
     /**
      * Add LegalMonetaryTotal (financial totals) to the invoice
-     * 
-     * @param array $amounts Associative array containing the following required keys:
-     *   - line_extension_amount: Total of all invoice lines excluding tax
-     *   - tax_exclusive_amount: Amount excluding tax (line_extension_amount + charges - allowances)
-     *   - tax_inclusive_amount: Amount including tax
-     *   - charge_total_amount: Total of all charges
-     *   - payable_amount: Total amount to be paid (should equal tax_inclusive_amount)
-     * @param string $currency Currency code (3 letters, e.g., 'EUR')
-     * @return self
+     *
+     * @param  array  $amounts  Associative array containing the following required keys:
+     *                          - line_extension_amount: Total of all invoice lines excluding tax
+     *                          - tax_exclusive_amount: Amount excluding tax (line_extension_amount + charges - allowances)
+     *                          - tax_inclusive_amount: Amount including tax
+     *                          - charge_total_amount: Total of all charges
+     *                          - payable_amount: Total amount to be paid (should equal tax_inclusive_amount)
+     * @param  string  $currency  Currency code (3 letters, e.g., 'EUR')
+     *
      * @throws \InvalidArgumentException For missing or invalid parameters
      */
     public function addLegalMonetaryTotal(array $amounts, string $currency = 'EUR'): self
     {
+        $this->usedCurrencyCodes[] = $currency;
+
         // Validate required fields
         $requiredFields = [
             'line_extension_amount' => 'Line extension amount is required',
             'tax_exclusive_amount' => 'Tax exclusive amount is required',
             'tax_inclusive_amount' => 'Tax inclusive amount is required',
             'charge_total_amount' => 'Charge total amount is required',
-            'payable_amount' => 'Payable amount is required'
+            'payable_amount' => 'Payable amount is required',
         ];
 
         foreach ($requiredFields as $field => $errorMessage) {
-            if (!array_key_exists($field, $amounts) || !is_numeric($amounts[$field])) {
+            if (! array_key_exists($field, $amounts) || ! is_numeric($amounts[$field])) {
                 throw new \InvalidArgumentException($errorMessage);
             }
         }
@@ -1421,7 +1308,7 @@ class UblNLBis3Service
         // Format amounts to 2 decimal places
         $formattedAmounts = [];
         foreach ($amounts as $key => $value) {
-            $formattedAmounts[$key] = number_format((float)$value, 2, '.', '');
+            $formattedAmounts[$key] = number_format((float) $value, 2, '.', '');
         }
 
         // Create LegalMonetaryTotal container
@@ -1434,7 +1321,7 @@ class UblNLBis3Service
             'TaxExclusiveAmount' => $formattedAmounts['tax_exclusive_amount'],
             'TaxInclusiveAmount' => $formattedAmounts['tax_inclusive_amount'],
             'ChargeTotalAmount' => $formattedAmounts['charge_total_amount'],
-            'PayableAmount' => $formattedAmounts['payable_amount']
+            'PayableAmount' => $formattedAmounts['payable_amount'],
         ];
 
         foreach ($elements as $elementName => $amount) {
@@ -1450,23 +1337,49 @@ class UblNLBis3Service
         return $this;
     }
 
-
     /**
      * Add an invoice line to the document
-     * 
-     * @param array $lineData Array containing the invoice line data
-     * @return self
+     *
+     * @param  array  $lineData  Array containing the invoice line data
+     *
      * @throws \InvalidArgumentException For missing or invalid parameters
      */
     /**
      * Add an invoice line to the document
-     * 
-     * @param array $lineData Array containing the invoice line data
-     * @return self
+     *
+     * @param  array  $lineData  Array containing the invoice line data
+     *
      * @throws \InvalidArgumentException For missing or invalid parameters
      */
     public function addInvoiceLine(array $lineData): self
     {
+        // PEPPOL BR-27: Item net price (BT-146) shall NOT be negative
+        // Validate price_amount before processing
+        if (isset($lineData['price_amount']) && (float) $lineData['price_amount'] < 0) {
+            $description = $lineData['description'] ?? $lineData['name'] ?? 'Unknown item';
+            throw new \InvalidArgumentException(
+                "PEPPOL BR-27 Validation Error: Item net price (BT-146) shall NOT be negative.\n".
+                "Item: \"{$description}\"\n".
+                "Price: {$lineData['price_amount']}\n\n".
+                'Oplossing: Negatieve bedragen (kortingen) moeten als AllowanceCharge worden toegevoegd, '.
+                'niet als factuurregels. Gebruik addAllowanceCharge() met isCharge=false voor kortingen.'
+            );
+        }
+
+        if (isset($lineData['currency'])) {
+            $this->usedCurrencyCodes[] = $lineData['currency'];
+        }
+        if (isset($lineData['unit_code'])) {
+            $this->usedUnitCodes[] = $lineData['unit_code'];
+        }
+        if (isset($lineData['tax_category_id'])) {
+            $this->usedTaxCategoryIds[] = $lineData['tax_category_id'];
+        }
+
+        if (! empty($lineData['order_line_id'])) {
+            $this->hasOrderLineReference = true;
+        }
+
         // Set default values
         $lineData = array_merge([
             'tax_category_id' => 'S',
@@ -1485,17 +1398,33 @@ class UblNLBis3Service
             $invoiceLine,
             'cbc',
             'InvoicedQuantity',
-            number_format((float)$lineData['quantity'], 2, '.', ''),
+            number_format((float) $lineData['quantity'], 2, '.', ''),
             ['unitCode' => $lineData['unit_code']]
         );
 
-        // Add LineExtensionAmount
-        $baseQuantity = $lineData['base_quantity'] ?? 1;
-        if ($baseQuantity == 0) {
-            $baseQuantity = 1;
-        } // Prevent division by zero
-        $lineExtensionAmountValue = $lineData['quantity'] * ($lineData['price_amount'] / $baseQuantity);
-        $this->addChildElement($invoiceLine, 'cbc', 'LineExtensionAmount', $this->formatAmount($lineExtensionAmountValue), ['currencyID' => $lineData['currency']]);
+        // Add LineExtensionAmount - gebruik meegegeven waarde of bereken als fallback
+        $lineExtensionAmount = $lineData['line_extension_amount']
+            ?? ((isset($lineData['price_amount'], $lineData['quantity']))
+                ? (float) $lineData['price_amount'] * (float) $lineData['quantity']
+                : null);
+
+        if ($lineExtensionAmount === null) {
+            throw new \InvalidArgumentException('Invoice line requires line_extension_amount or both price_amount and quantity to derive it.');
+        }
+
+        // PEPPOL BR-27: Also validate the calculated line_extension_amount
+        if ((float) $lineExtensionAmount < 0) {
+            $description = $lineData['description'] ?? $lineData['name'] ?? 'Unknown item';
+            throw new \InvalidArgumentException(
+                "PEPPOL BR-27 Validation Error: Line extension amount shall NOT be negative.\n".
+                "Item: \"{$description}\"\n".
+                "Line Extension Amount: {$lineExtensionAmount}\n\n".
+                'Oplossing: Negatieve bedragen (kortingen) moeten als AllowanceCharge worden toegevoegd, '.
+                'niet als factuurregels. Gebruik addAllowanceCharge() met isCharge=false voor kortingen.'
+            );
+        }
+
+        $this->addChildElement($invoiceLine, 'cbc', 'LineExtensionAmount', $this->formatAmount((float) $lineExtensionAmount), ['currencyID' => $lineData['currency']]);
 
         // AccountingCost
         if (isset($lineData['accounting_cost'])) {
@@ -1531,7 +1460,7 @@ class UblNLBis3Service
         $this->addChildElement($price, 'cbc', 'PriceAmount', $this->formatAmount($lineData['price_amount']), ['currencyID' => $lineData['currency']]);
 
         $baseQuantityValue = $lineData['base_quantity'] ?? 1;
-        $this->addChildElement($price, 'cbc', 'BaseQuantity', number_format((float)$baseQuantityValue, 2, '.', ''), ['unitCode' => $lineData['unit_code']]);
+        $this->addChildElement($price, 'cbc', 'BaseQuantity', number_format((float) $baseQuantityValue, 2, '.', ''), ['unitCode' => $lineData['unit_code']]);
 
         return $this;
     }
