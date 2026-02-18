@@ -5,7 +5,17 @@ This guide covers the specific requirements for generating UBL invoices for the 
 ## Dutch Specifications
 
 ### PEPPOL BIS Billing 3.0
-The Netherlands uses the standard PEPPOL BIS Billing 3.0 without additional national requirements.
+
+The Netherlands uses PEPPOL BIS Billing 3.0 with national rules (NL-R-001..NL-R-009).
+
+Key requirements include:
+
+- Credit note must reference the original invoice (NL-R-001).
+- Supplier and (when Dutch) buyer address must include street, city, and post code (NL-R-002, NL-R-004).
+- Legal entity identifier must be KVK or OIN with schemeID 0106 or 0190 (NL-R-003, NL-R-005).
+- Payment means are required when payment is from customer to supplier (NL-R-007).
+- Domestic payment means code must be one of 30, 48, 49, 57, 58, 59 (NL-R-008).
+- If order line reference is used, a document-level order reference is required (NL-R-009).
 
 ### Automatic KVK/OIN Detection
 
@@ -15,7 +25,7 @@ The package automatically detects Dutch business registrations:
 // KVK number is automatically recognized
 $endpointSchemeID = '0106';  // For KVK numbers
 
-// OIN number for government organizations  
+// OIN number for government organizations
 $endpointSchemeID = '0190';  // For OIN numbers
 ```
 
@@ -114,33 +124,39 @@ $ubl->addPaymentTerms('Payment within 14 days');
 
 // 9. Generate XML
 $xml = $ubl->generateXml();
+$xml = $ubl->generateXml(true); // Optional basic validation
 ```
 
 ## Dutch VAT Rates
 
-| Rate | Percentage | Tax Category ID | Description |
-|------|------------|-----------------|-------------|
-| High | 21% | S | Standard rate |
-| Low | 9% | S | Reduced rate |
-| Zero | 0% | Z | Zero rate |
-| Exempt | 0% | E | Exempt |
+| Rate   | Percentage | Tax Category ID | Description   |
+| ------ | ---------- | --------------- | ------------- |
+| High   | 21%        | S               | Standard rate |
+| Low    | 9%         | S               | Reduced rate  |
+| Zero   | 0%         | Z               | Zero rate     |
+| Exempt | 0%         | E               | Exempt        |
 
 ## Dutch Business Registrations
 
 ### KVK Numbers
+
 Format: `12345678` (8 digits)
+
 ```php
 // Automatic detection
 $endpointSchemeID = '0106';  // For KVK numbers
 ```
 
 ### OIN Numbers (Government)
+
 Format: `00000001234567890123` (20 digits)
+
 ```php
 $endpointSchemeID = '0190';  // For OIN numbers
 ```
 
 ### VAT Numbers
+
 Format: `NL123456789B01` (NL + 9 digits + B + 2 digits)
 
 ```php
@@ -153,18 +169,19 @@ if (!preg_match('/^NL[0-9]{9}B[0-9]{2}$/', $vatNumber)) {
 ## Validation
 
 ### Dutch PEPPOL Validator
+
 Test your invoices at: https://test.peppolautoriteit.nl/validate
 
 ### Common Unit Codes
 
-| Code | Description |
-|------|-------------|
-| `C62` | Pieces |
-| `HUR` | Hours |
-| `DAY` | Days |
-| `MTR` | Meter |
-| `KGM` | Kilogram |
-| `LTR` | Liter |
+| Code  | Description |
+| ----- | ----------- |
+| `C62` | Pieces      |
+| `HUR` | Hours       |
+| `DAY` | Days        |
+| `MTR` | Meter       |
+| `KGM` | Kilogram    |
+| `LTR` | Liter       |
 
 ## Endpoint Scheme IDs for Netherlands
 
@@ -187,6 +204,7 @@ if (strtoupper($countryCode) === 'NL' && $endpointSchemeID === '0210') {
 ## Example Validation Response
 
 ✅ **Successful**:
+
 ```
 ✓ PEPPOL BIS Billing 3.0 compliant
 ✓ Dutch VAT number correct
@@ -196,9 +214,9 @@ if (strtoupper($countryCode) === 'NL' && $endpointSchemeID === '0210') {
 
 ## Differences with Belgium
 
-| Aspect | Netherlands | Belgium |
-|--------|-------------|----------|
-| National rules | None | EN 16931 |
-| Scheme ID | 0106 (KVK) | 0208 (VAT) |
-| Tax Category Names | Standard PEPPOL | BTCC values |
-| TaxTotal InvoiceLine | Allowed | Omitted |
+| Aspect               | Netherlands              | Belgium                  |
+| -------------------- | ------------------------ | ------------------------ |
+| National rules       | Yes (NL-R-001..NL-R-009) | EN 16931                 |
+| Scheme ID            | 0106 (KVK)               | 0208 (VAT)               |
+| Tax Category Names   | Standard PEPPOL          | BTCC values              |
+| TaxTotal InvoiceLine | Not allowed (UBL-CR-561) | Not allowed (UBL-CR-561) |

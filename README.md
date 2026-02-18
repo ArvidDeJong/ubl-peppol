@@ -38,6 +38,14 @@ php artisan migrate
 
 ## Documentation
 
+**Authoritative source for PEPPOL rules**
+
+For PEPPOL BIS Billing 3.0 business rules, this project uses the official BIS documentation as the source of truth:
+
+- https://docs.peppol.eu/poacc/billing/3.0/bis/
+
+When reviewing, interpreting, or updating rule compliance in this package (BE and NL), always consult that BIS page first.
+
 - [API Reference](docs/api-reference.md)
 - [Belgian Implementation](docs/belgium-implementation.md)
 - [Dutch Implementation](docs/netherlands-implementation.md)
@@ -77,9 +85,10 @@ $xml = $service->generateXml();
 ```
 
 ### Key Points
+
 - Use `createCreditNoteDocument()` instead of `createDocument()`
 - `addBillingReference()` is **REQUIRED** (PEPPOL BR-55)
 - All amounts must be **POSITIVE** (credit nature = document type 381)
 - Use `addCreditNoteLine()` instead of `addInvoiceLine()`
 
-See [docs/CREDIT_NOTES.md](docs/CREDIT_NOTES.md) for full documentation.
+See [docs/credit-notes.md](docs/credit-notes.md) for full documentation.

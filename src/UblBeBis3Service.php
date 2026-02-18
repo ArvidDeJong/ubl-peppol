@@ -14,6 +14,8 @@ use DOMElement;
  */
 class UblBeBis3Service
 {
+    use Validation\ValidationTrackingTrait;
+
     /**
      * @var DOMDocument The main XML document instance
      */
@@ -173,6 +175,8 @@ class UblBeBis3Service
 
         // DocumentCurrencyCode
         $this->addChildElement($this->rootElement, 'cbc', 'DocumentCurrencyCode', 'EUR');
+
+        $this->usedCurrencyCodes[] = 'EUR';
 
         return $this;
     }
@@ -341,13 +345,52 @@ class UblBeBis3Service
             );
         }
 
-        return UblValidator::validateInvoiceTotals(
+        $totalsResult = UblValidator::validateInvoiceTotals(
             $this->invoiceLines,
             $this->totals,
             $this->taxTotals,
             $this->allowanceTotalAmount,
             $this->chargeTotalAmount,
             $this->prepaidAmount
+        );
+
+        $codeResult = UblValidator::validateBasicCodes([
+            'currency_codes' => $this->usedCurrencyCodes,
+            'scheme_ids' => $this->usedSchemeIds,
+            'payment_means_codes' => $this->usedPaymentMeansCodes,
+            'unit_codes' => $this->usedUnitCodes,
+            'tax_category_ids' => $this->usedTaxCategoryIds,
+        ]);
+
+        $errors = array_merge($totalsResult->errors, $codeResult->errors);
+        $warnings = array_merge($totalsResult->warnings, $codeResult->warnings);
+
+        if ($this->strictCodelistValidation) {
+            if (!$this->codelistRegistry) {
+                $errors[] = 'Strict codelist validation is enabled but no codelist registry is configured.';
+            } else {
+                $strictResult = UblValidator::validateStrictCodelists([
+                    'currency_codes' => $this->usedCurrencyCodes,
+                    'endpoint_scheme_ids' => $this->usedEndpointSchemeIds,
+                    'party_scheme_ids' => $this->usedPartySchemeIds,
+                    'registration_scheme_ids' => $this->usedRegistrationSchemeIds,
+                    'payment_means_codes' => $this->usedPaymentMeansCodes,
+                    'tax_category_ids' => $this->usedTaxCategoryIds,
+                    'item_classification_ids' => [],
+                    'tax_exemption_reason_codes' => [],
+                    'allowance_reason_codes' => [],
+                    'charge_reason_codes' => [],
+                ], $this->codelistRegistry);
+
+                $errors = array_merge($errors, $strictResult->errors);
+            }
+        }
+
+        return new Validation\InvoiceValidationResult(
+            isValid: empty($errors),
+            errors: $errors,
+            warnings: $warnings,
+            corrections: $totalsResult->corrections
         );
     }
 
@@ -629,6 +672,8 @@ class UblBeBis3Service
         $documentCurrencyCodeElement = $this->createElement('cbc', 'DocumentCurrencyCode', 'EUR');
         $this->rootElement->appendChild($documentCurrencyCodeElement);
 
+        $this->usedCurrencyCodes[] = 'EUR';
+
         // AccountingCost
         $accountingCostElement = $this->createElement('cbc', 'AccountingCost', '4025:123:4343');
         $this->rootElement->appendChild($accountingCostElement);
@@ -656,6 +701,10 @@ class UblBeBis3Service
      */
     public function addBuyerReference(?string $buyerRef = 'BUYER_REF'): self
     {
+        if ($this->isCreditNote) {
+            throw new \InvalidArgumentException('BuyerReference is not allowed in CreditNote documents (CreditNote element order).');
+        }
+
         // Fallback naar default waarde als null wordt doorgegeven
         $buyerRefValue = $buyerRef ?? 'BUYER_REF';
 
@@ -804,6 +853,22 @@ class UblBeBis3Service
             );
         }
 
+        // Set default values
+        $lineData = array_merge([
+            'tax_category_id' => 'S',
+            'tax_percent' => '21.00',
+        ], $lineData);
+
+        if (isset($lineData['currency'])) {
+            $this->usedCurrencyCodes[] = $lineData['currency'];
+        }
+        if (isset($lineData['unit_code'])) {
+            $this->usedUnitCodes[] = $lineData['unit_code'];
+        }
+        if (isset($lineData['tax_category_id'])) {
+            $this->usedTaxCategoryIds[] = $lineData['tax_category_id'];
+        }
+
         $invoiceLine = $this->addChildElement($this->rootElement, 'cac', 'InvoiceLine');
 
         $lineExtensionAmount = $lineData['line_extension_amount']
@@ -894,6 +959,14 @@ class UblBeBis3Service
             ?? ($priceAmount * $quantity);
         $lineExtensionAmount = abs((float) $lineExtensionAmount);
 
+        $currencyCode = $lineData['currency'] ?? 'EUR';
+        $unitCode = $lineData['unit_code'] ?? 'C62';
+        $taxCategoryId = $lineData['tax_category_id'] ?? 'S';
+
+        $this->usedCurrencyCodes[] = $currencyCode;
+        $this->usedUnitCodes[] = $unitCode;
+        $this->usedTaxCategoryIds[] = $taxCategoryId;
+
         // Track line data for validation (same as invoice)
         $this->invoiceLines[] = array_merge($lineData, [
             'line_extension_amount' => $lineExtensionAmount,
@@ -905,9 +978,9 @@ class UblBeBis3Service
 
         $this->addChildElement($creditNoteLine, 'cbc', 'ID', $lineData['id']);
         $this->addChildElement($creditNoteLine, 'cbc', 'CreditedQuantity', $this->formatAmount($quantity), 
-            ['unitCode' => $lineData['unit_code'] ?? 'C62']);
+            ['unitCode' => $unitCode]);
         $this->addChildElement($creditNoteLine, 'cbc', 'LineExtensionAmount', $this->formatAmount($lineExtensionAmount), 
-            ['currencyID' => $lineData['currency'] ?? 'EUR']);
+            ['currencyID' => $currencyCode]);
 
         if (!empty($lineData['accounting_cost'])) {
             $this->addChildElement($creditNoteLine, 'cbc', 'AccountingCost', $lineData['accounting_cost']);
@@ -923,7 +996,7 @@ class UblBeBis3Service
         $this->addChildElement($item, 'cbc', 'Name', $lineData['name'] ?? $lineData['description'] ?? '');
 
         $classifiedTaxCategory = $this->addChildElement($item, 'cac', 'ClassifiedTaxCategory');
-        $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $lineData['tax_category_id'] ?? 'S');
+        $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $taxCategoryId);
         $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', 
             $this->formatAmount((float) ($lineData['tax_percent'] ?? 21)));
         $taxScheme = $this->addChildElement($classifiedTaxCategory, 'cac', 'TaxScheme');
@@ -931,21 +1004,29 @@ class UblBeBis3Service
 
         $price = $this->addChildElement($creditNoteLine, 'cac', 'Price');
         $this->addChildElement($price, 'cbc', 'PriceAmount', $this->formatAmount($priceAmount), 
-            ['currencyID' => $lineData['currency'] ?? 'EUR']);
-        $this->addChildElement($price, 'cbc', 'BaseQuantity', '1', ['unitCode' => $lineData['unit_code'] ?? 'C62']);
+            ['currencyID' => $currencyCode]);
+        $this->addChildElement($price, 'cbc', 'BaseQuantity', '1', ['unitCode' => $unitCode]);
 
         return $this;
     }
 
     public function addLegalMonetaryTotal(array $totals, string $currency): self
     {
+        $this->usedCurrencyCodes[] = $currency;
+
         // Track totals for validation
         $this->totals = $totals;
         $this->chargeTotalAmount = (float) ($totals['charge_total_amount'] ?? 0);
         $this->allowanceTotalAmount = (float) ($totals['allowance_total_amount'] ?? 0);
         $this->prepaidAmount = (float) ($totals['prepaid_amount'] ?? 0);
 
-        $monetaryTotal = $this->addChildElement($this->rootElement, 'cac', 'LegalMonetaryTotal');
+        $monetaryTotal = $this->createElement('cac', 'LegalMonetaryTotal');
+        $lineElement = $this->getFirstLineElement();
+        if ($lineElement) {
+            $this->rootElement->insertBefore($monetaryTotal, $lineElement);
+        } else {
+            $this->rootElement->appendChild($monetaryTotal);
+        }
 
         $this->addChildElement($monetaryTotal, 'cbc', 'LineExtensionAmount', $this->formatAmount((float) $totals['line_extension_amount']), ['currencyID' => $currency]);
         $this->addChildElement($monetaryTotal, 'cbc', 'TaxExclusiveAmount', $this->formatAmount((float) $totals['tax_exclusive_amount']), ['currencyID' => $currency]);
@@ -974,8 +1055,20 @@ class UblBeBis3Service
         // Track tax totals for validation
         $this->taxTotals = $taxTotals;
 
+        foreach ($taxTotals as $tax) {
+            if (isset($tax['currency'])) {
+                $this->usedCurrencyCodes[] = $tax['currency'];
+            }
+            if (isset($tax['tax_category_id'])) {
+                $this->usedTaxCategoryIds[] = $tax['tax_category_id'];
+            }
+        }
+
         // Find and remove existing TaxTotal to prevent duplicates
-        $existingTaxTotals = $this->dom->getElementsByTagName('TaxTotal');
+        $existingTaxTotals = $this->dom->getElementsByTagName('cac:TaxTotal');
+        if ($existingTaxTotals->length === 0) {
+            $existingTaxTotals = $this->dom->getElementsByTagNameNS($this->ns_cac_uri, 'TaxTotal');
+        }
         while ($existingTaxTotals->length > 0) {
             $existingTaxTotals->item(0)->parentNode->removeChild($existingTaxTotals->item(0));
         }
@@ -985,11 +1078,14 @@ class UblBeBis3Service
             $totalTaxAmount += (float) $tax['tax_amount'];
         }
 
-        $monetaryTotal = $this->dom->getElementsByTagName('LegalMonetaryTotal')->item(0);
-
         $taxTotalElement = $this->createElement('cac', 'TaxTotal');
-        if ($monetaryTotal) {
-            $this->rootElement->insertBefore($taxTotalElement, $monetaryTotal);
+        $monetaryTotal = $this->dom->getElementsByTagName('cac:LegalMonetaryTotal')->item(0);
+        if (! $monetaryTotal) {
+            $monetaryTotal = $this->dom->getElementsByTagNameNS($this->ns_cac_uri, 'LegalMonetaryTotal')->item(0);
+        }
+        $insertBefore = $monetaryTotal ?: $this->getFirstLineElement();
+        if ($insertBefore) {
+            $this->rootElement->insertBefore($taxTotalElement, $insertBefore);
         } else {
             $this->rootElement->appendChild($taxTotalElement);
         }
@@ -1019,6 +1115,9 @@ class UblBeBis3Service
         float $taxPercent,
         string $currency
     ): self {
+        $this->usedCurrencyCodes[] = $currency;
+        $this->usedTaxCategoryIds[] = $taxCategoryId;
+
         $allowanceCharge = $this->addChildElement($this->rootElement, 'cac', 'AllowanceCharge');
         $this->addChildElement($allowanceCharge, 'cbc', 'ChargeIndicator', $isCharge ? 'true' : 'false');
         $this->addChildElement($allowanceCharge, 'cbc', 'AllowanceChargeReason', $reason);
@@ -1057,6 +1156,8 @@ class UblBeBis3Service
         ?string $channel_code = null,
         ?string $due_date = null
     ): self {
+        $this->usedPaymentMeansCodes[] = $paymentMeansCode;
+
         $paymentMeans = $this->addChildElement($this->rootElement, 'cac', 'PaymentMeans');
         $this->addChildElement($paymentMeans, 'cbc', 'PaymentMeansCode', $paymentMeansCode, $paymentMeansName ? ['name' => $paymentMeansName] : []);
         $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $paymentId);
@@ -1127,6 +1228,10 @@ class UblBeBis3Service
         ?string $contactEmail = null,
         ?string $vatNumber = null
     ): self {
+        $this->usedEndpointSchemeIds[] = $endpointSchemeID;
+
+        $this->usedSchemeIds[] = $endpointSchemeID;
+
         $customerParty = $this->addChildElement($this->rootElement, 'cac', 'AccountingCustomerParty');
         $party = $this->addChildElement($customerParty, 'cac', 'Party');
 
@@ -1169,6 +1274,8 @@ class UblBeBis3Service
             // For Dutch customers: use correct schemeID (0106 for KVK, 0190 for OIN)
             $schemeID = (strtoupper($country) === 'NL') ? '0106' : '0208';
             $this->addChildElement($partyLegalEntity, 'cbc', 'CompanyID', $registrationNumber, ['schemeID' => $schemeID]);
+            $this->usedSchemeIds[] = $schemeID;
+            $this->usedRegistrationSchemeIds[] = $schemeID;
         }
 
         if ($contactName || $contactPhone || $contactEmail) {
@@ -1199,6 +1306,10 @@ class UblBeBis3Service
         string $vatNumber,
         ?string $additionalStreet = null
     ): self {
+        $this->usedEndpointSchemeIds[] = $endpointSchemeID;
+
+        $this->usedSchemeIds[] = $endpointSchemeID;
+
         $supplierParty = $this->addChildElement($this->rootElement, 'cac', 'AccountingSupplierParty');
         $party = $this->addChildElement($supplierParty, 'cac', 'Party');
 
@@ -1235,5 +1346,16 @@ class UblBeBis3Service
         $this->addChildElement($partyLegalEntity, 'cbc', 'RegistrationName', $name);
 
         return $this;
+    }
+
+    protected function getFirstLineElement(): ?DOMElement
+    {
+        $lineTag = $this->isCreditNote ? 'CreditNoteLine' : 'InvoiceLine';
+        $lines = $this->dom->getElementsByTagName('cac:'.$lineTag);
+        if ($lines->length === 0) {
+            $lines = $this->dom->getElementsByTagNameNS($this->ns_cac_uri, $lineTag);
+        }
+
+        return $lines->length > 0 ? $lines->item(0) : null;
     }
 }

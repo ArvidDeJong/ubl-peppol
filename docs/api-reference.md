@@ -9,40 +9,62 @@ For Belgian UBL invoices according to EN 16931 standard.
 ### Constructor & Basic Methods
 
 #### `__construct()`
+
 ```php
 $ubl = new UblBeBis3Service();
 ```
 
 #### `createDocument(): self`
+
 Initializes the UBL document with namespaces.
+
 ```php
 $ubl->createDocument();
 ```
 
-#### `generateXml(): string`
-Generates the final UBL XML string.
+#### `generateXml(bool $validateFirst = false): string`
+
+Generates the final UBL XML string. When `validateFirst` is true, it runs basic validation before output.
+
 ```php
 $xml = $ubl->generateXml();
+$xml = $ubl->generateXml(true);
+```
+
+#### `enableStrictCodelistValidation(?string $jsonPath = null, ?CodelistRegistry $registry = null): self`
+
+Enables strict codelist validation using a JSON file or a registry instance.
+
+```php
+use Darvis\UblPeppol\Validation\CodelistRegistry;
+
+$ubl->enableStrictCodelistValidation('/path/to/peppol-codelists.json');
+$registry = CodelistRegistry::fromJsonFile('/path/to/peppol-codelists.json');
+$ubl->enableStrictCodelistValidation(registry: $registry);
 ```
 
 ### Document Header
 
 #### `addInvoiceHeader(string $invoiceNumber, $issueDate, $dueDate): self`
+
 ```php
 $ubl->addInvoiceHeader('INV-2024-001', '2024-01-15', '2024-02-14');
 ```
 
 #### `addBuyerReference(?string $buyerRef = 'BUYER_REF'): self`
+
 ```php
 $ubl->addBuyerReference('KLANT-001');
 ```
 
 #### `addOrderReference(string $orderNumber = 'PO-001'): self`
+
 ```php
 $ubl->addOrderReference('ORDER-2024-001');
 ```
 
 #### `addAdditionalDocumentReference(string $id, ?string $documentType = null): self`
+
 ```php
 $ubl->addAdditionalDocumentReference('DOC-001', 'Contract');
 ```
@@ -50,6 +72,7 @@ $ubl->addAdditionalDocumentReference('DOC-001', 'Contract');
 ### Parties
 
 #### `addAccountingSupplierParty(...): self`
+
 ```php
 $ubl->addAccountingSupplierParty(
     string $endpointId,           // VAT number WITHOUT country prefix (e.g., '0123456789' not 'BE0123456789')
@@ -68,6 +91,7 @@ $ubl->addAccountingSupplierParty(
 **Important for Belgium**: The `endpointId` parameter should be the VAT number **WITHOUT** the "BE" prefix (e.g., `0123456789`), while the `vatNumber` parameter should include the prefix (e.g., `BE0123456789`).
 
 #### `addAccountingCustomerParty(...): self`
+
 ```php
 $ubl->addAccountingCustomerParty(
     string $endpointId,                  // VAT number WITHOUT country prefix for BE (e.g., '0987654321')
@@ -87,7 +111,8 @@ $ubl->addAccountingCustomerParty(
 );
 ```
 
-**Important**: 
+**Important**:
+
 - For **Belgium**: The `endpointId` should be the VAT number **WITHOUT** the "BE" prefix (e.g., `0987654321`), while `vatNumber` includes the prefix (e.g., `BE0987654321`)
 - For **Netherlands**: The `endpointId` is typically the KVK number (8 digits)
 - The `vatNumber` parameter must include the country prefix per BR-CO-09 validation rule
@@ -96,6 +121,7 @@ $ubl->addAccountingCustomerParty(
 ### Invoice Lines
 
 #### `addInvoiceLine(array $lineData): self`
+
 ```php
 $ubl->addInvoiceLine([
     'id' => '1',
@@ -114,6 +140,7 @@ $ubl->addInvoiceLine([
 ### Taxes & Totals
 
 #### `addTaxTotal(array $taxTotals): self`
+
 ```php
 $ubl->addTaxTotal([
     [
@@ -128,6 +155,7 @@ $ubl->addTaxTotal([
 ```
 
 #### `addLegalMonetaryTotal(array $totals, string $currency): self`
+
 ```php
 $ubl->addLegalMonetaryTotal([
     'line_extension_amount' => 100.00,
@@ -141,6 +169,7 @@ $ubl->addLegalMonetaryTotal([
 ### Payment Information
 
 #### `addPaymentMeans(...): self`
+
 ```php
 $ubl->addPaymentMeans(
     string $paymentMeansCode,     // '30' = Credit transfer
@@ -157,6 +186,7 @@ $ubl->addPaymentMeans(
 **Note**: The IBAN is added without `schemeID` attribute per UBL-CR-654 compliance rule.
 
 #### `addPaymentTerms(?string $note, ?float $discount_percent, ?float $discount_amount, ?string $discount_date): self`
+
 ```php
 $ubl->addPaymentTerms('Payment within 30 days', null, null, null);
 ```
@@ -164,6 +194,7 @@ $ubl->addPaymentTerms('Payment within 30 days', null, null, null);
 ### Allowances & Charges
 
 #### `addAllowanceCharge(...): self`
+
 ```php
 $ubl->addAllowanceCharge(
     bool $isCharge,              // true = charge, false = allowance
@@ -178,6 +209,7 @@ $ubl->addAllowanceCharge(
 ### Delivery
 
 #### `addDelivery(...): self`
+
 ```php
 $ubl->addDelivery(
     string $deliveryDate,        // 'YYYY-MM-DD'
@@ -202,6 +234,14 @@ For Dutch UBL invoices. Has largely the same API as UblBeBis3Service, with these
 - Support for OIN numbers with schemeID '0190'
 - Dutch validation rules
 
+#### `generateXml(bool $validateFirst = false): string`
+
+Same as Belgium. Optional validation is available before XML generation.
+
+#### `enableStrictCodelistValidation(?string $jsonPath = null, ?CodelistRegistry $registry = null): self`
+
+Same as Belgium. Strict validation requires a JSON codelist file.
+
 ### Usage
 
 ```php
@@ -214,6 +254,7 @@ $ubl = new UblNlBis3Service();
 ## Common Parameters
 
 ### Unit Codes (UN/ECE Recommendation 20)
+
 - `C62` - Pieces
 - `MTR` - Meter
 - `KGM` - Kilogram
@@ -221,18 +262,21 @@ $ubl = new UblNlBis3Service();
 - `HUR` - Hour
 
 ### Tax Category IDs
+
 - `S` - Standard rate (21% Belgium/Netherlands)
 - `Z` - Zero rate (0%)
 - `E` - Exempt
 - `AE` - Reverse charge
 
 ### Country Codes (ISO 3166-1)
+
 - `BE` - Belgium
 - `NL` - Netherlands
 - `DE` - Germany
 - `FR` - France
 
 ### Endpoint Scheme IDs
+
 - `0208` - Belgium VAT number (WITHOUT "BE" prefix - use only the 10 digits)
 - `0106` - Netherlands KVK number (8 digits)
 - `0190` - Netherlands OIN number
