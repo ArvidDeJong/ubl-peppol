@@ -21,7 +21,7 @@ All notable changes to this package will be documented in this file.
   - `isCreditNote()` - Check if current document is a Credit Note
   - Automatic conversion of negative amounts to positive (PEPPOL requires positive amounts)
   - BR-55 validation: Credit Notes must have a BillingReference
-  - Complete documentation in `docs/CREDIT_NOTES.md`
+  - Complete documentation in `docs/credit-notes.md`
   - Full test coverage in `tests/Feature/CreditNoteBeTest.php`
 
 - **UblValidator** - Enhanced validation with document-level allowances and charges

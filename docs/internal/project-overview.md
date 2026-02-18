@@ -8,7 +8,11 @@ This package enables developers to easily generate UBL documents that comply wit
 
 ## Documentation
 
-https://docs.peppol.eu/poacc/billing/3.0/
+Authoritative PEPPOL rule source:
+
+https://docs.peppol.eu/poacc/billing/3.0/bis/
+
+When rules need to be reviewed or interpreted for compliance (BE and NL preparation), consult this BIS page first.
 
 ## Validation Testing
 
@@ -107,7 +111,7 @@ The `examples/` directory contains complete working examples:
 
 ## License
 
-This package is available under the [MIT License](LICENSE). See the [LICENSE](LICENSE) file for more information.
+This package is available under the [MIT License](../../LICENSE). See the [LICENSE](../../LICENSE) file for more information.
 
 ## Contributions
 

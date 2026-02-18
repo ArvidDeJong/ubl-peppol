@@ -8,6 +8,14 @@ PEPPOL BIS Billing 3.0 release 3.0.19 is mandatory from 2025-08-25. This release
 validation artefacts and several code lists (EAS, ICD, VATEX, ISO 4217, UNCL lists). Use
 the latest official validators and schematron files to avoid false positives.
 
+## Authoritative Rule Source
+
+For rule interpretation and compliance decisions, the authoritative source in this project is:
+
+- https://docs.peppol.eu/poacc/billing/3.0/bis/
+
+If package behavior, local notes, or examples differ from this source, follow the BIS source and update local documentation/code accordingly.
+
 ## PEPPOL Validators
 
 ### Netherlands
@@ -95,6 +103,14 @@ Example structure:
 - **UBL-CR-654**: PayeeFinancialAccount/ID must NOT have schemeID attribute (IBAN without schemeID)
 
 ## Validation Workflow
+
+### 0. Rule Check (Mandatory)
+
+Before implementing, reviewing, or discussing PEPPOL business rules, first consult:
+
+- https://docs.peppol.eu/poacc/billing/3.0/bis/
+
+Use this as the primary reference for rule wording and intent, then validate generated XML with the country validators below.
 
 ### 1. Local Validation
 
@@ -256,6 +272,7 @@ $ubl->addInvoiceHeader('INV-001', '15-01-2024', '14-02-2024'); // Error
 
 ### General
 
+- [ ] BIS source consulted for rule interpretation: https://docs.peppol.eu/poacc/billing/3.0/bis/
 - [ ] Date format: YYYY-MM-DD
 - [ ] Required fields present
 - [ ] Buyer reference or order reference present (PEPPOL-EN16931-R003)
