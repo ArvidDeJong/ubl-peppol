@@ -1,3 +1,9 @@
+---
+title: Sending invoices
+nav_order: 10
+description: Sending a generated invoice to the PEPPOL network through an access point provider, and reading back what happened.
+---
+
 # Peppol Service
 
 This guide covers sending UBL invoices to the Peppol network via access point providers.

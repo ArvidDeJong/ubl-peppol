@@ -1,3 +1,9 @@
+---
+title: Belgian invoices
+nav_order: 4
+description: How to build a UBL invoice that meets the Belgian EN 16931 rules with darvis/ubl-peppol, including VAT categories and the mandatory references.
+---
+
 # Belgium Implementation (EN 16931)
 
 This guide covers the specific requirements for generating UBL invoices that comply with the Belgian EN 16931 standard.

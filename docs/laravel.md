@@ -1,3 +1,9 @@
+---
+title: Laravel integration
+nav_order: 9
+description: "Using the package inside a Laravel application: the service provider, the config file, the log table and the cleanup command."
+---
+
 # Laravel Integration
 
 This package provides seamless Laravel integration for sending UBL invoices via the Peppol network.

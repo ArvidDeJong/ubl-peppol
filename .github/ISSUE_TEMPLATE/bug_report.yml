@@ -1,0 +1,60 @@
+name: Bug report
+description: Something doesn't work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Found a vulnerability, for example a way to inject XML through invoice data? Please report it privately instead: see SECURITY.md.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead? Include the error message or the validation rule that fired.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The invoice data you passed in, trimmed to the smallest example that fails. Never paste real customer data; invent the names and numbers.
+      render: php
+    validations:
+      required: true
+  - type: textarea
+    id: xml
+    attributes:
+      label: Generated XML
+      description: The relevant part of the XML that came out, if the problem is in the output. Again, no real customer data.
+      render: xml
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Which rules?
+      options:
+        - Dutch (NLCIUS)
+        - Belgian (EN 16931)
+        - Both
+        - Not applicable
+    validations:
+      required: true
+  - type: input
+    id: package-version
+    attributes:
+      label: Package version
+      placeholder: "1.7.0"
+    validations:
+      required: true
+  - type: input
+    id: php-version
+    attributes:
+      label: PHP version
+      placeholder: "8.4"
+    validations:
+      required: true
+  - type: input
+    id: laravel-version
+    attributes:
+      label: Laravel version
+      description: Leave empty if you use the package without Laravel.
+      placeholder: "13.0"

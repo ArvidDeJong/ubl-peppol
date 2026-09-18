@@ -1,3 +1,9 @@
+---
+title: Company numbers
+nav_order: 8
+description: Validating company registration numbers such as the Dutch KvK and the Belgian ondernemingsnummer before they go into an invoice.
+---
+
 # Company Registration Number Validation
 
 The `CompanyRegistrationService` provides validation for company registration numbers across multiple European countries. This service validates format, checksums, and provides detailed information about each registration type.
@@ -407,7 +413,7 @@ foreach ($countries as $code => $info) {
 
 ## See Also
 
-- [VIES VAT Validation](vies-validation.md) - Validate EU VAT numbers
-- [Belgium Implementation](belgium-implementation.md) - Belgian UBL specifics
-- [Netherlands Implementation](netherlands-implementation.md) - Dutch UBL specifics
+- [VIES VAT Validation](vat-numbers.md) - Validate EU VAT numbers
+- [Belgium Implementation](belgium.md) - Belgian UBL specifics
+- [Netherlands Implementation](netherlands.md) - Dutch UBL specifics
 - [API Reference](api-reference.md) - Complete API documentation

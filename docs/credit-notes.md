@@ -1,3 +1,9 @@
+---
+title: Credit notes
+nav_order: 5
+description: Generating PEPPOL BIS Billing 3.0 credit notes, the billing reference BR-55 demands, and why amounts must be positive.
+---
+
 # Credit Notes - PEPPOL BIS Billing 3.0 / EN 16931
 
 This document explains how to generate PEPPOL-compliant Credit Notes using the `darvis/ubl-peppol` package.

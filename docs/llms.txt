@@ -1,0 +1,25 @@
+---
+layout: null
+permalink: /llms.txt
+sitemap: false
+---
+# {{ site.package.name }}
+
+> {{ site.description }}
+
+- Install: `composer require {{ site.package.name }}`
+- Requires: {{ site.package.requires }}
+- License: MIT
+- Source: {{ site.package.repository }}
+- Packagist: {{ site.package.packagist }}
+
+## Documentation
+{% assign pages = site.pages | where_exp: "p", "p.nav_order" | sort: "nav_order" %}
+{%- for p in pages %}
+- [{{ p.title }}]({{ p.url | absolute_url }}): {{ p.description | default: site.description }}
+{%- endfor %}
+
+## FAQ
+{% for item in site.data.faq %}
+- **{{ item.q }}** {{ item.a }}
+{%- endfor %}

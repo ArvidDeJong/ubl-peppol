@@ -1,3 +1,9 @@
+---
+title: Troubleshooting
+nav_order: 12
+description: What to do when a receiver rejects an invoice, a validation rule fires, or the generated XML is missing an element.
+---
+
 # Troubleshooting
 
 This guide helps solve common problems with the UBL-PEPPOL package.

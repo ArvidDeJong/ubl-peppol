@@ -1,0 +1,47 @@
+{%- comment -%}
+  Structured data. Every value comes from _config.yml or _data/faq.yml, which also render the visible pages.
+{%- endcomment -%}
+{%- if page.url == "/" %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareSourceCode",
+      "name": {{ site.package.name | jsonify }},
+      "description": {{ site.description | jsonify }},
+      "url": {{ "/" | absolute_url | jsonify }},
+      "codeRepository": {{ site.package.repository | jsonify }},
+      "programmingLanguage": "PHP",
+      "runtimePlatform": {{ site.package.platforms | jsonify }},
+      "license": {{ site.package.license_url | jsonify }},
+      "keywords": {{ site.package.keywords | jsonify }},
+      "creator": { "@id": {{ site.developer.url | append: "/#organization" | jsonify }} }
+    },
+    {
+      "@type": "Organization",
+      "@id": {{ site.developer.url | append: "/#organization" | jsonify }},
+      "name": {{ site.developer.company | jsonify }},
+      "url": {{ site.developer.url | jsonify }}
+    }
+  ]
+}
+</script>
+{%- endif %}
+{%- if page.faq %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {%- for item in site.data.faq %}
+    {
+      "@type": "Question",
+      "name": {{ item.q | jsonify }},
+      "acceptedAnswer": { "@type": "Answer", "text": {{ item.a | markdownify | strip_html | strip | jsonify }} }
+    }{% unless forloop.last %},{% endunless %}
+    {%- endfor %}
+  ]
+}
+</script>
+{%- endif %}

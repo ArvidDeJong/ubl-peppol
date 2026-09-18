@@ -1,3 +1,9 @@
+---
+title: VAT numbers
+nav_order: 7
+description: Checking a European VAT number against the VIES service, handling downtime, and what a valid answer does and does not prove.
+---
+
 # VIES VAT Number Validation
 
 The `ViesService` provides integration with the European Commission's VIES (VAT Information Exchange System) to validate EU VAT numbers in real-time.
@@ -270,6 +276,6 @@ if (!preg_match('/^NL[0-9]{9}B[0-9]{2}$/', $vatNumber)) {
 
 ## See Also
 
-- [Belgium Implementation](belgium-implementation.md) - Belgian VAT number requirements
-- [Netherlands Implementation](netherlands-implementation.md) - Dutch VAT number requirements
+- [Belgium Implementation](belgium.md) - Belgian VAT number requirements
+- [Netherlands Implementation](netherlands.md) - Dutch VAT number requirements
 - [API Reference](api-reference.md) - Complete API documentation

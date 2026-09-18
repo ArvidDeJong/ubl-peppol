@@ -1,0 +1,42 @@
+title: UBL PEPPOL
+description: Generates UBL 2.1 invoices and credit notes that pass PEPPOL BIS Billing 3.0 and EN 16931 validation, with Dutch and Belgian rules. Works in plain PHP; Laravel is optional.
+url: https://arviddejong.github.io
+baseurl: /ubl-peppol
+
+remote_theme: just-the-docs/just-the-docs@v0.12.0
+plugins:
+  - jekyll-remote-theme
+  - jekyll-relative-links
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+# Facts about the package, used by the structured data and llms.txt.
+package:
+  name: darvis/ubl-peppol
+  repository: https://github.com/ArvidDeJong/ubl-peppol
+  packagist: https://packagist.org/packages/darvis/ubl-peppol
+  license_url: https://github.com/ArvidDeJong/ubl-peppol/blob/main/LICENSE
+  requires: "PHP 8.2+ with the DOM extension. Laravel 11, 12 or 13 only for the optional Laravel layer."
+  platforms: [PHP, Laravel]
+  keywords: [ubl, peppol, e-invoicing, en 16931, bis billing 3.0, nlcius, credit notes, vies, vat validation, laravel]
+
+# Developer credit in the footer and the structured data.
+developer:
+  company: ARVID.NL
+  url: https://arvid.nl
+
+color_scheme: light
+search_enabled: true
+heading_anchors: true
+
+aux_links:
+  GitHub: https://github.com/ArvidDeJong/ubl-peppol
+  Packagist: https://packagist.org/packages/darvis/ubl-peppol
+aux_links_new_tab: true
+
+gh_edit_link: true
+gh_edit_link_text: Edit this page on GitHub
+gh_edit_repository: https://github.com/ArvidDeJong/ubl-peppol
+gh_edit_branch: main
+gh_edit_source: docs
+gh_edit_view_mode: tree
