@@ -10,8 +10,10 @@ This package provides seamless Laravel integration for sending UBL invoices via 
 
 ## Requirements
 
-- Laravel 11.x or 12.x
-- PHP 8.2+
+- Laravel 11, 12 or 13
+- PHP 8.2+ with the DOM extension
+
+Laravel is optional: the invoice builders and the validator work without it. This page is about what the package adds when there *is* an application around it.
 
 ## Installation
 
@@ -33,11 +35,14 @@ This creates `config/ubl-peppol.php`:
 
 ```php
 return [
+    'log_retention_days' => env('PEPPOL_LOG_RETENTION_DAYS', 60),
+    'password' => env('PEPPOL_PASSWORD'),
     'url' => env('PEPPOL_URL'),
     'username' => env('PEPPOL_USERNAME'),
-    'password' => env('PEPPOL_PASSWORD'),
 ];
 ```
+
+Publishing is optional. Without it the defaults apply and the `.env` values below are still picked up.
 
 Add the following to your `.env` file:
 
@@ -47,38 +52,41 @@ PEPPOL_USERNAME=your-username
 PEPPOL_PASSWORD=your-password
 ```
 
-## Database Migration
+## The log table
 
-The package automatically loads its migrations. Run:
-
-```bash
-php artisan migrate
-```
-
-This creates the `peppol_logs` table for tracking sent invoices.
-
-To publish the migration for customization:
+`peppol_logs` records what was sent and what came back. It is **opt-in**: an application that only generates XML never needs it. To use it, publish the migration and run it:
 
 ```bash
 php artisan vendor:publish --tag=ubl-peppol-migrations
+php artisan migrate
+```
+
+Rows are cleaned up by `php artisan peppol:cleanup`, which keeps `log_retention_days` days (60 by default). Pass `--days=30` to override it for one run. Schedule it if you send a lot:
+
+```php
+// routes/console.php
+Schedule::command('peppol:cleanup')->weekly();
 ```
 
 ## Usage
 
 ### Generating UBL XML
 
+Resolve a builder from the container, or new one up; both work. Pick it by the receiver's country.
+
 ```php
 use Darvis\UblPeppol\UblNlBis3Service;
-use Darvis\UblPeppol\UblBeBis3Service;
 
-// Dutch invoice
-$service = new UblNlBis3Service();
-$xml = $service->generateInvoice($invoiceData);
+$ubl = app(UblNlBis3Service::class);
 
-// Belgian invoice
-$service = new UblBeBis3Service();
-$xml = $service->generateInvoice($invoiceData);
+$ubl->createDocument();
+$ubl->addInvoiceHeader('INV-2026-001', '2026-01-15', '2026-02-14');
+// supplier, customer, lines, tax total, monetary total
+
+$xml = $ubl->generateXml(validateFirst: true);
 ```
+
+A document is built element by element, in the order the UBL schema fixes. [Dutch invoices](netherlands.md) and [Belgian invoices](belgium.md) each walk through a complete one.
 
 ### Sending via Peppol
 
@@ -91,7 +99,7 @@ $peppolService = app(PeppolService::class);
 $result = $peppolService->sendInvoice($invoice, $xml);
 
 // Send XML directly
-$result = $peppolService->sendUblXml($xml, 'INV-2024-001');
+$result = $peppolService->sendUblXml($xml, 'INV-2026-001');
 
 if ($result['success']) {
     // Invoice sent successfully

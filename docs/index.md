@@ -22,6 +22,16 @@ PHP 8.2 or newer with the DOM extension. Nothing else is required to generate in
 - Checks European VAT numbers against VIES, and company registration numbers such as the KvK number and the Belgian ondernemingsnummer
 - Sends the result to the PEPPOL network through your access point provider, and logs what came back
 
+## New to PEPPOL?
+
+Three things are worth knowing before you write any code, because they explain why this package does what it does.
+
+**PEPPOL is a network, and you cannot reach it directly.** Sending an invoice means handing it to an *access point provider*: a company you have a contract with, that is connected to the network and delivers on your behalf (Storecove and SupplyDrive are examples). This package builds the document and can hand it to your provider's API. It is not an access point itself, and without a provider you can still generate and validate invoices, you just cannot send them.
+
+**An e-invoice is not a PDF, it is a document that must obey rules.** The rules come in layers: EN 16931 is the European standard, PEPPOL BIS Billing 3.0 is the profile built on it that the network requires, and each country adds its own on top (NLCIUS for the Netherlands). A receiver checks your document against all of them and rejects it as a whole if one rule fails, which is why this package has a separate builder per country.
+
+**A rejection tells you a rule code, not a sentence.** Something like `BR-CO-11` or `PEPPOL-EN16931-R010`. That code is a lookup key into the [specification](https://docs.peppol.eu/poacc/billing/3.0/bis/), which is the authority on what went wrong. [Troubleshooting](troubleshooting.md) lists the ones that come up most.
+
 ## Where to start
 
 - [Getting started](getting-started.md) builds your first invoice, with and without Laravel
@@ -29,14 +39,14 @@ PHP 8.2 or newer with the DOM extension. Nothing else is required to generate in
 - [Validation](validation.md) explains how to check a document before it leaves your application
 - [Troubleshooting](troubleshooting.md) is the place to look when a receiver rejects one
 
-## Reading the PEPPOL rules
+## Before you go live
 
-Every rule this package enforces comes from the [PEPPOL BIS Billing 3.0 specification](https://docs.peppol.eu/poacc/billing/3.0/bis/). When a receiver rejects an invoice, that document is the authority, and the rule code in the rejection (`BR-CO-11`, `PEPPOL-EN16931-R010`) points straight at the paragraph that explains why.
-
-Before going live, run a generated document through an official validator:
+This package checks the rules it implements, which is not the same as the full check a receiver runs. Put one real document through an official validator before the first invoice goes out:
 
 - [Dutch PEPPOL validator](https://test.peppolautoriteit.nl/validate)
 - [Ecosio validator](https://ecosio.com/en/peppol-and-xml-document-validator/) for Belgian documents
+
+It costs ten minutes and it is the difference between finding a problem yourself and hearing about it from a customer whose invoice bounced.
 
 ## Support
 

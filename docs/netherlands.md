@@ -44,11 +44,11 @@ $ubl = new UblNlBis3Service();
 $ubl->createDocument();
 
 // 1. Invoice header
-$ubl->addInvoiceHeader('NL-INV-2024-001', '2024-01-15', '2024-02-14');
+$ubl->addInvoiceHeader('NL-INV-2026-001', '2026-01-15', '2026-02-14');
 
 // 2. References
 $ubl->addBuyerReference('CLIENT-001');
-$ubl->addOrderReference('ORDER-2024-001');
+$ubl->addOrderReference('ORDER-2026-001');
 
 // 3. Supplier (Dutch company)
 $ubl->addAccountingSupplierParty(
@@ -120,7 +120,7 @@ $ubl->addLegalMonetaryTotal([
 $ubl->addPaymentMeans(
     '30',                     // Credit transfer
     'Credit transfer',
-    'NL-PAY-2024-001',
+    'NL-PAY-2026-001',
     'NL12 ABNA 0123 4567 89', // Dutch IBAN
     'My Dutch Company BV',
     'ABNANL2A'               // BIC code

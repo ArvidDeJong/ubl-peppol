@@ -43,11 +43,11 @@ $ubl = new UblBeBis3Service();
 $ubl->createDocument();
 
 // 1. Invoice header
-$ubl->addInvoiceHeader('BE-INV-2024-001', '2024-01-15', '2024-02-14');
+$ubl->addInvoiceHeader('BE-INV-2026-001', '2026-01-15', '2026-02-14');
 
 // 2. Required references
 $ubl->addBuyerReference('CLIENT-001');
-$ubl->addOrderReference('ORDER-2024-001');
+$ubl->addOrderReference('ORDER-2026-001');
 
 // 3. PEPPOL reference (ubl-BE-01)
 $ubl->addAdditionalDocumentReference('PEPPOL', 'PEPPOLInvoice');
@@ -118,7 +118,7 @@ $ubl->addLegalMonetaryTotal([
 $ubl->addPaymentMeans(
     '30',                     // Credit transfer
     'Credit transfer',
-    'BE-PAY-2024-001',
+    'BE-PAY-2026-001',
     'BE12 3456 7890 1234',   // Belgian IBAN
     'My Belgian Company BV',
     'BBRUBEBB',              // BIC code

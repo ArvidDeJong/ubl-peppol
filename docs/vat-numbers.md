@@ -56,7 +56,7 @@ Both methods return an array with the following structure:
     'countryCode' => 'BE',              // String: ISO country code
     'vatNumber' => '0999000228',        // String: VAT number without prefix
     'fullVatNumber' => 'BE0999000228',  // String: Complete VAT number
-    'checked_at' => '2024-01-15 10:30:00', // String: Timestamp of check
+    'checked_at' => '2026-01-15 10:30:00', // String: Timestamp of check
     'error' => null                     // String|null: Error message if invalid
 ]
 ```
@@ -73,7 +73,7 @@ When validation fails:
     'countryCode' => 'BE',
     'vatNumber' => '0123456789',
     'fullVatNumber' => null,
-    'checked_at' => '2024-01-15 10:30:00',
+    'checked_at' => '2026-01-15 10:30:00',
     'error' => 'Invalid VAT number format'
 ]
 ```

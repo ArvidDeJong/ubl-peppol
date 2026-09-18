@@ -166,7 +166,7 @@ $xml = $ubl->generateXml(true); // Optional basic validation
 $ubl->enableStrictCodelistValidation('/path/to/peppol-codelists.json');
 $xml = $ubl->generateXml(true);
 
-$ubl->addInvoiceHeader('INV-001', 'invalid-date', '2024-02-14');
+$ubl->addInvoiceHeader('INV-001', 'invalid-date', '2026-02-14');
 // Throws: InvalidArgumentException('Invalid date format')
 ```
 
@@ -231,8 +231,8 @@ $ubl->addAdditionalDocumentReference('PEPPOL', 'PEPPOLInvoice');
 **Solution**:
 
 ```php
-$ubl->addInvoiceHeader('INV-001', '2024-01-15', '2024-02-14'); // Correct
-$ubl->addInvoiceHeader('INV-001', '15-01-2024', '14-02-2024'); // Error
+$ubl->addInvoiceHeader('INV-001', '2026-01-15', '2026-02-14'); // Correct
+$ubl->addInvoiceHeader('INV-001', '15-01-2026', '14-02-2026'); // Error
 ```
 
 #### VAT Number Errors
@@ -318,10 +318,10 @@ The package performs automatic validation:
 
 ```php
 // Automatische validatie bij invoer
-$ubl->addInvoiceHeader('', '2024-01-15', '2024-02-14');
+$ubl->addInvoiceHeader('', '2026-01-15', '2026-02-14');
 // Throws: InvalidArgumentException('Invoice number cannot be empty')
 
-$ubl->addInvoiceHeader('INV-001', 'invalid-date', '2024-02-14');
+$ubl->addInvoiceHeader('INV-001', 'invalid-date', '2026-02-14');
 // Throws: InvalidArgumentException('Invalid date format')
 ```
 

@@ -121,7 +121,7 @@ $ubl->createDocument(); // ✅ Eén keer
 ```php
 $ubl = new UblBeBis3Service();
 $ubl->createDocument(); // ✅ Eerst document initialiseren
-$ubl->addInvoiceHeader('INV-001', '2024-01-15', '2024-02-14');
+$ubl->addInvoiceHeader('INV-001', '2026-01-15', '2026-02-14');
 ```
 
 ### Invalid Date Format
@@ -133,11 +133,11 @@ $ubl->addInvoiceHeader('INV-001', '2024-01-15', '2024-02-14');
 **Solution**:
 ```php
 // ✅ Correct format
-$ubl->addInvoiceHeader('INV-001', '2024-01-15', '2024-02-14');
+$ubl->addInvoiceHeader('INV-001', '2026-01-15', '2026-02-14');
 
 // ❌ Wrong formats
-$ubl->addInvoiceHeader('INV-001', '15-01-2024', '14/02/2024');
-$ubl->addInvoiceHeader('INV-001', '2024/01/15', '2024.02.14');
+$ubl->addInvoiceHeader('INV-001', '15-01-2026', '14/02/2026');
+$ubl->addInvoiceHeader('INV-001', '2026/01/15', '2026.02.14');
 ```
 
 ## Validation Errors
@@ -224,7 +224,7 @@ echo $xml; // Empty or minimal XML
 ```php
 $ubl = new UblBeBis3Service();
 $ubl->createDocument();
-$ubl->addInvoiceHeader('INV-001', '2024-01-15', '2024-02-14');
+$ubl->addInvoiceHeader('INV-001', '2026-01-15', '2026-02-14');
 // Voeg meer elementen toe...
 $xml = $ubl->generateXml();
 ```

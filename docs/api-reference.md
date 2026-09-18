@@ -37,6 +37,21 @@ $xml = $ubl->generateXml();
 $xml = $ubl->generateXml(true);
 ```
 
+#### `validate(): InvoiceValidationResult`
+
+Checks the document against the business rules the package implements and returns the result. Use it before sending, or let `generateXml(validateFirst: true)` do both.
+
+```php
+$result = $ubl->validate();
+
+$result->isValid();               // bool
+$result->getErrorsAsString();     // every rule that fired, one per line
+$result->getWarningsAsString();
+$result->getCorrections();        // values the builder fixed for you
+```
+
+This is not the full check a receiver runs. See [Validation](validation.md).
+
 #### `enableStrictCodelistValidation(?string $jsonPath = null, ?CodelistRegistry $registry = null): self`
 
 Enables strict codelist validation using a JSON file or a registry instance.
@@ -54,7 +69,7 @@ $ubl->enableStrictCodelistValidation(registry: $registry);
 #### `addInvoiceHeader(string $invoiceNumber, $issueDate, $dueDate): self`
 
 ```php
-$ubl->addInvoiceHeader('INV-2024-001', '2024-01-15', '2024-02-14');
+$ubl->addInvoiceHeader('INV-2026-001', '2026-01-15', '2026-02-14');
 ```
 
 #### `addBuyerReference(?string $buyerRef = 'BUYER_REF'): self`
@@ -66,7 +81,7 @@ $ubl->addBuyerReference('KLANT-001');
 #### `addOrderReference(string $orderNumber = 'PO-001'): self`
 
 ```php
-$ubl->addOrderReference('ORDER-2024-001');
+$ubl->addOrderReference('ORDER-2026-001');
 ```
 
 #### `addAdditionalDocumentReference(string $id, ?string $documentType = null): self`
@@ -74,6 +89,39 @@ $ubl->addOrderReference('ORDER-2024-001');
 ```php
 $ubl->addAdditionalDocumentReference('DOC-001', 'Contract');
 ```
+
+### Credit Notes
+
+A credit note is a different document type, not an invoice with negative amounts. See [Credit notes](credit-notes.md) for the whole picture.
+
+#### `createCreditNoteDocument(): self`
+
+Starts a `<CreditNote>` document instead of an `<Invoice>`. Use it in place of `createDocument()`.
+
+#### `addCreditNoteHeader(string $creditNoteNumber, $issueDate): self`
+
+Adds the header with type code 381. There is no due date on a credit note.
+
+```php
+$ubl->createCreditNoteDocument();
+$ubl->addCreditNoteHeader('CN-2026-001', '2026-01-21');
+```
+
+#### `addBillingReference(string $originalInvoiceNumber, ?string $originalIssueDate = null): self`
+
+The invoice this credit note corrects. Required by rule BR-55: without it the document is rejected.
+
+```php
+$ubl->addBillingReference('INV-2026-001', '2026-01-15');
+```
+
+#### `addCreditNoteLine(array $lineData): self`
+
+Same shape as `addInvoiceLine()`, but writes `<CreditedQuantity>`. Pass amounts as positive numbers; negatives are converted for you, because the document type expresses the credit, not the sign.
+
+#### `isCreditNote(): bool`
+
+Whether the current document is a credit note.
 
 ### Parties
 
@@ -313,7 +361,7 @@ $result = $peppolService->sendInvoice($invoice, $ublXml);
 Send UBL XML directly without an Invoice model.
 
 ```php
-$result = $peppolService->sendUblXml($ublXml, 'INV-2024-001');
+$result = $peppolService->sendUblXml($ublXml, 'INV-2026-001');
 ```
 
 ### `testConnection(): array`

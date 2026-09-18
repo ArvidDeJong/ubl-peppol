@@ -61,7 +61,7 @@ use Darvis\UblPeppol\UblBeBis3Service;
 // 1. Generate UBL XML
 $ublService = new UblBeBis3Service();
 $ublService->createDocument();
-$ublService->addInvoiceHeader('INV-2024-001', '2024-01-15', '2024-02-14');
+$ublService->addInvoiceHeader('INV-2026-001', '2026-01-15', '2026-02-14');
 // ... add more elements ...
 $ublXml = $ublService->generateXml();
 
@@ -81,7 +81,7 @@ if ($result['success']) {
 If you don't have an Invoice model, you can send XML directly:
 
 ```php
-$result = $peppolService->sendUblXml($ublXml, 'INV-2024-001');
+$result = $peppolService->sendUblXml($ublXml, 'INV-2026-001');
 ```
 
 ### Test Connection
