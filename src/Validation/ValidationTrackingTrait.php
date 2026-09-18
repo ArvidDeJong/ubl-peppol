@@ -7,8 +7,6 @@ namespace Darvis\UblPeppol\Validation;
  *
  * This trait consolidates common code-tracking functionality used by both
  * UblBeBis3Service and UblNlBis3Service to eliminate duplication.
- *
- * @package Darvis\UblPeppol\Validation
  */
 trait ValidationTrackingTrait
 {
@@ -70,7 +68,6 @@ trait ValidationTrackingTrait
      *
      * @param  string|null  $jsonPath  Path to JSON codelists file or directory
      * @param  CodelistRegistry|null  $registry  Pre-loaded registry instance
-     * @return self
      *
      * @example
      * // Load from JSON file

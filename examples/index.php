@@ -2,7 +2,7 @@
 
 /**
  * UBL/PEPPOL Examples Index
- * 
+ *
  * This file provides an overview of all available UBL/PEPPOL examples.
  */
 ?>

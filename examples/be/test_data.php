@@ -4,7 +4,7 @@
 $invoice = [
     // Invoice header information
     'header' => [
-        'invoice_number' => 'INV-' . date('Ym') . '-001',
+        'invoice_number' => 'INV-'.date('Ym').'-001',
         'issue_date' => date('Y-m-d', strtotime('-1 days')),
         'due_date' => date('Y-m-d', strtotime('+30 days')),
         'buyer_reference' => 'ARVID-REF-001',
@@ -30,7 +30,7 @@ $invoice = [
         'vat_number' => '853848932B01',              // Customer VAT number without country code
         'endpoint_id' => 'RSSMRA85M01H501Z',         // Geldig Italiaans Codice Fiscale formaat
         'endpoint_scheme' => '0210',                // 0210 for VAT
-        'party_id' => 'CUST-' . uniqid(),           // Internal reference
+        'party_id' => 'CUST-'.uniqid(),           // Internal reference
         'name' => 'ARVID.NL B.V.',                  // Company name
         'street' => 'Klantstraat 123',              // Street + number
         'postal_code' => '1234 AB',                 // Postal code
@@ -64,7 +64,7 @@ $invoice = [
             'tax_scheme_id' => 'VAT',    // BTW-schema (VAT = BTW)
             'item_type_code' => '1000',   // Product category code
             'item_type_scheme' => 'STD',  // Standard classification scheme (from UNTDID 7143 list)
-            'item_type_description' => 'Product' // Product type description
+            'item_type_description' => 'Product', // Product type description
         ],
         [
             'id' => '2',
@@ -80,27 +80,27 @@ $invoice = [
             'order_line_id' => 'PO-2023-456',       // Optional: purchase order line reference
             'tax_category_id' => 'S',
             'tax_category_name' => 'Standard rated',
-        ]
+        ],
     ],
 
     // Delivery information
     'delivery' => [
         'date' => date('Y-m-d', strtotime('+1 day')), // Leveringsdatum (morgen)
-        'location_id' => 'DELIVERY-' . uniqid(),     // Uniek ID voor de leveringslocatie
+        'location_id' => 'DELIVERY-'.uniqid(),     // Uniek ID voor de leveringslocatie
         'location_scheme' => '0088',                 // 0088 = GLN
         'street' => 'Aambeeld 20',              // Straatnaam
         'additional_street' => 'Tav. Ontvangst',     // Aanvullende straatinformatie
         'city' => 'Medemblik',                       // Stad
         'postal_code' => '1011 AA',                  // Postcode
         'country' => 'NL',                           // Landcode (2 letters)
-        'party_name' => 'ARVID.NL B.V.'              // Naam ontvangende partij
+        'party_name' => 'ARVID.NL B.V.',              // Naam ontvangende partij
     ],
 
     // Payment information
     'payment' => [
         'means_code' => '30',                       // 30 = Credit transfer
         'means_name' => 'Credit transfer via SEPA', // Payment method description
-        'payment_id' => 'INV-' . date('Y') . '-123', // Payment reference
+        'payment_id' => 'INV-'.date('Y').'-123', // Payment reference
         'account_iban' => 'NL32RABO0180732595',     // IBAN
         'account_name' => 'Darvis ALU',             // Account holder name
         'bic' => 'RABONL22',                        // BIC/SWIFT code

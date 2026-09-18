@@ -28,7 +28,8 @@ class ViesService
             );
 
             // Clean up the VAT number - remove spaces and country prefix if present
-            $cleanVatNumber = preg_replace('/\s+/', '', $vatNumber);
+            // preg_replace returns null on a regex failure; '' keeps the string functions below safe.
+            $cleanVatNumber = preg_replace('/\s+/', '', $vatNumber) ?? '';
             $cleanCountryCode = strtoupper(trim($countryCode));
 
             // Remove country code prefix from VAT number if present
@@ -72,7 +73,7 @@ class ViesService
      */
     public function checkFullVatNumber(string $fullVatNumber): array
     {
-        $cleanVat = preg_replace('/\s+/', '', $fullVatNumber);
+        $cleanVat = preg_replace('/\s+/', '', $fullVatNumber) ?? '';
 
         if (strlen($cleanVat) < 3) {
             return [

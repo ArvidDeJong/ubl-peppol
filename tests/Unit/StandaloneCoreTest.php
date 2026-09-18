@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use Darvis\UblPeppol\UblNlBis3Service;
 
 /**
  * The package promises that invoices can be built without Laravel: `composer require` pulls in
@@ -56,7 +57,7 @@ it('lists only files that exist, so the exception list cannot go stale', functio
 it('builds an invoice with nothing but the DOM extension loaded', function () {
     expect(extension_loaded('dom'))->toBeTrue();
 
-    $service = new Darvis\UblPeppol\UblNlBis3Service();
+    $service = new UblNlBis3Service;
     $service->createDocument();
 
     expect($service->generateXml())->toContain('<Invoice');

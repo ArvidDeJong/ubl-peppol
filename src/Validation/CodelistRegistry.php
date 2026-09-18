@@ -13,7 +13,7 @@ class CodelistRegistry
 
     public static function fromJsonFile(string $path): self
     {
-        if (!is_file($path)) {
+        if (! is_file($path)) {
             throw new \InvalidArgumentException("Codelist file not found: {$path}");
         }
 
@@ -23,7 +23,7 @@ class CodelistRegistry
         }
 
         $data = json_decode($content, true);
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             throw new \InvalidArgumentException("Invalid codelist JSON file: {$path}");
         }
 
@@ -32,16 +32,17 @@ class CodelistRegistry
 
     public function isLoaded(string $listName): bool
     {
-        return array_key_exists($listName, $this->lists) && !empty($this->lists[$listName]);
+        return array_key_exists($listName, $this->lists) && ! empty($this->lists[$listName]);
     }
 
     public function has(string $listName, string $code): bool
     {
-        if (!$this->isLoaded($listName)) {
+        if (! $this->isLoaded($listName)) {
             return false;
         }
 
         $normalized = $this->normalizeCode($code);
+
         return isset($this->lists[$listName][$normalized]);
     }
 
@@ -50,13 +51,13 @@ class CodelistRegistry
         $normalized = [];
 
         foreach ($lists as $listName => $codes) {
-            if (!is_array($codes)) {
+            if (! is_array($codes)) {
                 continue;
             }
 
             $normalized[$listName] = [];
             foreach ($codes as $code) {
-                $normalized[$listName][$this->normalizeCode((string)$code)] = true;
+                $normalized[$listName][$this->normalizeCode((string) $code)] = true;
             }
         }
 

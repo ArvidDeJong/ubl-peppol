@@ -1,0 +1,583 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Method Darvis\\UblPeppol\\CompanyRegistrationService\:\:getSupportedCountries\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/CompanyRegistrationService.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\CompanyRegistrationService\:\:validate\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/CompanyRegistrationService.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\CompanyRegistrationService\:\:validateBE\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/CompanyRegistrationService.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\CompanyRegistrationService\:\:validateDE\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/CompanyRegistrationService.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\CompanyRegistrationService\:\:validateFR\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/CompanyRegistrationService.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\CompanyRegistrationService\:\:validateLU\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/CompanyRegistrationService.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\CompanyRegistrationService\:\:validateNL\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/CompanyRegistrationService.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Constants\\UnitCodes\:\:getAll\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Constants/UnitCodes.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Models\\PeppolLog\:\:scopeError\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: src/Models/PeppolLog.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Models\\PeppolLog\:\:scopeError\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Models/PeppolLog.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Models\\PeppolLog\:\:scopeOlderThan\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: src/Models/PeppolLog.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Models\\PeppolLog\:\:scopeOlderThan\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Models/PeppolLog.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Models\\PeppolLog\:\:scopePending\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: src/Models/PeppolLog.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Models\\PeppolLog\:\:scopePending\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Models/PeppolLog.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Models\\PeppolLog\:\:scopeRecent\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: src/Models/PeppolLog.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Models\\PeppolLog\:\:scopeRecent\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Models/PeppolLog.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Models\\PeppolLog\:\:scopeSuccess\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: src/Models/PeppolLog.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Models\\PeppolLog\:\:scopeSuccess\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Models/PeppolLog.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\PeppolService\:\:getConfig\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/PeppolService.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\PeppolService\:\:sendUblXml\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/PeppolService.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\PeppolService\:\:testConnection\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/PeppolService.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 3
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:addChildElement\(\) has parameter \$attributes with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:addCreditNoteLine\(\) has parameter \$lineData with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:addInvoiceLine\(\) has parameter \$lineData with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:addLegalMonetaryTotal\(\) has parameter \$totals with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:addTaxTotal\(\) has parameter \$taxTotals with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:calculateTotals\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:createElement\(\) has parameter \$attributes with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:getInvoiceLines\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:getTaxTotals\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:getTotals\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$dom in isset\(\) is not nullable nor uninitialized\.$#'
+			identifier: isset.initializedProperty
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$invoiceLines type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$taxTotals type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$totals type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$usedCurrencyCodes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$usedEndpointSchemeIds type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$usedPartySchemeIds type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$usedPaymentMeansCodes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$usedRegistrationSchemeIds type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$usedSchemeIds type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$usedTaxCategoryIds type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblBeBis3Service\:\:\$usedUnitCodes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Variable \$issueDateObj in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.variable
+			count: 1
+			path: src/UblBeBis3Service.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 2
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblNlBis3Service\:\:addChildElement\(\) has parameter \$attributes with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblNlBis3Service\:\:addInvoiceLine\(\) has parameter \$lineData with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblNlBis3Service\:\:addLegalMonetaryTotal\(\) has parameter \$amounts with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblNlBis3Service\:\:addTaxTotal\(\) has parameter \$taxes with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\UblNlBis3Service\:\:createElement\(\) has parameter \$attributes with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Offset ''tax_scheme_id'' on non\-empty\-array on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$settlementDiscountAmount$#'
+			identifier: parameter.notFound
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$settlementDiscountDate$#'
+			identifier: parameter.notFound
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$settlementDiscountPercent$#'
+			identifier: parameter.notFound
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Parameter \#1 \$num of function number_format expects float, float\|int\<0, 100\>\|string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Parameter \#1 \$num of function number_format expects float, float\|int\<0, max\>\|string given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblNlBis3Service\:\:\$dom in isset\(\) is not nullable nor uninitialized\.$#'
+			identifier: isset.initializedProperty
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblNlBis3Service\:\:\$usedCurrencyCodes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblNlBis3Service\:\:\$usedEndpointSchemeIds type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblNlBis3Service\:\:\$usedPartySchemeIds type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblNlBis3Service\:\:\$usedPaymentMeansCodes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblNlBis3Service\:\:\$usedRegistrationSchemeIds type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblNlBis3Service\:\:\$usedSchemeIds type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblNlBis3Service\:\:\$usedTaxCategoryIds type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\UblNlBis3Service\:\:\$usedUnitCodes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Variable \$city on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Variable \$companyId on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Variable \$countryCode on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Variable \$endpointId on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Variable \$endpointSchemeID on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Variable \$issueDateObj in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.variable
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Variable \$partyId on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Variable \$partyName on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Variable \$postalCode on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Variable \$street on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Variable \$value on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/UblNlBis3Service.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\CodelistRegistry\:\:__construct\(\) has parameter \$lists with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/CodelistRegistry.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\CodelistRegistry\:\:normalizeLists\(\) has parameter \$lists with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/CodelistRegistry.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\CodelistRegistry\:\:normalizeLists\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/CodelistRegistry.php
+
+		-
+			message: '#^Property Darvis\\UblPeppol\\Validation\\CodelistRegistry\:\:\$lists type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/CodelistRegistry.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\InvoiceValidationResult\:\:__construct\(\) has parameter \$corrections with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/InvoiceValidationResult.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\InvoiceValidationResult\:\:__construct\(\) has parameter \$errors with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/InvoiceValidationResult.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\InvoiceValidationResult\:\:__construct\(\) has parameter \$warnings with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/InvoiceValidationResult.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\InvoiceValidationResult\:\:getCorrections\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/InvoiceValidationResult.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\InvoiceValidationResult\:\:toArray\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/InvoiceValidationResult.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\UblValidator\:\:validateBasicCodes\(\) has parameter \$codes with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/UblValidator.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\UblValidator\:\:validateInvoiceData\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/UblValidator.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\UblValidator\:\:validateInvoiceData\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/UblValidator.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\UblValidator\:\:validateInvoiceTotals\(\) has parameter \$documentAllowances with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/UblValidator.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\UblValidator\:\:validateInvoiceTotals\(\) has parameter \$documentCharges with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/UblValidator.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\UblValidator\:\:validateInvoiceTotals\(\) has parameter \$invoiceLines with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/UblValidator.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\UblValidator\:\:validateInvoiceTotals\(\) has parameter \$taxTotals with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/UblValidator.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\UblValidator\:\:validateInvoiceTotals\(\) has parameter \$totals with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/UblValidator.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\Validation\\UblValidator\:\:validateStrictCodelists\(\) has parameter \$codes with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/UblValidator.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\ViesService\:\:checkFullVatNumber\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/ViesService.php
+
+		-
+			message: '#^Method Darvis\\UblPeppol\\ViesService\:\:checkVat\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/ViesService.php

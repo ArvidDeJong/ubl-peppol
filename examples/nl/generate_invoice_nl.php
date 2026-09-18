@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__.'/../../vendor/autoload.php';
 
 use Darvis\UblPeppol\UblNlBis3Service;
 
@@ -8,7 +8,7 @@ include 'test_data.php';
 
 try {
     // Initialize UBL service
-    $ubl = new UblNlBis3Service();
+    $ubl = new UblNlBis3Service;
 
     // Create the document and add all components
     $ubl->createDocument()
@@ -82,9 +82,9 @@ try {
     $lineTotal = 0;
     $taxAmount = 0;
     foreach ($invoice['lines'] as $line) {
-        $lineQuantity = (float)$line['quantity'];
-        $linePrice = (float)$line['price_amount'];
-        $lineTaxRate = (float)$line['tax_percent'] / 100;
+        $lineQuantity = (float) $line['quantity'];
+        $linePrice = (float) $line['price_amount'];
+        $lineTaxRate = (float) $line['tax_percent'] / 100;
 
         $lineTotal += $linePrice * $lineQuantity;
         $taxAmount += ($linePrice * $lineQuantity) * $lineTaxRate;
@@ -102,7 +102,6 @@ try {
     $payableAmount = round($taxInclusiveAmount, 2);
 
     // --- End of Calculations ---
-
 
     // --- Start of UBL Document Assembly ---
 
@@ -126,7 +125,7 @@ try {
             'tax_category_name' => 'Standard rated', // Belgian requirement
             'tax_percent' => 21.0,        // 21% VAT
             'tax_scheme_id' => 'VAT',     // VAT tax scheme
-        ]
+        ],
     ]);
 
     // Add legal monetary total with properly rounded values
@@ -136,7 +135,7 @@ try {
             'tax_exclusive_amount' => number_format($taxExclusiveAmount, 2, '.', ''),
             'tax_inclusive_amount' => number_format($taxInclusiveAmount, 2, '.', ''),
             'charge_total_amount' => number_format($chargeAmount, 2, '.', ''),
-            'payable_amount' => number_format($payableAmount, 2, '.', '')
+            'payable_amount' => number_format($payableAmount, 2, '.', ''),
         ],
         'EUR'
     );
@@ -171,8 +170,8 @@ try {
     // Handle download if requested
     if (isset($_GET['download'])) {
         header('Content-Type: application/xml');
-        header('Content-Disposition: attachment; filename="nl-invoice-' . date('Y-m-d His') . '.xml"');
-        header('Content-Length: ' . strlen($xml));
+        header('Content-Disposition: attachment; filename="nl-invoice-'.date('Y-m-d His').'.xml"');
+        header('Content-Length: '.strlen($xml));
         echo $xml;
         exit;
     }
@@ -180,11 +179,11 @@ try {
     // Output to browser with proper content type
     header('Content-Type: application/xml');
     echo $xml;
-} catch (\InvalidArgumentException $e) {
+} catch (InvalidArgumentException $e) {
     header('Content-Type: text/plain');
-    die('Validation error: ' . $e->getMessage());
-} catch (\Exception $e) {
+    exit('Validation error: '.$e->getMessage());
+} catch (Exception $e) {
     header('Content-Type: text/plain');
-    die('Error: ' . $e->getMessage() .
-        "\n\nStack trace:\n" . $e->getTraceAsString());
+    exit('Error: '.$e->getMessage().
+        "\n\nStack trace:\n".$e->getTraceAsString());
 }

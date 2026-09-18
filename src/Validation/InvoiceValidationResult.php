@@ -4,16 +4,16 @@ namespace Darvis\UblPeppol\Validation;
 
 /**
  * Result object for invoice validation.
- * 
+ *
  * Contains validation status, errors, warnings, and suggested corrections.
  */
 class InvoiceValidationResult
 {
     /**
-     * @param bool $isValid Whether the invoice passed validation
-     * @param array $errors List of validation errors
-     * @param array $warnings List of validation warnings (non-fatal)
-     * @param array $corrections Suggested corrections to fix the errors
+     * @param  bool  $isValid  Whether the invoice passed validation
+     * @param  array  $errors  List of validation errors
+     * @param  array  $warnings  List of validation warnings (non-fatal)
+     * @param  array  $corrections  Suggested corrections to fix the errors
      */
     public function __construct(
         public readonly bool $isValid,
@@ -35,7 +35,7 @@ class InvoiceValidationResult
      */
     public function hasErrors(): bool
     {
-        return !empty($this->errors);
+        return ! empty($this->errors);
     }
 
     /**
@@ -43,7 +43,7 @@ class InvoiceValidationResult
      */
     public function hasWarnings(): bool
     {
-        return !empty($this->warnings);
+        return ! empty($this->warnings);
     }
 
     /**

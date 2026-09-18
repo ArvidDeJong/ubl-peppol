@@ -3,15 +3,13 @@
 namespace Darvis\UblPeppol\Validation;
 
 use Darvis\UblPeppol\Constants\UnitCodes;
-use Darvis\UblPeppol\Validation\InvoiceValidationResult;
-use Darvis\UblPeppol\Validation\CodelistRegistry;
 
 class UblValidator
 {
     /**
      * Validates if the given unit code is a valid UN/ECE Recommendation 20 with Rec 21 extension unit code.
      *
-     * @param string $unitCode The unit code to validate
+     * @param  string  $unitCode  The unit code to validate
      * @return bool True if valid, false otherwise
      */
     public static function isValidUnitCode(string $unitCode): bool
@@ -22,7 +20,7 @@ class UblValidator
     /**
      * Validates if the given currency code matches ISO 4217 format.
      *
-     * @param string $currencyCode The currency code to validate
+     * @param  string  $currencyCode  The currency code to validate
      * @return bool True if valid, false otherwise
      */
     public static function isValidCurrencyCodeFormat(string $currencyCode): bool
@@ -33,7 +31,7 @@ class UblValidator
     /**
      * Validates if the given scheme ID matches the PEPPOL format (4 digits).
      *
-     * @param string $schemeId The scheme ID to validate
+     * @param  string  $schemeId  The scheme ID to validate
      * @return bool True if valid, false otherwise
      */
     public static function isValidSchemeIdFormat(string $schemeId): bool
@@ -44,7 +42,7 @@ class UblValidator
     /**
      * Validates if the given payment means code matches UNCL 4461 format (1-3 digits).
      *
-     * @param string $paymentMeansCode The payment means code to validate
+     * @param  string  $paymentMeansCode  The payment means code to validate
      * @return bool True if valid, false otherwise
      */
     public static function isValidPaymentMeansCodeFormat(string $paymentMeansCode): bool
@@ -55,7 +53,7 @@ class UblValidator
     /**
      * Validates if the given classification scheme ID is valid according to UNTDID 7143.
      *
-     * @param string $schemeId The classification scheme ID to validate
+     * @param  string  $schemeId  The classification scheme ID to validate
      * @return bool True if valid, false otherwise
      */
     public static function isValidClassificationScheme(string $schemeId): bool
@@ -69,25 +67,25 @@ class UblValidator
             'SS', 'SSA', 'SSB', 'SSC', 'SSD', 'SSE', 'SSF', 'SSG', 'SSH', 'SSI', 'SSJ', 'SSK', 'SSL', 'SSM', 'SSN', 'SSO', 'SSP', 'SSQ', 'SSR', 'SSS', 'SST', 'SSU', 'SSV', 'SSW', 'SSX', 'SSY', 'SSZ',
             'ST', 'STA', 'STB', 'STC', 'STD', 'STE', 'STF', 'STG', 'STH', 'STI', 'STJ', 'STK', 'STL', 'STM', 'STN', 'STO', 'STP', 'STQ', 'STR', 'STS', 'STT', 'STU', 'STV', 'STW', 'STX', 'STY', 'STZ',
             'SUA', 'SUB', 'SUC', 'SUD', 'SUE', 'SUF', 'SUG', 'SUH', 'SUI', 'SUJ', 'SUK', 'SUL', 'SUM', 'TG', 'TSN', 'TSO', 'TSP', 'TSQ', 'TSR', 'TSS', 'TST', 'TSU',
-            'UA', 'UP', 'VN', 'VP', 'VS', 'VX', 'ZZZ'
+            'UA', 'UP', 'VN', 'VP', 'VS', 'VX', 'ZZZ',
         ];
 
         // PEPPOL specific schemes
         $peppolSchemes = [
             'CPV' => 'Common Procurement Vocabulary',
-            'SRV' => 'Service Type Code'
+            'SRV' => 'Service Type Code',
         ];
 
         $schemeId = strtoupper(trim($schemeId));
-        
+
         // Check if it's a standard UNTDID 7143 scheme or a PEPPOL specific scheme
         return in_array($schemeId, $validSchemes, true) || array_key_exists($schemeId, $peppolSchemes);
     }
-    
+
     /**
      * Gets the description of a classification scheme
      *
-     * @param string $schemeId The scheme ID
+     * @param  string  $schemeId  The scheme ID
      * @return string The scheme description or empty string if not found
      */
     public static function getClassificationSchemeDescription(string $schemeId): string
@@ -97,30 +95,30 @@ class UblValidator
             'SRV' => 'Service Type Code',
             'STD' => 'Standard',
             'HS' => 'Harmonized System',
-            'GS1' => 'GS1 Global Trade Item Number'
+            'GS1' => 'GS1 Global Trade Item Number',
             // Add more scheme descriptions as needed
         ];
-        
+
         return $descriptions[strtoupper($schemeId)] ?? '';
     }
 
     /**
      * Validates if the given tax category ID is valid.
      *
-     * @param string $categoryId The tax category ID to validate
+     * @param  string  $categoryId  The tax category ID to validate
      * @return bool True if valid, false otherwise
      */
     public static function isValidTaxCategory(string $categoryId): bool
     {
         $validCategories = ['S', 'Z', 'E', 'AE', 'K', 'G', 'O'];
+
         return in_array(strtoupper($categoryId), $validCategories, true);
     }
 
     /**
      * Validates basic code list formats used in UBL/PEPPOL documents.
      *
-     * @param array $codes Expected keys: currency_codes, scheme_ids, payment_means_codes, unit_codes, tax_category_ids
-     * @return InvoiceValidationResult
+     * @param  array  $codes  Expected keys: currency_codes, scheme_ids, payment_means_codes, unit_codes, tax_category_ids
      */
     public static function validateBasicCodes(array $codes): InvoiceValidationResult
     {
@@ -129,35 +127,35 @@ class UblValidator
 
         $currencyCodes = array_unique(array_filter($codes['currency_codes'] ?? []));
         foreach ($currencyCodes as $currencyCode) {
-            if (!self::isValidCurrencyCodeFormat($currencyCode)) {
+            if (! self::isValidCurrencyCodeFormat($currencyCode)) {
                 $errors[] = "Invalid currency code format: '{$currencyCode}'. Expected ISO 4217 alpha-3 (e.g., EUR).";
             }
         }
 
         $schemeIds = array_unique(array_filter($codes['scheme_ids'] ?? []));
         foreach ($schemeIds as $schemeId) {
-            if (!self::isValidSchemeIdFormat($schemeId)) {
+            if (! self::isValidSchemeIdFormat($schemeId)) {
                 $errors[] = "Invalid schemeID format: '{$schemeId}'. Expected 4 digits (e.g., 0106).";
             }
         }
 
         $paymentMeansCodes = array_unique(array_filter($codes['payment_means_codes'] ?? []));
         foreach ($paymentMeansCodes as $paymentMeansCode) {
-            if (!self::isValidPaymentMeansCodeFormat($paymentMeansCode)) {
+            if (! self::isValidPaymentMeansCodeFormat($paymentMeansCode)) {
                 $errors[] = "Invalid payment means code format: '{$paymentMeansCode}'. Expected 1-3 digits.";
             }
         }
 
         $taxCategoryIds = array_unique(array_filter($codes['tax_category_ids'] ?? []));
         foreach ($taxCategoryIds as $taxCategoryId) {
-            if (!self::isValidTaxCategory($taxCategoryId)) {
+            if (! self::isValidTaxCategory($taxCategoryId)) {
                 $errors[] = "Invalid tax category ID: '{$taxCategoryId}'. Expected one of S, Z, E, AE, K, G, O.";
             }
         }
 
         $unitCodes = array_unique(array_filter($codes['unit_codes'] ?? []));
         foreach ($unitCodes as $unitCode) {
-            if (!self::isValidUnitCode($unitCode)) {
+            if (! self::isValidUnitCode($unitCode)) {
                 $warnings[] = "Unknown unit code: '{$unitCode}'. Ensure it exists in UN/ECE Rec 20/21.";
             }
         }
@@ -173,12 +171,11 @@ class UblValidator
     /**
      * Validates codes against strict codelists when lists are loaded.
      *
-     * @param array $codes Expected keys: currency_codes, endpoint_scheme_ids, party_scheme_ids,
-     *                     registration_scheme_ids, payment_means_codes, tax_category_ids,
-     *                     item_classification_ids, tax_exemption_reason_codes,
-     *                     allowance_reason_codes, charge_reason_codes
-     * @param CodelistRegistry $registry Loaded codelists
-     * @return InvoiceValidationResult
+     * @param  array  $codes  Expected keys: currency_codes, endpoint_scheme_ids, party_scheme_ids,
+     *                        registration_scheme_ids, payment_means_codes, tax_category_ids,
+     *                        item_classification_ids, tax_exemption_reason_codes,
+     *                        allowance_reason_codes, charge_reason_codes
+     * @param  CodelistRegistry  $registry  Loaded codelists
      */
     public static function validateStrictCodelists(array $codes, CodelistRegistry $registry): InvoiceValidationResult
     {
@@ -203,13 +200,14 @@ class UblValidator
                 continue;
             }
 
-            if (!$registry->isLoaded($meta['list'])) {
+            if (! $registry->isLoaded($meta['list'])) {
                 $errors[] = "Strict codelist validation requires list {$meta['label']} to be loaded.";
+
                 continue;
             }
 
             foreach ($values as $value) {
-                if (!$registry->has($meta['list'], (string)$value)) {
+                if (! $registry->has($meta['list'], (string) $value)) {
                     $errors[] = "Invalid {$meta['label']} code: '{$value}'.";
                 }
             }
@@ -226,7 +224,7 @@ class UblValidator
     /**
      * Validates a VAT number format.
      *
-     * @param string $vatNumber The VAT number to validate
+     * @param  string  $vatNumber  The VAT number to validate
      * @return bool True if valid, false otherwise
      */
     public static function isValidVatNumber(string $vatNumber): bool
@@ -238,7 +236,7 @@ class UblValidator
      * Validates a VAT number and returns an error message if invalid.
      * Use this method for pre-validation before generating UBL to show user-friendly errors.
      *
-     * @param string|null $vatNumber The VAT number to validate (null or empty is allowed for B2C)
+     * @param  string|null  $vatNumber  The VAT number to validate (null or empty is allowed for B2C)
      * @return string|null Error message if invalid, null if valid or empty
      */
     public static function validateVatNumber(?string $vatNumber): ?string
@@ -259,22 +257,22 @@ class UblValidator
         $number = substr($vatNumber, 2);
 
         // Check if it starts with 2 letters
-        if (!preg_match('/^[A-Z]{2}/', strtoupper($vatNumber))) {
+        if (! preg_match('/^[A-Z]{2}/', strtoupper($vatNumber))) {
             return "VAT number must start with a 2-letter country code (e.g., 'NL', 'BE'). Got: '{$vatNumber}'";
         }
 
         // Check if country code is valid (EU + XI for Northern Ireland)
         $validCountryCodes = [
             'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'EL', 'ES', 'FI', 'FR', 'GB', 'HR', 'HU', 'IE', 'IT', 'LT',
-            'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK', 'XI'
+            'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK', 'XI',
         ];
 
-        if (!in_array($countryCode, $validCountryCodes, true)) {
+        if (! in_array($countryCode, $validCountryCodes, true)) {
             return "Invalid country code '{$countryCode}' in VAT number. Must be a valid EU country code.";
         }
 
         // Basic format check (alphanumeric, no spaces)
-        if (!ctype_alnum($number) || preg_match('/\s/', $number)) {
+        if (! ctype_alnum($number) || preg_match('/\s/', $number)) {
             return 'VAT number can only contain letters and numbers (no spaces or special characters)';
         }
 
@@ -285,7 +283,7 @@ class UblValidator
      * Validates invoice data before UBL generation.
      * Returns an array of error messages, empty if all valid.
      *
-     * @param array $data Invoice data to validate
+     * @param  array  $data  Invoice data to validate
      * @return array Array of error messages (empty if valid)
      */
     public static function validateInvoiceData(array $data): array
@@ -301,7 +299,7 @@ class UblValidator
         }
 
         // Validate customer VAT number (optional for B2C)
-        if (isset($data['customer_vat_number']) && !empty($data['customer_vat_number'])) {
+        if (isset($data['customer_vat_number']) && ! empty($data['customer_vat_number'])) {
             $error = self::validateVatNumber($data['customer_vat_number']);
             if ($error) {
                 $errors[] = "Customer: {$error}";
@@ -309,7 +307,7 @@ class UblValidator
         }
 
         // Validate IBAN if provided
-        if (isset($data['iban']) && !empty($data['iban'])) {
+        if (isset($data['iban']) && ! empty($data['iban'])) {
             $error = self::validateIban($data['iban']);
             if ($error) {
                 $errors[] = "Bank account: {$error}";
@@ -326,7 +324,7 @@ class UblValidator
         ];
 
         foreach ($requiredFields as $field => $label) {
-            if (!isset($data[$field]) || empty(trim($data[$field] ?? ''))) {
+            if (! isset($data[$field]) || empty(trim($data[$field] ?? ''))) {
                 $errors[] = "{$label} is required";
             }
         }
@@ -337,7 +335,7 @@ class UblValidator
     /**
      * Validates an IBAN and returns an error message if invalid.
      *
-     * @param string|null $iban The IBAN to validate
+     * @param  string|null  $iban  The IBAN to validate
      * @return string|null Error message if invalid, null if valid or empty
      */
     public static function validateIban(?string $iban): ?string
@@ -360,12 +358,12 @@ class UblValidator
         }
 
         // Check format: 2 letters + 2 digits + alphanumeric
-        if (!preg_match('/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/', $iban)) {
+        if (! preg_match('/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/', $iban)) {
             return 'Invalid IBAN format';
         }
 
         // Move first 4 characters to the end
-        $moved = substr($iban, 4) . substr($iban, 0, 4);
+        $moved = substr($iban, 4).substr($iban, 0, 4);
 
         // Convert letters to numbers (A=10, B=11, ..., Z=35)
         $converted = '';
@@ -378,7 +376,7 @@ class UblValidator
         }
 
         // Check if the number is valid using modulo 97
-        if ((int)bcmod($converted, '97') !== 1) {
+        if ((int) bcmod($converted, '97') !== 1) {
             return 'Invalid IBAN checksum';
         }
 
@@ -387,7 +385,7 @@ class UblValidator
 
     /**
      * Validates invoice totals according to EN16931/Peppol BIS Billing 3.0 rules.
-     * 
+     *
      * This validates:
      * - BR-CO-10: Sum of Invoice line net amounts = Line extension amount
      * - BR-CO-11: Sum of allowances on document level = AllowanceTotalAmount
@@ -396,16 +394,15 @@ class UblValidator
      * - BR-CO-15: Invoice total amount with VAT = Invoice total without VAT + Invoice total VAT amount
      * - BR-CO-16: Amount due for payment = Invoice total with VAT - Paid amount
      * - BR-S-08: For each VAT category: TaxableAmount = sum of line amounts - allowances + charges for that category
-     * 
-     * @param array $invoiceLines Array of invoice lines with 'line_extension_amount' key
-     * @param array $totals Array with keys: line_extension_amount, tax_exclusive_amount, tax_inclusive_amount, payable_amount
-     * @param array $taxTotals Array of tax subtotals with 'taxable_amount', 'tax_amount', 'tax_percent' keys
-     * @param float $allowanceTotalAmount Total of allowances from LegalMonetaryTotal (default 0)
-     * @param float $chargeTotalAmount Total of charges from LegalMonetaryTotal (default 0)
-     * @param float $prepaidAmount Amount already paid (default 0)
-     * @param array $documentAllowances Array of document-level allowances with 'amount', optionally 'tax_category_id', 'tax_percent'
-     * @param array $documentCharges Array of document-level charges with 'amount', optionally 'tax_category_id', 'tax_percent'
-     * @return InvoiceValidationResult
+     *
+     * @param  array  $invoiceLines  Array of invoice lines with 'line_extension_amount' key
+     * @param  array  $totals  Array with keys: line_extension_amount, tax_exclusive_amount, tax_inclusive_amount, payable_amount
+     * @param  array  $taxTotals  Array of tax subtotals with 'taxable_amount', 'tax_amount', 'tax_percent' keys
+     * @param  float  $allowanceTotalAmount  Total of allowances from LegalMonetaryTotal (default 0)
+     * @param  float  $chargeTotalAmount  Total of charges from LegalMonetaryTotal (default 0)
+     * @param  float  $prepaidAmount  Amount already paid (default 0)
+     * @param  array  $documentAllowances  Array of document-level allowances with 'amount', optionally 'tax_category_id', 'tax_percent'
+     * @param  array  $documentCharges  Array of document-level charges with 'amount', optionally 'tax_category_id', 'tax_percent'
      */
     public static function validateInvoiceTotals(
         array $invoiceLines,
@@ -419,59 +416,60 @@ class UblValidator
     ): InvoiceValidationResult {
         $errors = [];
         $warnings = [];
-        
+
         // BR-CO-11: Sum of allowances on document level = AllowanceTotalAmount
         $sumOfAllowances = 0.0;
         foreach ($documentAllowances as $allowance) {
-            $sumOfAllowances += (float)($allowance['amount'] ?? 0);
+            $sumOfAllowances += (float) ($allowance['amount'] ?? 0);
         }
         if (abs($sumOfAllowances - $allowanceTotalAmount) > 0.01) {
             $errors[] = sprintf(
-                "BR-CO-11: Sum of document allowances (%.2f) does not match AllowanceTotalAmount (%.2f)",
+                'BR-CO-11: Sum of document allowances (%.2f) does not match AllowanceTotalAmount (%.2f)',
                 $sumOfAllowances,
                 $allowanceTotalAmount
             );
         }
-        
+
         // BR-CO-12: Sum of charges on document level = ChargeTotalAmount
         $sumOfCharges = 0.0;
         foreach ($documentCharges as $charge) {
-            $sumOfCharges += (float)($charge['amount'] ?? 0);
+            $sumOfCharges += (float) ($charge['amount'] ?? 0);
         }
         if (abs($sumOfCharges - $chargeTotalAmount) > 0.01) {
             $errors[] = sprintf(
-                "BR-CO-12: Sum of document charges (%.2f) does not match ChargeTotalAmount (%.2f)",
+                'BR-CO-12: Sum of document charges (%.2f) does not match ChargeTotalAmount (%.2f)',
                 $sumOfCharges,
                 $chargeTotalAmount
             );
         }
-        
+
         // Calculate sum of invoice line amounts and validate each line
         $sumOfLineAmounts = 0.0;
         foreach ($invoiceLines as $index => $line) {
             $lineId = $line['id'] ?? ($index + 1);
-            
-            if (!isset($line['line_extension_amount'])) {
+
+            if (! isset($line['line_extension_amount'])) {
                 // Calculate from price_amount * quantity if not set
                 if (isset($line['price_amount'], $line['quantity'])) {
-                    $lineAmount = (float)$line['price_amount'] * (float)$line['quantity'];
+                    $lineAmount = (float) $line['price_amount'] * (float) $line['quantity'];
                 } else {
                     $errors[] = "Line {$lineId}: Missing line_extension_amount or price_amount/quantity";
+
                     continue;
                 }
             } else {
-                $lineAmount = (float)$line['line_extension_amount'];
-                
+                $lineAmount = (float) $line['line_extension_amount'];
+
                 // BR-CALC-01: Validate that line_extension_amount = price_amount × quantity
                 if (isset($line['price_amount'], $line['quantity'])) {
-                    $expectedLineAmount = round((float)$line['price_amount'] * (float)$line['quantity'], 2);
+                    $expectedLineAmount = round((float) $line['price_amount'] * (float) $line['quantity'], 2);
                     if (abs($lineAmount - $expectedLineAmount) > 0.01) {
                         $errors[] = sprintf(
-                            "Line %s: LineExtensionAmount (%.2f) does not match PriceAmount (%.2f) × Quantity (%.2f) = %.2f",
+                            'Line %s: LineExtensionAmount (%.2f) does not match PriceAmount (%.2f) × Quantity (%.2f) = %.2f',
                             $lineId,
                             $lineAmount,
-                            (float)$line['price_amount'],
-                            (float)$line['quantity'],
+                            (float) $line['price_amount'],
+                            (float) $line['quantity'],
                             $expectedLineAmount
                         );
                     }
@@ -479,26 +477,26 @@ class UblValidator
             }
             $sumOfLineAmounts += $lineAmount;
         }
-        
+
         // BR-CO-10: Sum of Invoice line net amounts = Line extension amount
-        $lineExtensionAmount = (float)($totals['line_extension_amount'] ?? 0);
+        $lineExtensionAmount = (float) ($totals['line_extension_amount'] ?? 0);
         if (abs($sumOfLineAmounts - $lineExtensionAmount) > 0.01) {
             $errors[] = sprintf(
-                "BR-CO-10: Sum of invoice lines (%.2f) does not match LineExtensionAmount (%.2f). Difference: %.2f",
+                'BR-CO-10: Sum of invoice lines (%.2f) does not match LineExtensionAmount (%.2f). Difference: %.2f',
                 $sumOfLineAmounts,
                 $lineExtensionAmount,
                 $sumOfLineAmounts - $lineExtensionAmount
             );
         }
-        
+
         // Calculate expected tax exclusive amount
         $expectedTaxExclusiveAmount = $lineExtensionAmount - $allowanceTotalAmount + $chargeTotalAmount;
-        $taxExclusiveAmount = (float)($totals['tax_exclusive_amount'] ?? 0);
-        
+        $taxExclusiveAmount = (float) ($totals['tax_exclusive_amount'] ?? 0);
+
         // BR-CO-13: Invoice total amount without VAT
         if (abs($expectedTaxExclusiveAmount - $taxExclusiveAmount) > 0.01) {
             $errors[] = sprintf(
-                "BR-CO-13: TaxExclusiveAmount (%.2f) must equal LineExtensionAmount (%.2f) - allowances (%.2f) + charges (%.2f) = %.2f",
+                'BR-CO-13: TaxExclusiveAmount (%.2f) must equal LineExtensionAmount (%.2f) - allowances (%.2f) + charges (%.2f) = %.2f',
                 $taxExclusiveAmount,
                 $lineExtensionAmount,
                 $allowanceTotalAmount,
@@ -506,19 +504,19 @@ class UblValidator
                 $expectedTaxExclusiveAmount
             );
         }
-        
+
         // Calculate and validate tax amounts per category (BR-S-08)
         // TaxableAmount per category = sum of line amounts - allowances + charges for that category
         $calculatedTaxByCategory = [];
-        
+
         // First, sum line amounts by category
         foreach ($invoiceLines as $line) {
             $taxCategoryId = $line['tax_category_id'] ?? 'S';
-            $taxPercent = (float)($line['tax_percent'] ?? 21);
-            $lineAmount = (float)($line['line_extension_amount'] ?? ((float)$line['price_amount'] * (float)$line['quantity']));
-            
-            $key = $taxCategoryId . '_' . $taxPercent;
-            if (!isset($calculatedTaxByCategory[$key])) {
+            $taxPercent = (float) ($line['tax_percent'] ?? 21);
+            $lineAmount = (float) ($line['line_extension_amount'] ?? ((float) $line['price_amount'] * (float) $line['quantity']));
+
+            $key = $taxCategoryId.'_'.$taxPercent;
+            if (! isset($calculatedTaxByCategory[$key])) {
                 $calculatedTaxByCategory[$key] = [
                     'line_amount' => 0.0,
                     'allowance_amount' => 0.0,
@@ -530,15 +528,15 @@ class UblValidator
             }
             $calculatedTaxByCategory[$key]['line_amount'] += $lineAmount;
         }
-        
+
         // Subtract document-level allowances per category
         foreach ($documentAllowances as $allowance) {
             $taxCategoryId = $allowance['tax_category_id'] ?? 'S';
-            $taxPercent = (float)($allowance['tax_percent'] ?? 21);
-            $amount = (float)($allowance['amount'] ?? 0);
-            
-            $key = $taxCategoryId . '_' . $taxPercent;
-            if (!isset($calculatedTaxByCategory[$key])) {
+            $taxPercent = (float) ($allowance['tax_percent'] ?? 21);
+            $amount = (float) ($allowance['amount'] ?? 0);
+
+            $key = $taxCategoryId.'_'.$taxPercent;
+            if (! isset($calculatedTaxByCategory[$key])) {
                 $calculatedTaxByCategory[$key] = [
                     'line_amount' => 0.0,
                     'allowance_amount' => 0.0,
@@ -550,15 +548,15 @@ class UblValidator
             }
             $calculatedTaxByCategory[$key]['allowance_amount'] += $amount;
         }
-        
+
         // Add document-level charges per category
         foreach ($documentCharges as $charge) {
             $taxCategoryId = $charge['tax_category_id'] ?? 'S';
-            $taxPercent = (float)($charge['tax_percent'] ?? 21);
-            $amount = (float)($charge['amount'] ?? 0);
-            
-            $key = $taxCategoryId . '_' . $taxPercent;
-            if (!isset($calculatedTaxByCategory[$key])) {
+            $taxPercent = (float) ($charge['tax_percent'] ?? 21);
+            $amount = (float) ($charge['amount'] ?? 0);
+
+            $key = $taxCategoryId.'_'.$taxPercent;
+            if (! isset($calculatedTaxByCategory[$key])) {
                 $calculatedTaxByCategory[$key] = [
                     'line_amount' => 0.0,
                     'allowance_amount' => 0.0,
@@ -570,13 +568,13 @@ class UblValidator
             }
             $calculatedTaxByCategory[$key]['charge_amount'] += $amount;
         }
-        
+
         // Calculate final taxable amounts per category
         foreach ($calculatedTaxByCategory as $key => &$category) {
             $category['taxable_amount'] = $category['line_amount'] - $category['allowance_amount'] + $category['charge_amount'];
         }
         unset($category);
-        
+
         // Calculate expected tax amounts
         $totalCalculatedTax = 0.0;
         foreach ($calculatedTaxByCategory as $key => &$category) {
@@ -584,27 +582,27 @@ class UblValidator
             $totalCalculatedTax += $category['calculated_tax'];
         }
         unset($category);
-        
+
         // Validate tax subtotals (BR-S-08)
         $totalProvidedTax = 0.0;
         $totalProvidedTaxableAmount = 0.0;
         foreach ($taxTotals as $index => $taxSubtotal) {
-            $taxableAmount = (float)($taxSubtotal['taxable_amount'] ?? 0);
-            $taxAmount = (float)($taxSubtotal['tax_amount'] ?? 0);
-            $taxPercent = (float)($taxSubtotal['tax_percent'] ?? 0);
+            $taxableAmount = (float) ($taxSubtotal['taxable_amount'] ?? 0);
+            $taxAmount = (float) ($taxSubtotal['tax_amount'] ?? 0);
+            $taxPercent = (float) ($taxSubtotal['tax_percent'] ?? 0);
             $taxCategoryId = $taxSubtotal['tax_category_id'] ?? 'S';
-            
+
             $totalProvidedTax += $taxAmount;
             $totalProvidedTaxableAmount += $taxableAmount;
-            
+
             // BR-S-08: Check if taxable amount matches calculated (line amounts - allowances + charges)
-            $key = $taxCategoryId . '_' . $taxPercent;
+            $key = $taxCategoryId.'_'.$taxPercent;
             if (isset($calculatedTaxByCategory[$key])) {
                 $expectedTaxableAmount = $calculatedTaxByCategory[$key]['taxable_amount'];
                 if (abs($taxableAmount - $expectedTaxableAmount) > 0.01) {
                     $cat = $calculatedTaxByCategory[$key];
                     $errors[] = sprintf(
-                        "BR-S-08 TaxSubtotal %d: TaxableAmount (%.2f) does not match calculated for category %s %.0f%% (lines: %.2f - allowances: %.2f + charges: %.2f = %.2f)",
+                        'BR-S-08 TaxSubtotal %d: TaxableAmount (%.2f) does not match calculated for category %s %.0f%% (lines: %.2f - allowances: %.2f + charges: %.2f = %.2f)',
                         $index + 1,
                         $taxableAmount,
                         $taxCategoryId,
@@ -615,12 +613,12 @@ class UblValidator
                         $expectedTaxableAmount
                     );
                 }
-                
+
                 // Check tax amount calculation
                 $expectedTaxAmount = round($taxableAmount * ($taxPercent / 100), 2);
                 if (abs($taxAmount - $expectedTaxAmount) > 0.01) {
                     $errors[] = sprintf(
-                        "TaxSubtotal %d: TaxAmount (%.2f) does not match calculation: %.2f × %.0f%% = %.2f",
+                        'TaxSubtotal %d: TaxAmount (%.2f) does not match calculation: %.2f × %.0f%% = %.2f',
                         $index + 1,
                         $taxAmount,
                         $taxableAmount,
@@ -630,12 +628,12 @@ class UblValidator
                 }
             }
         }
-        
+
         // Check if total taxable amount matches tax exclusive amount (with allowances/charges)
         $expectedTotalTaxableAmount = $lineExtensionAmount - $allowanceTotalAmount + $chargeTotalAmount;
         if (abs($totalProvidedTaxableAmount - $expectedTotalTaxableAmount) > 0.01) {
             $errors[] = sprintf(
-                "Sum of TaxableAmounts (%.2f) does not match TaxExclusiveAmount (LineExtension %.2f - Allowances %.2f + Charges %.2f = %.2f)",
+                'Sum of TaxableAmounts (%.2f) does not match TaxExclusiveAmount (LineExtension %.2f - Allowances %.2f + Charges %.2f = %.2f)',
                 $totalProvidedTaxableAmount,
                 $lineExtensionAmount,
                 $allowanceTotalAmount,
@@ -643,36 +641,36 @@ class UblValidator
                 $expectedTotalTaxableAmount
             );
         }
-        
+
         // BR-CO-15: Invoice total amount with VAT = Invoice total without VAT + Invoice total VAT amount
-        $taxInclusiveAmount = (float)($totals['tax_inclusive_amount'] ?? 0);
+        $taxInclusiveAmount = (float) ($totals['tax_inclusive_amount'] ?? 0);
         $expectedTaxInclusiveAmount = $taxExclusiveAmount + $totalProvidedTax;
         if (abs($taxInclusiveAmount - $expectedTaxInclusiveAmount) > 0.01) {
             $errors[] = sprintf(
-                "BR-CO-15: TaxInclusiveAmount (%.2f) must equal TaxExclusiveAmount (%.2f) + TaxAmount (%.2f) = %.2f",
+                'BR-CO-15: TaxInclusiveAmount (%.2f) must equal TaxExclusiveAmount (%.2f) + TaxAmount (%.2f) = %.2f',
                 $taxInclusiveAmount,
                 $taxExclusiveAmount,
                 $totalProvidedTax,
                 $expectedTaxInclusiveAmount
             );
         }
-        
+
         // BR-CO-16: Amount due for payment = Invoice total with VAT - Paid amount
-        $payableAmount = (float)($totals['payable_amount'] ?? 0);
+        $payableAmount = (float) ($totals['payable_amount'] ?? 0);
         $expectedPayableAmount = $taxInclusiveAmount - $prepaidAmount;
         if (abs($payableAmount - $expectedPayableAmount) > 0.01) {
             $errors[] = sprintf(
-                "BR-CO-16: PayableAmount (%.2f) must equal TaxInclusiveAmount (%.2f) - PrepaidAmount (%.2f) = %.2f",
+                'BR-CO-16: PayableAmount (%.2f) must equal TaxInclusiveAmount (%.2f) - PrepaidAmount (%.2f) = %.2f',
                 $payableAmount,
                 $taxInclusiveAmount,
                 $prepaidAmount,
                 $expectedPayableAmount
             );
         }
-        
+
         // Add correction suggestions
         $corrections = [];
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             $corrections = [
                 'line_extension_amount' => round($sumOfLineAmounts, 2),
                 'allowance_total_amount' => round($sumOfAllowances, 2),
@@ -681,7 +679,7 @@ class UblValidator
                 'total_tax_amount' => round($totalCalculatedTax, 2),
                 'tax_inclusive_amount' => round($sumOfLineAmounts - $sumOfAllowances + $sumOfCharges + $totalCalculatedTax, 2),
                 'payable_amount' => round($sumOfLineAmounts - $sumOfAllowances + $sumOfCharges + $totalCalculatedTax - $prepaidAmount, 2),
-                'tax_subtotals' => array_values(array_map(function($cat) {
+                'tax_subtotals' => array_values(array_map(function ($cat) {
                     return [
                         'tax_category_id' => $cat['tax_category_id'],
                         'tax_percent' => $cat['tax_percent'],
@@ -694,7 +692,7 @@ class UblValidator
                 }, $calculatedTaxByCategory)),
             ];
         }
-        
+
         return new InvoiceValidationResult(
             isValid: empty($errors),
             errors: $errors,
