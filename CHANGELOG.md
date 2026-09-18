@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.7.0] - 2026-09-18
+
+Upgrading is `composer update darvis/ubl-peppol`. Two things change behaviour rather than just adding to it:
+
+- If you set `log_retention_days`, `peppol:cleanup` now actually follows it. It used to delete anything older than 60 days no matter what you configured, so a higher setting starts keeping logs longer from this version on. Pass `--days` to override it per run.
+- The generated XML is unchanged, and so are the config keys and the publish tags.
+
+Also included are the changes from the 1.6.1 section below, which was never released on its own.
+
 ### Added
 - `UblPeppolConfig` with named accessors is the one place that reads the package config, so a caller cannot quietly disagree with the config file about a default
 - Documentation site at [arviddejong.github.io/ubl-peppol](https://arviddejong.github.io/ubl-peppol/), with `llms.txt`, a Laravel Boost guideline and skill in `resources/boost/`, `SECURITY.md`, `CONTRIBUTING.md`, issue forms and a pull request template
@@ -313,3 +323,20 @@ _Never released on its own; these changes are part of the next release._
 - Functionality for generating UBL/PEPPOL invoices
 - Laravel Service Provider
 - Example code
+
+[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.6.0...v1.7.0
+[1.6.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.4.1...v1.5.0
+[1.4.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.4.0...v1.4.1
+[1.4.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.2.5...v1.3.0
+[1.2.5]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.2.4...v1.2.5
+[1.2.4]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.2.3...v1.2.4
+[1.2.3]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.2.2...v1.2.3
+[1.2.2]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.0.1...v1.1.0
+[1.0.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/ArvidDeJong/ubl-peppol/releases/tag/v1.0.0
