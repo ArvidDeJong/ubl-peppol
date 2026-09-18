@@ -1,3 +1,9 @@
+---
+title: Dutch invoices
+nav_order: 3
+description: How to build a UBL invoice that meets the Dutch NLCIUS rules with darvis/ubl-peppol, including the fields Dutch receivers reject without.
+---
+
 # Netherlands Implementation
 
 This guide covers the specific requirements for generating UBL invoices for the Netherlands according to PEPPOL BIS Billing 3.0.

@@ -1,37 +1,30 @@
 {
     "name": "darvis/ubl-peppol",
-    "description": "UBL/PEPPOL service voor het genereren van facturen volgens de UBL/PEPPOL standaard",
-    "type": "library",
-    "license": "MIT",
+    "description": "Generates UBL 2.1 invoices and credit notes that pass PEPPOL BIS Billing 3.0 and EN 16931 validation, with Dutch and Belgian rules, VIES and company registration checks. Works in plain PHP; the Laravel integration is optional.",
     "keywords": [
         "ubl",
         "peppol",
-        "e-facturatie",
-        "factuur",
+        "e-invoicing",
+        "en16931",
+        "bis-billing-3",
         "invoice",
+        "credit-note",
+        "vies",
         "xml",
         "laravel"
     ],
-    "homepage": "https://github.com/ArvidDeJong/ubl-peppol",
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://arviddejong.github.io/ubl-peppol/",
     "authors": [
         {
-            "name": "Arvid De Jong",
-            "email": "info@arvid.nl",
-            "homepage": "https://arvid.nl",
-            "role": "Developer"
+            "name": "Arvid de Jong",
+            "email": "info@arvid.nl"
         }
     ],
-    "minimum-stability": "stable",
-    "require": {
-        "php": "^8.2",
-        "ext-dom": "*"
-    },
-    "suggest": {
-        "illuminate/support": "Required for Laravel integration (^11.0|^12.0)"
-    },
-    "require-dev": {
-        "orchestra/testbench": "^9.0|^10.0",
-        "pestphp/pest": "^3.0"
+    "support": {
+        "issues": "https://github.com/ArvidDeJong/ubl-peppol/issues",
+        "source": "https://github.com/ArvidDeJong/ubl-peppol"
     },
     "autoload": {
         "psr-4": {
@@ -40,7 +33,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\": "tests/"
+            "Darvis\\UblPeppol\\Tests\\": "tests/"
         }
     },
     "extra": {
@@ -50,14 +43,34 @@
             ]
         }
     },
+    "require": {
+        "php": "^8.2",
+        "ext-dom": "*",
+        "ext-libxml": "*"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.0",
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "pestphp/pest": "^3.0|^4.0",
+        "pestphp/pest-plugin-laravel": "^3.0|^4.0",
+        "phpunit/phpunit": "^11.0|^12.0|^13.0"
+    },
+    "suggest": {
+        "illuminate/support": "Only for the Laravel layer (service provider, PeppolService, the PeppolLog model and the cleanup command). The invoice builders and the validator run without it."
+    },
+    "scripts": {
+        "test": "pest tests",
+        "lint": "pint --test",
+        "format": "pint",
+        "analyse": "phpstan analyse --memory-limit=1G"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
     "config": {
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true
         }
-    },
-    "support": {
-        "issues": "https://github.com/ArvidDeJong/ubl-peppol/issues",
-        "source": "https://github.com/ArvidDeJong/ubl-peppol"
     }
 }

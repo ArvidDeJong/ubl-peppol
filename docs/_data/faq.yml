@@ -1,0 +1,50 @@
+- q: Do I need Laravel to use this package?
+  a: >
+    No. The invoice builders, the validator and the VAT and company number checks are plain PHP and need
+    nothing but the DOM extension. Laravel is only required for the optional layer: the service provider,
+    `PeppolService`, the `PeppolLog` model and the cleanup command. A test in the suite guards that the
+    core never reaches for Illuminate, so that stays true.
+
+- q: What is the difference between the Dutch and the Belgian builder?
+  a: >
+    They generate the same kind of document but enforce different rule sets. `UblNlBis3Service` follows
+    the Dutch NLCIUS rules, `UblBeBis3Service` the Belgian EN 16931 rules. Fields that one country requires
+    are rejected by the other, which is why they are separate classes rather than one class with a country
+    flag. Pick the one that matches the receiver, not the sender.
+
+- q: My receiver rejects the invoice with a rule code. What now?
+  a: >
+    The code, for example `BR-CO-11` or `PEPPOL-EN16931-R010`, is from the PEPPOL BIS Billing 3.0
+    specification and points straight at the paragraph that explains what was expected. Look it up at
+    docs.peppol.eu, then check the Troubleshooting page, which lists the codes that come up most often
+    and what usually causes them.
+
+- q: Does this package send my invoices to PEPPOL?
+  a: >
+    Only through an access point provider you already have an account with. `PeppolService` posts the
+    generated document to that provider's endpoint using the credentials in the config file. The package
+    is not an access point itself and cannot reach the PEPPOL network on its own.
+
+- q: Does a valid VIES answer mean the VAT number is correct?
+  a: >
+    It means the number exists and is registered for cross-border trade at the moment you ask. It does not
+    prove the number belongs to the party you are invoicing, and VIES regularly returns errors or times out
+    because a member state's own service is down. Treat a failed lookup as "unknown", never as "invalid".
+
+- q: Can I generate a credit note?
+  a: >
+    Yes, with the same builder. A credit note is a separate document type with its own root element, a type
+    code of 381 and a reference to the invoice it corrects, which rule BR-55 requires. Amounts must be
+    positive: the document type says it is a credit, not a minus sign. The package converts negative amounts
+    for you.
+
+- q: Why does validation pass here but the receiver still rejects the invoice?
+  a: >
+    This package checks the business rules it implements, which is not the same as the full Schematron the
+    receiver runs. Always run a generated document through an official validator before going live. Once you
+    are live, a rejection usually means a rule this package does not cover yet, and that is worth an issue.
+
+- q: Is the log table required?
+  a: >
+    No, it is opt-in. Publish and run the migration only if you want a record of what was sent and what came
+    back. An application that only generates XML never needs it.

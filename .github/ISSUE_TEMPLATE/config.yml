@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/ArvidDeJong/ubl-peppol/security/advisories/new
+    about: Report a vulnerability privately, for example XML injection through invoice data.
+  - name: Documentation
+    url: https://arviddejong.github.io/ubl-peppol/
+    about: Usage, the Dutch and Belgian rules, validation, VIES and the Laravel integration.

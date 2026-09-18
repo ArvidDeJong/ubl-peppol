@@ -1,0 +1,12 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    uses: ArvidDeJong/.github/.github/workflows/laravel-package.yml@main
+    secrets: inherit

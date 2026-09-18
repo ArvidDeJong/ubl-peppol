@@ -105,7 +105,13 @@ class UblNlBis3Service
             }
         }
 
-        return $this->dom->saveXML();
+        $xml = $this->dom->saveXML();
+
+        if ($xml === false) {
+            throw new \RuntimeException('Could not serialise the document to XML.');
+        }
+
+        return $xml;
     }
 
     /**
@@ -127,13 +133,13 @@ class UblNlBis3Service
         // NL-R-003 / NL-R-005: Endpoint scheme must be KVK or OIN (0106 or 0190)
         if ($this->supplierCountryCode === 'NL' && $this->supplierEndpointSchemeId !== null) {
             if (! in_array($this->supplierEndpointSchemeId, ['0106', '0190'], true)) {
-                $errors[] = "NL-R-003: Supplier endpoint schemeID must be 0106 (KVK) or 0190 (OIN).";
+                $errors[] = 'NL-R-003: Supplier endpoint schemeID must be 0106 (KVK) or 0190 (OIN).';
             }
         }
 
         if ($this->customerCountryCode === 'NL' && $this->customerEndpointSchemeId !== null) {
             if (! in_array($this->customerEndpointSchemeId, ['0106', '0190'], true)) {
-                $errors[] = "NL-R-005: Customer endpoint schemeID must be 0106 (KVK) or 0190 (OIN).";
+                $errors[] = 'NL-R-005: Customer endpoint schemeID must be 0106 (KVK) or 0190 (OIN).';
             }
         }
 
@@ -158,7 +164,7 @@ class UblNlBis3Service
         }
 
         if ($this->strictCodelistValidation) {
-            if (!$this->codelistRegistry) {
+            if (! $this->codelistRegistry) {
                 $errors[] = 'Strict codelist validation is enabled but no codelist registry is configured.';
             } else {
                 $strictResult = UblValidator::validateStrictCodelists([
@@ -189,14 +195,14 @@ class UblNlBis3Service
     /**
      * Helper method to create and append a child element
      *
-     * @param  \DOMElement  $parent  The parent element
+     * @param  DOMElement  $parent  The parent element
      * @param  string  $prefix  The namespace prefix (e.g., 'cbc' or 'cac')
      * @param  string  $name  The element name
      * @param  string|null  $value  The element value (optional)
      * @param  array  $attributes  Associative array of attributes (optional)
-     * @return \DOMElement The created and appended element
+     * @return DOMElement The created and appended element
      */
-    protected function addChildElement(\DOMElement $parent, string $prefix, string $name, ?string $value = null, array $attributes = []): \DOMElement
+    protected function addChildElement(DOMElement $parent, string $prefix, string $name, ?string $value = null, array $attributes = []): DOMElement
     {
         $element = $this->createElement($prefix, $name, $value, $attributes);
         $parent->appendChild($element);
@@ -211,11 +217,11 @@ class UblNlBis3Service
      * @param  string  $name  The element name
      * @param  string|null  $value  The element value (optional)
      * @param  array  $attributes  Associative array of attributes (optional)
-     * @return \DOMElement The created DOMElement
+     * @return DOMElement The created DOMElement
      *
      * @throws \RuntimeException If the document is not initialized
      */
-    protected function createElement(string $prefix, string $name, ?string $value = null, array $attributes = []): \DOMElement
+    protected function createElement(string $prefix, string $name, ?string $value = null, array $attributes = []): DOMElement
     {
         // Check if the DOM document exists
         if (! isset($this->dom)) {
@@ -567,7 +573,7 @@ class UblNlBis3Service
         $postalZoneElement = $this->createElement('cbc', 'PostalZone', $postalCode);
         $postalAddress->appendChild($postalZoneElement);
 
-        // Country - moet als laatste element binnen PostalAddress komen
+        // Country must be the last element inside PostalAddress
         $country = $this->createElement('cac', 'Country');
         $country = $postalAddress->appendChild($country);
 
@@ -1402,7 +1408,7 @@ class UblNlBis3Service
             ['unitCode' => $lineData['unit_code']]
         );
 
-        // Add LineExtensionAmount - gebruik meegegeven waarde of bereken als fallback
+        // Add LineExtensionAmount: use the given value, or calculate it as a fallback
         $lineExtensionAmount = $lineData['line_extension_amount']
             ?? ((isset($lineData['price_amount'], $lineData['quantity']))
                 ? (float) $lineData['price_amount'] * (float) $lineData['quantity']

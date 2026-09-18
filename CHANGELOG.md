@@ -1,8 +1,43 @@
 # Changelog
 
-All notable changes to this package will be documented in this file.
+All notable changes to **darvis/ubl-peppol** are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+### Added
+- `UblPeppolConfig` with named accessors is the one place that reads the package config, so a caller cannot quietly disagree with the config file about a default
+- Documentation site at [arviddejong.github.io/ubl-peppol](https://arviddejong.github.io/ubl-peppol/), with `llms.txt`, a Laravel Boost guideline and skill in `resources/boost/`, `SECURITY.md`, `CONTRIBUTING.md`, issue forms and a pull request template
+- Pest on Orchestra Testbench, Pint and Larastan level 8, with the `test`, `lint`, `format` and `analyse` composer scripts. CI runs PHP 8.2 to 8.4 with Laravel 11, 12 and 13, on the lowest and the latest dependencies
+- `tests/Unit/StandaloneCoreTest.php` guards the promise that the package works without Laravel: only the service provider, `PeppolService`, `PeppolLog` and the cleanup command may import `Illuminate\…`
+- `tests/Laravel/ServiceProviderTest.php` covers the config defaults, the bindings, both publish tags, the command and the log table
+
+### Changed
+- `addBuyerReference()` on a credit note explains that this builder does not support it yet, instead of claiming the UBL schema forbids it. The schema does allow `cbc:BuyerReference` in a `CreditNote`; placing it correctly is still open
+- `UblNlBis3Service` is bound by its class name and aliased as `ubl-peppol`, so `app(UblNlBis3Service::class)` and `app('ubl-peppol')` both return the same instance. `app('ubl-peppol')` keeps working
+- The config keys are in alphabetical order and each has its own comment block. No key, default or behaviour changed
+- Code comments and docblocks are in English throughout
+- Documentation pages were renamed and merged to match the site navigation. `installation.md` and `quick-start.md` became `getting-started.md`, the country pages became `netherlands.md` and `belgium.md`, `vies-validation.md` became `vat-numbers.md`, `company-registration-validation.md` became `company-numbers.md`, and `laravel-integration.md` became `laravel.md`
+
+### Fixed
+- `log_retention_days` did nothing. The `peppol:cleanup` command had 60 hard-coded in its signature, so raising the setting did not keep logs any longer. Without `--days` the command now follows the config, and `--days` still wins
+- `PeppolService` could not be constructed at all without PEPPOL credentials: the typed `string` properties were assigned `null`, so resolving the service from the container failed with a TypeError before `validateCredentials()` could report which setting was missing
+- `ViesService` crashed on a VAT number that `preg_replace` could not clean, because the result was passed straight into `strtoupper()` and `substr()`
+- `generateXml()` promised a string while `DOMDocument::saveXML()` can return false; it now throws instead of returning the wrong type
+- `UnitCodes` listed `TNE`, `KWH` and `KWT` twice. The values were identical, so no code changed meaning, but the duplicates are gone
+- Removing existing `TaxTotal` elements looped on a node that could be detached, which could never end
+- `CompanyRegistrationService::cleanNumber()` promised a string and could return null
+- The service provider called `loadMigrationsFrom()` on a directory holding only `create_peppol_logs_table.php.stub`. Laravel only loads files matching `*_*.php`, so the migration was never loaded automatically despite the comment saying it was. The log table is now documented for what it has always been: opt-in, through `vendor:publish --tag=ubl-peppol-migrations`
+- `publishes()` and the command registration ran on every request instead of only in the console
+
+### Removed
+- `docs/internal/` with the Windsurf and Copilot instructions, and `docs/copilot-best-practices.md`. Internal working notes do not belong in a published package
 
 ## [1.6.1] - 2026-02-11
+
+_Never released on its own; these changes are part of the next release._
+
 
 ### Changed
 

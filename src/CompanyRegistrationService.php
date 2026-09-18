@@ -7,8 +7,8 @@ class CompanyRegistrationService
     /**
      * Validate company registration number for various European countries
      *
-     * @param string $number Company registration number
-     * @param string $countryCode ISO 2-letter country code (NL, BE, LU, FR, DE)
+     * @param  string  $number  Company registration number
+     * @param  string  $countryCode  ISO 2-letter country code (NL, BE, LU, FR, DE)
      * @return array Validation result with details
      */
     public function validate(string $number, string $countryCode): array
@@ -27,7 +27,7 @@ class CompanyRegistrationService
                 'country' => $countryCode,
                 'number' => $number,
                 'type' => null,
-                'error' => 'Unsupported country code: ' . $countryCode,
+                'error' => 'Unsupported country code: '.$countryCode,
             ],
         };
     }
@@ -58,7 +58,7 @@ class CompanyRegistrationService
     private function validateBE(string $number): array
     {
         $pattern = '/^[0-9]{10}$/';
-        
+
         if (preg_match($pattern, $number) !== 1) {
             return [
                 'valid' => false,
@@ -172,17 +172,18 @@ class CompanyRegistrationService
         $valid = preg_match($pattern, $upperNumber) === 1;
 
         if ($valid) {
-            // Extract type and number
+            // Extract type and number. The pattern above already matched, so the groups are there;
+            // the fallbacks keep the static analysis honest rather than guarding a real case.
             preg_match('/^(HR[AB])\s?([0-9]{1,6})$/', $upperNumber, $matches);
-            $type = $matches[1];
-            $registrationNumber = $matches[2];
+            $type = $matches[1] ?? '';
+            $registrationNumber = $matches[2] ?? '';
 
             return [
                 'valid' => true,
                 'country' => 'DE',
                 'country_name' => 'Germany',
                 'number' => $number,
-                'formatted' => $type . ' ' . $registrationNumber,
+                'formatted' => $type.' '.$registrationNumber,
                 'type' => $type,
                 'type_name' => $type === 'HRA' ? 'Handelsregister Abteilung A (Personengesellschaften)' : 'Handelsregister Abteilung B (Kapitalgesellschaften)',
                 'registration_number' => $registrationNumber,
@@ -206,8 +207,9 @@ class CompanyRegistrationService
      */
     private function cleanNumber(string $number): string
     {
-        // Remove spaces, dots, dashes, but keep letters for LU and DE
-        return preg_replace('/[\s.\-]/', '', trim($number));
+        // Remove spaces, dots, dashes, but keep letters for LU and DE.
+        // preg_replace returns null on a regex failure, and the caller expects a string.
+        return preg_replace('/[\s.\-]/', '', trim($number)) ?? '';
     }
 
     /**

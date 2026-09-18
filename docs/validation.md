@@ -1,3 +1,9 @@
+---
+title: Validation
+nav_order: 6
+description: Validating a generated document against the PEPPOL and EN 16931 business rules before you send it, and what each rule code means.
+---
+
 # Validation & Compliance
 
 This guide covers PEPPOL validation, compliance rules and testing of generated UBL documents.
@@ -421,3 +427,10 @@ $nl->createDocument();
 // ... add elements
 $xml = $nl->generateXml(true);
 ```
+
+## Working with the rules
+
+- The [PEPPOL BIS Billing 3.0 specification](https://docs.peppol.eu/poacc/billing/3.0/bis/) is the authority. When this documentation and that specification disagree, the specification wins and this page is wrong.
+- Run a generated document through an official validator before going live, not only through this package. The [Dutch validator](https://test.peppolautoriteit.nl/validate) and the [Ecosio validator](https://ecosio.com/en/peppol-and-xml-document-validator/) catch things a library cannot.
+- Keep the Dutch and Belgian rules apart. A field that is optional in one country is rejected in the other, so a shared "just add everything" helper produces documents that fail on both sides.
+- Invoices and credit notes follow the same rules, apart from the ones listed under [Credit notes](credit-notes.md). A change to one usually belongs in the other.

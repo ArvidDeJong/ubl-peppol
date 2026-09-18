@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: monthly
+    # Runtime constraints are widened by hand; only bump the dev tooling.
+    allow:
+      - dependency-type: development
+    versioning-strategy: widen
+    commit-message:
+      prefix: chore

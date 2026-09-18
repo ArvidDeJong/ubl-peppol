@@ -19,9 +19,9 @@ class UnitCodes
         'MTR' => 'metre',
         'CMT' => 'centimetre',
         'MMT' => 'millimetre',
-        'M2'  => 'square metre',
+        'M2' => 'square metre',
         'MTK' => 'square metre',
-        'M3'  => 'cubic metre',
+        'M3' => 'cubic metre',
         'MTQ' => 'cubic metre',
         'LTR' => 'litre',
         'MLT' => 'millilitre',
@@ -33,36 +33,33 @@ class UnitCodes
         'DZN' => 'dozen',
         'SET' => 'set',
         'PCE' => 'piece',
-        'PR'  => 'pair',
-        'PK'  => 'package',
-        'BG'  => 'bag',
-        'BX'  => 'box',
-        'CT'  => 'carton',
-        'CS'  => 'case',
-        'EA'  => 'each',
+        'PR' => 'pair',
+        'PK' => 'package',
+        'BG' => 'bag',
+        'BX' => 'box',
+        'CT' => 'carton',
+        'CS' => 'case',
+        'EA' => 'each',
         'GLL' => 'gallon',
         'KTM' => 'kilometre',
         'KMT' => 'kilometre',
-        'KQ'  => 'kilogram',
+        'KQ' => 'kilogram',
         'LBR' => 'pound',
         'MIN' => 'minute',
         'SEC' => 'second',
         'HIT' => 'hundred items',
-        'TNE' => 'tonne',
         'TNS' => 'ton (US)',
         'TNI' => 'ton (UK)',
         'KNT' => 'knot',
-        'KT'  => 'kit',
+        'KT' => 'kit',
         'KUR' => 'kilovolt ampere reactive hour',
         'KVA' => 'kilovolt ampere',
         'KVR' => 'kilovar',
         'KVT' => 'kilovolt',
-        'KWH' => 'kilowatt hour',
         'KWN' => 'kilowatt hour per normalized cubic metre',
         'KWO' => 'kilogram of uranium trioxide',
         'KWS' => 'kilowatt hour per standard cubic metre',
-        'KWT' => 'kilowatt',
-        'KX'  => 'millilitre per kilogram',
+        'KX' => 'millilitre per kilogram',
         'L10' => 'quart (US) per minute',
         'L11' => 'volt per metre',
         'L12' => 'millivolt per metre',
@@ -73,7 +70,7 @@ class UnitCodes
         'L17' => 'cubic metre per second bar',
         'L18' => 'cubic metre per second',
         'L19' => 'cubic metre per minute bar',
-        'L2'  => 'litre per minute',
+        'L2' => 'litre per minute',
         'L20' => 'cubic metre per day',
         'L21' => 'cubic metre per hour bar',
         'L23' => 'cubic metre per day bar',
@@ -157,9 +154,6 @@ class UnitCodes
 
     /**
      * Check if a unit code is valid
-     *
-     * @param string $code
-     * @return bool
      */
     public static function isValid(string $code): bool
     {
@@ -168,9 +162,6 @@ class UnitCodes
 
     /**
      * Get the description of a unit code
-     *
-     * @param string $code
-     * @return string|null
      */
     public static function getDescription(string $code): ?string
     {
@@ -179,8 +170,6 @@ class UnitCodes
 
     /**
      * Get all valid unit codes
-     *
-     * @return array
      */
     public static function getAll(): array
     {

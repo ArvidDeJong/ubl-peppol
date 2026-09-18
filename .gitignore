@@ -1,39 +1,18 @@
-# PHPStorm & andere IDE's
-.idea/
-.vscode/
-*.sublime-project
-*.sublime-workspace
-
-# Composer
 /vendor/
-composer.lock
-
-# OS gegenereerde bestanden
+/.idea/
+/.vscode/
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# PHPUnit
-/phpunit.xml
+composer.lock
+.phpunit.cache
 .phpunit.result.cache
-/coverage/
-
-# Build bestanden
+.pest
 /build/
-
-# Cache en logs
-/storage/*.key
-/storage/logs/*
-*.log
-
-# Local development bestanden
-.env
-.env.backup
+/coverage/
+# Local overrides of the .dist files
+/phpstan.neon
+/phpunit.xml
+# Local scratch output from the examples
 generated_invoice.xml
-examples/be/invoice.xml
+examples/**/invoice.xml
 test.xml
 hostfact.txt

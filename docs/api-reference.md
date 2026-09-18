@@ -1,3 +1,9 @@
+---
+title: API reference
+nav_order: 11
+description: Every public method of the Dutch and Belgian invoice builders, the validator and the supporting services, with their parameters.
+---
+
 # API Reference
 
 This page contains the complete API documentation for both UBL service classes.

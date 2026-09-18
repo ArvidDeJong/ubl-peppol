@@ -9,22 +9,30 @@ use Illuminate\Support\Facades\Log;
 class PeppolService
 {
     private string $baseUrl;
+
     private string $username;
+
     private string $password;
 
     public function __construct()
     {
-        $this->baseUrl = config('ubl-peppol.url', env('PEPPOL_URL'));
-        $this->username = config('ubl-peppol.username', env('PEPPOL_USERNAME'));
-        $this->password = config('ubl-peppol.password', env('PEPPOL_PASSWORD'));
+        // The accessors return '' for an unset value. Without that, resolving this service in an
+        // application that does not send invoices fails with a TypeError on these typed properties,
+        // before validateCredentials() can report which setting is missing.
+        $this->baseUrl = UblPeppolConfig::url();
+        $this->username = UblPeppolConfig::username();
+        $this->password = UblPeppolConfig::password();
     }
 
     /**
-     * Send a UBL invoice to the Peppol network
+     * Send a UBL invoice to the Peppol network.
      *
-     * @param object $invoice Invoice model with id, invoice_nr and peppol_sent_at
-     * @param string $ublXml UBL XML content
-     * @return array
+     * The invoice is your own model, not one of ours: anything with an id and an invoice number
+     * will do. Both end up on the log row, so the result can be traced back to the invoice.
+     *
+     * @param  object{id: int|string, invoice_nr?: string|null}  $invoice
+     * @param  string  $ublXml  UBL XML content
+     * @return array<string, mixed>
      */
     public function sendInvoice(object $invoice, string $ublXml): array
     {
@@ -273,7 +281,7 @@ class PeppolService
         return [
             'url' => $this->baseUrl,
             'username' => $this->username,
-            'password_configured' => !empty($this->password),
+            'password_configured' => ! empty($this->password),
         ];
     }
 }
