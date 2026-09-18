@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- `UblPeppolConfig` with named accessors is the one place that reads the package config, so a caller cannot quietly disagree with the config file about a default
 - Documentation site at [arviddejong.github.io/ubl-peppol](https://arviddejong.github.io/ubl-peppol/), with `llms.txt`, a Laravel Boost guideline and skill in `resources/boost/`, `SECURITY.md`, `CONTRIBUTING.md`, issue forms and a pull request template
 - Pest on Orchestra Testbench, Pint and Larastan level 8, with the `test`, `lint`, `format` and `analyse` composer scripts. CI runs PHP 8.2 to 8.4 with Laravel 11, 12 and 13, on the lowest and the latest dependencies
 - `tests/Unit/StandaloneCoreTest.php` guards the promise that the package works without Laravel: only the service provider, `PeppolService`, `PeppolLog` and the cleanup command may import `Illuminate\…`
@@ -20,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation pages were renamed and merged to match the site navigation. `installation.md` and `quick-start.md` became `getting-started.md`, the country pages became `netherlands.md` and `belgium.md`, `vies-validation.md` became `vat-numbers.md`, `company-registration-validation.md` became `company-numbers.md`, and `laravel-integration.md` became `laravel.md`
 
 ### Fixed
+- `log_retention_days` did nothing. The `peppol:cleanup` command had 60 hard-coded in its signature, so raising the setting did not keep logs any longer. Without `--days` the command now follows the config, and `--days` still wins
 - `PeppolService` could not be constructed at all without PEPPOL credentials: the typed `string` properties were assigned `null`, so resolving the service from the container failed with a TypeError before `validateCredentials()` could report which setting was missing
 - `ViesService` crashed on a VAT number that `preg_replace` could not clean, because the result was passed straight into `strtoupper()` and `substr()`
 - `generateXml()` promised a string while `DOMDocument::saveXML()` can return false; it now throws instead of returning the wrong type

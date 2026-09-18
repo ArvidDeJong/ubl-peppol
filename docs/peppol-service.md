@@ -200,7 +200,7 @@ Or create a custom command:
 
 ```php
 // In a scheduled command
-PeppolLog::cleanupOldLogs(config('ubl-peppol.log_retention_days', 60));
+PeppolLog::cleanupOldLogs(UblPeppolConfig::logRetentionDays());
 ```
 
 ## Laravel Integration

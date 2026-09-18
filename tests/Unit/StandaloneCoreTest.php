@@ -13,6 +13,7 @@ const LARAVEL_LAYER = [
     'Console/CleanupPeppolLogsCommand.php',
     'Models/PeppolLog.php',
     'PeppolService.php',
+    'UblPeppolConfig.php',
     'UblPeppolServiceProvider.php',
 ];
 

@@ -16,12 +16,12 @@ class PeppolService
 
     public function __construct()
     {
-        // Cast to string: the config falls back to env(), which is null when the variable is unset.
-        // Without the cast, resolving this service from the container in an application that does not
-        // send invoices fails with a TypeError before validateCredentials() ever runs.
-        $this->baseUrl = (string) config('ubl-peppol.url');
-        $this->username = (string) config('ubl-peppol.username');
-        $this->password = (string) config('ubl-peppol.password');
+        // The accessors return '' for an unset value. Without that, resolving this service in an
+        // application that does not send invoices fails with a TypeError on these typed properties,
+        // before validateCredentials() can report which setting is missing.
+        $this->baseUrl = UblPeppolConfig::url();
+        $this->username = UblPeppolConfig::username();
+        $this->password = UblPeppolConfig::password();
     }
 
     /**
