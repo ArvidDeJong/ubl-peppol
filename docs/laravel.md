@@ -153,19 +153,19 @@ php artisan peppol:cleanup-logs --days=30
 ## Validation
 
 ```php
-use Darvis\UblPeppol\Validation\UblValidator;
+$result = $ubl->validate();
 
-$validator = new UblValidator();
-$result = $validator->validate($xml);
-
-if ($result->isValid()) {
-    // XML is valid
-} else {
-    foreach ($result->getErrors() as $error) {
+if (! $result->isValid()) {
+    foreach ($result->errors as $error) {
         echo $error;
     }
+
+    // Or all of them at once:
+    logger()->warning($result->getErrorsAsString());
 }
 ```
+
+Validation belongs to the builder. `UblValidator` is a set of static helpers for single values (a unit code, a currency, an IBAN), not a document validator.
 
 ## Response Structure
 
