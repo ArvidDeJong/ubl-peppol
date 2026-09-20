@@ -92,6 +92,56 @@ test('the FAQ, structured data and llms.txt read from the shared data', function
         ->toContain('site.data.faq');
 });
 
+test('the YAML files build, because one bad value fails the whole Pages build', function () {
+    // An unquoted ": " makes the YAML invalid. Jekyll then aborts the build and GitHub keeps
+    // serving the last version that did build, so the site looks fine while it is months old.
+    foreach (['_config.yml', '_data/faq.yml'] as $file) {
+        $path = docsPath($file);
+
+        if (! is_file($path)) {
+            continue;
+        }
+
+        $blockIndent = null;
+
+        foreach (file($path, FILE_IGNORE_NEW_LINES) as $number => $line) {
+            $indent = strlen($line) - strlen(ltrim($line));
+
+            if ($blockIndent !== null) {
+                // Inside a > or | block every line is text, whatever it contains.
+                if (trim($line) === '' || $indent > $blockIndent) {
+                    continue;
+                }
+
+                $blockIndent = null;
+            }
+
+            if (! preg_match('/^(\s*)(?:-\s+)?(\w+):(?:\s+(\S.*))?$/', $line, $pair)) {
+                continue;
+            }
+
+            $value = trim($pair[3] ?? '');
+
+            if ($value === '') {
+                continue;
+            }
+
+            if (str_starts_with($value, '>') || str_starts_with($value, '|')) {
+                $blockIndent = strlen($pair[1]);
+
+                continue;
+            }
+
+            $quoted = str_starts_with($value, '"')
+                || str_starts_with($value, "'")
+                || str_starts_with($value, '[');
+
+            expect(str_contains($value, ': ') && ! $quoted)
+                ->toBeFalse($file.' line '.($number + 1).': quote the value of '.$pair[2]);
+        }
+    }
+});
+
 test('the config holds the package facts and the sitemap plugin', function () {
     expect(file_get_contents(docsPath('_config.yml')))
         ->toContain('- jekyll-sitemap')
