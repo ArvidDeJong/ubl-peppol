@@ -16,3 +16,6 @@ generated_invoice.xml
 examples/**/invoice.xml
 test.xml
 hostfact.txt
+
+# Samples for the check against an official validator
+/examples/validate/out/

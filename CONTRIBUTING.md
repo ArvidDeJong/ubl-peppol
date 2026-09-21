@@ -34,6 +34,24 @@ CI runs the tests on PHP 8.2-8.4 with Laravel 11, 12 and 13, on the lowest and t
 - Update `docs/`, `CHANGELOG.md` (under `Unreleased`) and `resources/boost/` when users will notice the change.
 - The documentation in `docs/` is also the website. Don't write `{{ }}` or `{% %}` there; Jekyll would render it.
 
+## Releases that change the generated XML
+
+`validate()` is not the receiver's Schematron, and neither is the test suite. Before a release that changes what a builder writes, the maintainer checks real output against an official validator:
+
+1. Generate the samples:
+
+   ```bash
+   php examples/validate/generate_samples.php
+   ```
+
+   It writes one file per case into `examples/validate/out/` (ignored by git), checks that each is well formed and passes `validate()`, and exits with 1 when one does not.
+
+2. Upload the Dutch files (`nl-*.xml`) to the [Dutch PEPPOL validator](https://test.peppolautoriteit.nl/validate) and the Belgian files (`be-*.xml`) to the [Ecosio validator](https://ecosio.com/en/peppol-and-xml-document-validator/), as "PEPPOL BIS Billing 3.0" invoice or credit note.
+3. Every file must come back without errors. Look up a rule code in the [PEPPOL BIS Billing 3.0 rules](https://docs.peppol.eu/poacc/billing/3.0/bis/); the specification decides, not the package.
+4. A pull request that adds or changes an element adds a case to `generate_samples.php`, and names the business term (such as BT-19) and the rule (such as BR-CO-11) in its tests and in the CHANGELOG.
+
+A changed document is a minor release, never a patch.
+
 ## Code of conduct
 
 This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).

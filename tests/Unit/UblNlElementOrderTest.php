@@ -88,7 +88,7 @@ const NL_EXPECTED_ELEMENTS = [
 ];
 
 it('writes the elements in schema order when the calls follow that order', function () {
-    $elements = array_values(array_diff(topLevelElements(buildNlInvoice(NL_SCHEMA_ORDER)), ['AccountingCost']));
+    $elements = topLevelElements(buildNlInvoice(NL_SCHEMA_ORDER));
 
     expect($elements)->toBe(NL_EXPECTED_ELEMENTS);
 });

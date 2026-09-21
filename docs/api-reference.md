@@ -17,6 +17,7 @@ All classes live in the namespace `Darvis\UblPeppol`. Every `add...()` method re
 | Method | `UblNlBis3Service` | `UblBeBis3Service` |
 | --- | --- | --- |
 | `createDocument(): self` | Starts an `<Invoice>`. Throws a `RuntimeException` on a second call | The same |
+| `generateXml()` without `createDocument()` | Throws a `RuntimeException` | Returns an empty XML declaration |
 | `generateXml(bool $validateFirst = false): string` | Puts the elements in schema order and returns the XML. With `true` it calls `validate()` first and throws an `InvalidArgumentException` on errors | Returns the XML. With `true` the same, plus suggested corrections in the message. On a credit note it always checks the [credit note rules](credit-notes.md#the-rules-generatexml-enforces) |
 | `validate(): InvoiceValidationResult` | Code formats and five Dutch rules | Totals and code formats. See [Validation](validation.md#the-two-builders-check-different-things) |
 | `enableStrictCodelistValidation(?string $jsonPath = null, ?CodelistRegistry $registry = null): self` | See [Strict code lists](validation.md#strict-code-lists) | The same |
@@ -25,6 +26,7 @@ All classes live in the namespace `Darvis\UblPeppol`. Every `add...()` method re
 
 ```php
 addInvoiceHeader(string $invoiceNumber, $issueDate, $dueDate): self
+addAccountingCost(string $value): self                 // BT-19, optional
 addBuyerReference(?string $buyerRef = 'BUYER_REF'): self
 addOrderReference(string $orderNumber = 'PO-001'): self
 addAdditionalDocumentReference(string $id, ?string $documentType = null): self
@@ -68,6 +70,15 @@ addAccountingCustomerParty(
     string $taxSchemeId = 'VAT'
 ): self
 ```
+
+Only in `UblNlBis3Service`, for the legal registration identifier (BT-30, BT-47):
+
+```php
+addSupplierLegalRegistration(string $identifier, string $schemeId = '0106'): self
+addCustomerLegalRegistration(string $identifier, string $schemeId = '0106'): self
+```
+
+See [Dutch invoices](netherlands.md#the-legal-registration-of-the-supplier-and-the-customer).
 
 `UblBeBis3Service` has the same positions with other names: `$name` for `$partyName`, `$country` for `$countryCode`, `$vatNumber` for the supplier's `$companyId`, and `$registrationNumber` for the customer's `$companyId`. It has no `$taxSchemeId` argument.
 

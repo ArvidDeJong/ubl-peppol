@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**The generated XML changes**, so this is a minor release. Every change follows the [PEPPOL BIS Billing 3.0 specification](https://docs.peppol.eu/poacc/billing/3.0/bis/); the business term (BT) and the rule are named with each. No public method changed its signature. Before releasing, the maintainer runs `php examples/validate/generate_samples.php` and checks the files with an official validator; see `CONTRIBUTING.md`.
+
+### Changed
+- **`cbc:AccountingCost` (BT-19, buyer accounting reference) is no longer written by default**, in both builders. Before: `addInvoiceHeader()` wrote `<cbc:AccountingCost>4025:123:4343</cbc:AccountingCost>`, the value from the PEPPOL example file, into every invoice. Now: the element is left out, which the specification allows (0..1). What you do: nothing, unless your customer gave you a booking reference; then call the new `addAccountingCost('their reference')`
+- **Dutch builder: the supplier's `PartyLegalEntity/cbc:RegistrationName` (BT-27, seller name) is the `$partyName` you pass.** Before: the literal `SupplierOfficialName Ltd`, in every invoice. What you do: nothing
+- **Dutch builder: the supplier's VAT number is no longer written as its legal registration (`PartyLegalEntity/cbc:CompanyID`, BT-30) under scheme `0106`.** Scheme `0106` means "KvK number", and NL-R-003 wants a KvK number (`0106`) or an OIN (`0190`) there. Before: `<cbc:CompanyID schemeID="0106">NL123456789B01</cbc:CompanyID>`. That was wrong for every caller who passed a VAT number as `$companyId`, which is what the argument is for; it passed validation only because the Schematron tests the scheme and not the number. Now: the element is written from the new `addSupplierLegalRegistration()`, or, as before and byte for byte the same, when `$companyId` is 8 digits; otherwise it is left out (BT-30 is 0..1, and BR-CO-26 is met by the VAT number in BT-31). **What you do: call `addSupplierLegalRegistration('your KvK number')` once per invoice.** A Dutch receiver may expect the KvK number
+- **Dutch builder: the customer's `PartyLegalEntity/cbc:CompanyID` (BT-47) gets scheme `0106` only for a customer in the Netherlands** (NL-R-005). Before: `schemeID="0106"` for every customer, also a Belgian or German one. Now: for a customer in another country the `schemeID`, which is optional, is left out; a `$companyId` that starts with a country prefix is a VAT number and is not written as a registration. A Dutch customer with a KvK number gets the same XML as before. What you do: for a foreign customer whose register you know, or a Dutch customer with an OIN, call the new `addCustomerLegalRegistration($number, $schemeId)`
+- **Dutch builder: `addAllowanceCharge()` writes `cac:TaxCategory` (BT-95 for a discount, BT-102 for a charge) at 0% too.** BR-32 and BR-37 require the category on every document level allowance and charge. Before: left out when `$taxPercent` was 0, so a zero rated, exempt or reverse charge discount was rejected. Now: `cbc:ID`, `cbc:Percent` `0.00` and the tax scheme; for category `O` no percent, as BR-O-06 and BR-O-07 demand. With a percentage above 0 nothing changes
+- **Belgian builder: a customer VAT number (BT-48) in lower case is accepted and written in upper case** (BR-CO-09), as the Dutch builder already did. Before: `be0999000228` threw
+- `validate()` of the Belgian builder counts the document level allowances and charges, so a result that was invalid can now be valid; see Fixed
+
+### Added
+- `addAccountingCost(string $value)` on both builders (BT-19). The Dutch builder sorts it into place; the Belgian builder inserts it directly behind `cbc:DocumentCurrencyCode`, where the schema wants it, whenever it is called after the header, also on a credit note
+- `UblNlBis3Service::addSupplierLegalRegistration(string $identifier, string $schemeId = '0106')` and `addCustomerLegalRegistration(...)` for BT-30 and BT-47, callable before or after the party method. The scheme must be a 4 digit ISO 6523 ICD code (BR-CL-11)
+- Dutch builder: `addLegalMonetaryTotal()` writes `cbc:AllowanceTotalAmount` (BT-107) and `cbc:PrepaidAmount` (BT-113) from the keys `allowance_total_amount` and `prepaid_amount` when they are more than zero, in schema order, as the Belgian builder does. Before they were dropped, so an invoice with a discount or a prepayment could not satisfy BR-CO-13 and BR-CO-16 at the receiver. Passing `0` or leaving them out gives the same XML as before; `cbc:ChargeTotalAmount` is written as before, also when `0.00`
+- `examples/validate/generate_samples.php` writes five sample documents for the check against an official validator, and `CONTRIBUTING.md` describes that check
+
+### Fixed
+- **Belgian `validate()` failed every correct document with a charge or a discount.** `addAllowanceCharge()` was not passed to the check, so BR-CO-12 or BR-CO-11 and BR-S-08 fired, and the suggested corrections left the charge out. The builder now tracks them and the check includes them
+- Belgian `addInvoiceLine()` without `tax_scheme_id` wrote an empty `cac:TaxScheme/cbc:ID` with a PHP warning; it defaults to `VAT` now, like the Dutch builder. `addLegalMonetaryTotal()` without `charge_total_amount` gave a PHP warning; it is `0` now, with the same XML
+- Dutch `generateXml()` without `createDocument()` died with a PHP `Error` since 1.8.0. It throws the documented `RuntimeException` again: `Root element is not initialized. Call createDocument() before adding elements.`
+- The Dutch example data had a VAT number as the customer's registration number and an Italian tax code as the endpoint of a Dutch customer
+
 ## [1.9.1] - 2026-09-21
 
 Documentation only: nothing in `src/` changes. If you built on the old text, these are the claims that were wrong.
