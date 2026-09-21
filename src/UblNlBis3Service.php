@@ -53,6 +53,22 @@ class UblNlBis3Service
 
     protected bool $hasOrderLineReference = false;
 
+    // The PartyLegalEntity elements, so a legal registration can be written after the party was added
+    protected ?DOMElement $supplierLegalEntity = null;
+
+    protected ?DOMElement $customerLegalEntity = null;
+
+    /**
+     * Legal registrations passed through addSupplierLegalRegistration() and
+     * addCustomerLegalRegistration(), which win over what the party methods derive themselves.
+     *
+     * @var array{id: string, scheme: string}|null
+     */
+    protected ?array $supplierLegalRegistration = null;
+
+    /** @var array{id: string, scheme: string}|null */
+    protected ?array $customerLegalRegistration = null;
+
     /**
      * Constructor - Initializes a new UBL document
      */
@@ -103,6 +119,11 @@ class UblNlBis3Service
                     "UBL/Peppol validation failed:\n".$validationResult->getErrorsAsString("\n")
                 );
             }
+        }
+
+        // arrangeInSchemaOrder() reads the root element, which only exists after createDocument()
+        if (! isset($this->rootElement)) {
+            throw new \RuntimeException('Root element is not initialized. Call createDocument() before adding elements.');
         }
 
         $this->arrangeInSchemaOrder();
@@ -447,9 +468,8 @@ class UblNlBis3Service
 
         $this->usedCurrencyCodes[] = 'EUR';
 
-        // AccountingCost
-        $accountingCostElement = $this->createElement('cbc', 'AccountingCost', '4025:123:4343');
-        $this->rootElement->appendChild($accountingCostElement);
+        // AccountingCost (BT-19) is optional and the buyer's own booking reference, so it is only
+        // written when the caller passes one through addAccountingCost().
 
         // BuyerReference is now added separately via addBuyerReference() to prevent duplicate elements
 
@@ -465,6 +485,117 @@ class UblNlBis3Service
     protected function formatAmount(float $amount): string
     {
         return number_format($amount, 2, '.', '');
+    }
+
+    /**
+     * Add the buyer accounting reference (BT-19): where the buyer books this invoice.
+     *
+     * Optional, at most one per document. A second call replaces the first. generateXml() puts the
+     * element between DocumentCurrencyCode and BuyerReference, where the schema wants it.
+     *
+     * @throws \InvalidArgumentException When the value is empty
+     */
+    public function addAccountingCost(string $value): self
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            throw new \InvalidArgumentException('Accounting cost cannot be empty');
+        }
+
+        foreach (iterator_to_array($this->rootElement->childNodes) as $node) {
+            if ($node instanceof DOMElement && $node->nodeName === 'cbc:AccountingCost') {
+                $this->rootElement->removeChild($node);
+            }
+        }
+
+        $this->rootElement->appendChild($this->createElement('cbc', 'AccountingCost', $value));
+
+        return $this;
+    }
+
+    /**
+     * Set the legal registration identifier of the supplier (BT-30) and its scheme.
+     *
+     * For a Dutch supplier NL-R-003 wants a KvK number (scheme 0106) or an OIN (scheme 0190) here.
+     * Call it before or after addAccountingSupplierParty(); it wins over what that method derives.
+     *
+     * @param  string  $identifier  The registration number, for example the 8 digit KvK number
+     * @param  string  $schemeId  ISO 6523 ICD code of the register (BR-CL-11), 4 digits
+     *
+     * @throws \InvalidArgumentException When the identifier is empty or the scheme is not 4 digits
+     */
+    public function addSupplierLegalRegistration(string $identifier, string $schemeId = '0106'): self
+    {
+        $this->supplierLegalRegistration = $this->legalRegistration($identifier, $schemeId);
+
+        if ($this->supplierLegalEntity !== null) {
+            $this->writeLegalRegistration($this->supplierLegalEntity, $this->supplierLegalRegistration['id'], $this->supplierLegalRegistration['scheme']);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set the legal registration identifier of the customer (BT-47) and its scheme.
+     *
+     * For a Dutch customer of a Dutch supplier NL-R-005 wants a KvK number (scheme 0106) or an OIN
+     * (scheme 0190). Call it before or after addAccountingCustomerParty(); it wins over the
+     * $companyId argument of that method.
+     *
+     * @param  string  $identifier  The registration number
+     * @param  string  $schemeId  ISO 6523 ICD code of the register (BR-CL-11), 4 digits
+     *
+     * @throws \InvalidArgumentException When the identifier is empty or the scheme is not 4 digits
+     */
+    public function addCustomerLegalRegistration(string $identifier, string $schemeId = '0106'): self
+    {
+        $this->customerLegalRegistration = $this->legalRegistration($identifier, $schemeId);
+
+        if ($this->customerLegalEntity !== null) {
+            $this->writeLegalRegistration($this->customerLegalEntity, $this->customerLegalRegistration['id'], $this->customerLegalRegistration['scheme']);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return array{id: string, scheme: string}
+     */
+    private function legalRegistration(string $identifier, string $schemeId): array
+    {
+        $identifier = trim($identifier);
+        $schemeId = trim($schemeId);
+
+        if ($identifier === '') {
+            throw new \InvalidArgumentException('Legal registration identifier cannot be empty');
+        }
+
+        if (! UblValidator::isValidSchemeIdFormat($schemeId)) {
+            throw new \InvalidArgumentException("Legal registration scheme must be a 4 digit ISO 6523 ICD code (e.g., '0106' for KVK, '0190' for OIN). Got: '{$schemeId}'");
+        }
+
+        return ['id' => $identifier, 'scheme' => $schemeId];
+    }
+
+    /**
+     * Write cbc:CompanyID into a PartyLegalEntity, replacing one that is already there.
+     * The schema puts it directly after cbc:RegistrationName, the only other child this builder writes.
+     */
+    private function writeLegalRegistration(DOMElement $legalEntity, string $identifier, ?string $schemeId): void
+    {
+        foreach (iterator_to_array($legalEntity->childNodes) as $node) {
+            if ($node instanceof DOMElement && $node->nodeName === 'cbc:CompanyID') {
+                $legalEntity->removeChild($node);
+            }
+        }
+
+        $legalEntity->appendChild($this->createElement('cbc', 'CompanyID', $identifier, $schemeId !== null ? ['schemeID' => $schemeId] : []));
+
+        if ($schemeId !== null) {
+            $this->usedSchemeIds[] = $schemeId;
+            $this->usedRegistrationSchemeIds[] = $schemeId;
+        }
     }
 
     /**
@@ -659,15 +790,20 @@ class UblNlBis3Service
         $partyLegalEntity = $this->createElement('cac', 'PartyLegalEntity');
         $partyLegalEntity = $party->appendChild($partyLegalEntity);
 
-        $registrationNameElement = $this->createElement('cbc', 'RegistrationName', 'SupplierOfficialName Ltd');
+        // RegistrationName is the Seller name (BT-27)
+        $registrationNameElement = $this->createElement('cbc', 'RegistrationName', $partyName);
         $partyLegalEntity->appendChild($registrationNameElement);
 
-        // Add CompanyID with schemeID for Dutch legal entity identifier (KVK)
-        $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId, ['schemeID' => '0106']);
-        $partyLegalEntity->appendChild($companyIDElement);
+        $this->supplierLegalEntity = $partyLegalEntity;
 
-        $this->usedSchemeIds[] = '0106';
-        $this->usedRegistrationSchemeIds[] = '0106';
+        // Seller legal registration identifier (BT-30). NL-R-003 wants a KvK or OIN number here, so
+        // the VAT number in $companyId does not belong under scheme 0106: it is already written as
+        // BT-31 above. Only a caller who passed an 8 digit KvK number keeps the element they had.
+        if ($this->supplierLegalRegistration !== null) {
+            $this->writeLegalRegistration($partyLegalEntity, $this->supplierLegalRegistration['id'], $this->supplierLegalRegistration['scheme']);
+        } elseif (preg_match('/^[0-9]{8}$/', trim($companyId)) === 1) {
+            $this->writeLegalRegistration($partyLegalEntity, trim($companyId), '0106');
+        }
 
         return $this;
     }
@@ -840,13 +976,16 @@ class UblNlBis3Service
         $registrationNameElement = $this->createElement('cbc', 'RegistrationName', $partyName);
         $partyLegalEntity->appendChild($registrationNameElement);
 
-        // CompanyID in PartyLegalEntity is the Chamber of Commerce number (registration number)
-        if (! empty($companyId)) {
-            $companyIDElement = $this->createElement('cbc', 'CompanyID', $companyId, ['schemeID' => '0106']);
-            $partyLegalEntity->appendChild($companyIDElement);
+        $this->customerLegalEntity = $partyLegalEntity;
 
-            $this->usedSchemeIds[] = '0106';
-            $this->usedRegistrationSchemeIds[] = '0106';
+        // Buyer legal registration identifier (BT-47). Scheme 0106 says "KvK number", which only a
+        // Dutch customer has (NL-R-005); for another country the optional schemeID is left out. A
+        // value with a country prefix is a VAT number (BT-48, the $vatNumber argument), not a
+        // registration number, and is not written here.
+        if ($this->customerLegalRegistration !== null) {
+            $this->writeLegalRegistration($partyLegalEntity, $this->customerLegalRegistration['id'], $this->customerLegalRegistration['scheme']);
+        } elseif (! empty($companyId) && preg_match('/^[A-Za-z]{2}/', trim($companyId)) !== 1) {
+            $this->writeLegalRegistration($partyLegalEntity, $companyId, strtoupper($countryCode) === 'NL' ? '0106' : null);
         }
 
         // Only add a Contact element if at least one contact detail is provided
@@ -1159,27 +1298,28 @@ class UblNlBis3Service
         $amountElement = $this->createElement('cbc', 'Amount', (string) number_format($amount, 2, '.', ''), ['currencyID' => $currency]);
         $allowanceCharge->appendChild($amountElement);
 
-        // Add tax information if tax percentage is greater than 0
-        if ($taxPercent > 0) {
-            // TaxCategory
-            $taxCategory = $this->createElement('cac', 'TaxCategory');
-            $taxCategory = $allowanceCharge->appendChild($taxCategory);
+        // TaxCategory is mandatory on every document level allowance (BT-95, BR-32) and charge
+        // (BT-102, BR-37), also at 0%: a zero rated, exempt or reverse charge amount has a category
+        // and a rate of 0 (BR-Z-06/07, BR-E-06/07, BR-AE-06/07).
+        $taxCategory = $this->createElement('cac', 'TaxCategory');
+        $taxCategory = $allowanceCharge->appendChild($taxCategory);
 
-            // Tax category ID (e.g., 'S' for standard rate, 'Z' for zero rate)
-            $idElement = $this->createElement('cbc', 'ID', $taxCategoryId);
-            $taxCategory->appendChild($idElement);
+        // Tax category ID (e.g., 'S' for standard rate, 'Z' for zero rate)
+        $idElement = $this->createElement('cbc', 'ID', $taxCategoryId);
+        $taxCategory->appendChild($idElement);
 
-            // Tax percentage
+        // Tax percentage. "Not subject to VAT" (O) shall not carry a rate (BR-O-06, BR-O-07).
+        if (strtoupper($taxCategoryId) !== 'O') {
             $percentElement = $this->createElement('cbc', 'Percent', (string) number_format($taxPercent, 2, '.', ''));
             $taxCategory->appendChild($percentElement);
-
-            // Tax scheme (always VAT for this implementation)
-            $taxScheme = $this->createElement('cac', 'TaxScheme');
-            $taxScheme = $taxCategory->appendChild($taxScheme);
-
-            $taxSchemeIDElement = $this->createElement('cbc', 'ID', 'VAT');
-            $taxScheme->appendChild($taxSchemeIDElement);
         }
+
+        // Tax scheme (always VAT for this implementation)
+        $taxScheme = $this->createElement('cac', 'TaxScheme');
+        $taxScheme = $taxCategory->appendChild($taxScheme);
+
+        $taxSchemeIDElement = $this->createElement('cbc', 'ID', 'VAT');
+        $taxScheme->appendChild($taxSchemeIDElement);
 
         return $this;
     }
@@ -1344,7 +1484,10 @@ class UblNlBis3Service
      *                          - tax_exclusive_amount: Amount excluding tax (line_extension_amount + charges - allowances)
      *                          - tax_inclusive_amount: Amount including tax
      *                          - charge_total_amount: Total of all charges
-     *                          - payable_amount: Total amount to be paid (should equal tax_inclusive_amount)
+     *                          - payable_amount: Total amount to be paid (tax_inclusive_amount - prepaid_amount)
+     *                          and these optional keys, written when they are more than zero:
+     *                          - allowance_total_amount: Total of all document level allowances (BT-107)
+     *                          - prepaid_amount: Amount already paid (BT-113)
      * @param  string  $currency  Currency code (3 letters, e.g., 'EUR')
      *
      * @throws \InvalidArgumentException For missing or invalid parameters
@@ -1368,6 +1511,16 @@ class UblNlBis3Service
             }
         }
 
+        // Optional amounts: numeric when present
+        $optionalAmounts = [];
+        foreach (['allowance_total_amount' => 'Allowance total amount', 'prepaid_amount' => 'Prepaid amount'] as $field => $label) {
+            if (isset($amounts[$field]) && ! is_numeric($amounts[$field])) {
+                throw new \InvalidArgumentException($label.' must be numeric');
+            }
+
+            $optionalAmounts[$field] = (float) ($amounts[$field] ?? 0);
+        }
+
         // Validate currency
         if (strlen($currency) !== 3) {
             throw new \InvalidArgumentException('Currency code must be exactly 3 characters long');
@@ -1383,14 +1536,27 @@ class UblNlBis3Service
         $legalMonetaryTotal = $this->createElement('cac', 'LegalMonetaryTotal');
         $legalMonetaryTotal = $this->rootElement->appendChild($legalMonetaryTotal);
 
-        // Add all monetary amounts with currency
+        // Add all monetary amounts with currency, in the order the schema fixes. The allowance
+        // total (BT-107) and the paid amount (BT-113) are optional and only written when they are
+        // more than zero, like the Belgian builder does; without them BR-CO-13 and BR-CO-16 cannot
+        // hold for an invoice with a discount or a prepayment.
         $elements = [
             'LineExtensionAmount' => $formattedAmounts['line_extension_amount'],
             'TaxExclusiveAmount' => $formattedAmounts['tax_exclusive_amount'],
             'TaxInclusiveAmount' => $formattedAmounts['tax_inclusive_amount'],
-            'ChargeTotalAmount' => $formattedAmounts['charge_total_amount'],
-            'PayableAmount' => $formattedAmounts['payable_amount'],
         ];
+
+        if ($optionalAmounts['allowance_total_amount'] > 0.001) {
+            $elements['AllowanceTotalAmount'] = $formattedAmounts['allowance_total_amount'];
+        }
+
+        $elements['ChargeTotalAmount'] = $formattedAmounts['charge_total_amount'];
+
+        if ($optionalAmounts['prepaid_amount'] > 0.001) {
+            $elements['PrepaidAmount'] = $formattedAmounts['prepaid_amount'];
+        }
+
+        $elements['PayableAmount'] = $formattedAmounts['payable_amount'];
 
         foreach ($elements as $elementName => $amount) {
             $element = $this->createElement(

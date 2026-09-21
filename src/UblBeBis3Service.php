@@ -60,6 +60,17 @@ class UblBeBis3Service
     protected float $prepaidAmount = 0.0;
 
     /**
+     * Document level allowances (BG-20) and charges (BG-21) added through addAllowanceCharge(), so
+     * validate() can check BR-CO-11, BR-CO-12 and the taxable amounts per VAT category against them.
+     *
+     * @var array<int, array{amount: float, tax_category_id: string, tax_percent: float}>
+     */
+    protected array $documentAllowances = [];
+
+    /** @var array<int, array{amount: float, tax_category_id: string, tax_percent: float}> */
+    protected array $documentCharges = [];
+
+    /**
      * Constructor - Initializes a new UBL document
      */
     public function __construct()
@@ -355,7 +366,9 @@ class UblBeBis3Service
             $this->taxTotals,
             $this->allowanceTotalAmount,
             $this->chargeTotalAmount,
-            $this->prepaidAmount
+            $this->prepaidAmount,
+            $this->documentAllowances,
+            $this->documentCharges
         );
 
         $codeResult = UblValidator::validateBasicCodes([
@@ -678,9 +691,8 @@ class UblBeBis3Service
 
         $this->usedCurrencyCodes[] = 'EUR';
 
-        // AccountingCost
-        $accountingCostElement = $this->createElement('cbc', 'AccountingCost', '4025:123:4343');
-        $this->rootElement->appendChild($accountingCostElement);
+        // AccountingCost (BT-19) is optional and the buyer's own booking reference, so it is only
+        // written when the caller passes one through addAccountingCost().
 
         // BuyerReference is added separately through addBuyerReference() to avoid a duplicate element
 
@@ -696,6 +708,48 @@ class UblBeBis3Service
     protected function formatAmount(float $amount): string
     {
         return number_format($amount, 2, '.', '');
+    }
+
+    /**
+     * Add the buyer accounting reference (BT-19): where the buyer books this document.
+     *
+     * Optional, at most one per document; a second call replaces the first. This builder writes
+     * elements in call order, so the element is inserted where the schema wants it: directly
+     * behind DocumentCurrencyCode, in front of BuyerReference and the other references. That
+     * works for an invoice and for a credit note, whenever it is called after the header.
+     *
+     * @throws \InvalidArgumentException When the value is empty
+     * @throws \RuntimeException When the header was not added yet
+     */
+    public function addAccountingCost(string $value): self
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            throw new \InvalidArgumentException('Accounting cost cannot be empty');
+        }
+
+        $element = $this->createElement('cbc', 'AccountingCost', $value);
+        $currencyCode = null;
+
+        foreach (iterator_to_array($this->rootElement->childNodes) as $node) {
+            if ($node instanceof DOMElement && $node->nodeName === 'cbc:AccountingCost') {
+                $this->rootElement->removeChild($node);
+            }
+
+            if ($node instanceof DOMElement && $node->nodeName === 'cbc:DocumentCurrencyCode') {
+                $currencyCode = $node;
+            }
+        }
+
+        if ($currencyCode === null) {
+            throw new \RuntimeException('Add the header before the accounting cost. Call addInvoiceHeader() or addCreditNoteHeader() first.');
+        }
+
+        // insertBefore(null) appends, which is right when the header is the last thing added so far
+        $this->rootElement->insertBefore($element, $currencyCode->nextSibling);
+
+        return $this;
     }
 
     /**
@@ -861,6 +915,7 @@ class UblBeBis3Service
         $lineData = array_merge([
             'tax_category_id' => 'S',
             'tax_percent' => '21.00',
+            'tax_scheme_id' => 'VAT',
         ], $lineData);
 
         if (isset($lineData['currency'])) {
@@ -1042,7 +1097,7 @@ class UblBeBis3Service
         }
 
         // ChargeTotalAmount - altijd outputten (kan 0.00 zijn)
-        $this->addChildElement($monetaryTotal, 'cbc', 'ChargeTotalAmount', $this->formatAmount((float) $totals['charge_total_amount']), ['currencyID' => $currency]);
+        $this->addChildElement($monetaryTotal, 'cbc', 'ChargeTotalAmount', $this->formatAmount($this->chargeTotalAmount), ['currencyID' => $currency]);
 
         // PrepaidAmount: optional, only when something was paid up front
         if ($this->prepaidAmount > 0.001) {
@@ -1128,6 +1183,15 @@ class UblBeBis3Service
     ): self {
         $this->usedCurrencyCodes[] = $currency;
         $this->usedTaxCategoryIds[] = $taxCategoryId;
+
+        // Remember it for validate(): BR-CO-11 and BR-CO-12 sum these amounts, and the taxable
+        // amount of a VAT category includes them.
+        $tracked = ['amount' => $amount, 'tax_category_id' => $taxCategoryId, 'tax_percent' => $taxPercent];
+        if ($isCharge) {
+            $this->documentCharges[] = $tracked;
+        } else {
+            $this->documentAllowances[] = $tracked;
+        }
 
         $allowanceCharge = $this->addChildElement($this->rootElement, 'cac', 'AllowanceCharge');
         $this->addChildElement($allowanceCharge, 'cbc', 'ChargeIndicator', $isCharge ? 'true' : 'false');
@@ -1266,8 +1330,9 @@ class UblBeBis3Service
 
         // PartyTaxScheme - only add if VAT number is provided (BR-CO-09: must start with country code)
         if ($vatNumber) {
-            // Validate that VAT number starts with a 2-letter country code
-            $vatCountryCode = strtoupper(substr($vatNumber, 0, 2));
+            // Validate that VAT number starts with a 2-letter country code (BR-CO-09). The prefix is
+            // an ISO 3166-1 code, which is upper case, so a lower case number is written in upper case.
+            $vatNumber = strtoupper($vatNumber);
             if (! preg_match('/^[A-Z]{2}/', $vatNumber)) {
                 throw new \InvalidArgumentException(
                     "VAT number must start with a 2-letter ISO 3166-1 alpha-2 country code (e.g., 'NL', 'BE'). Got: '{$vatNumber}'"
