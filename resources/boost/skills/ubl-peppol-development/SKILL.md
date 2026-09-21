@@ -25,7 +25,7 @@ They are separate classes on purpose: a field one country requires is rejected b
 The order of elements inside UBL is fixed by the schema. `UblNlBis3Service` puts the elements under `<Invoice>` in that order itself when `generateXml()` runs, so for a Dutch invoice the order of the calls does not matter. `UblBeBis3Service` only moves the totals in front of the lines and otherwise writes what you call in the order you call it. Calling the methods in schema order works for both:
 
 1. `createDocument()`
-2. `addInvoiceHeader($number, $issueDate, $dueDate)`, and for a credit note `addCreditNoteHeader()` plus `addBillingReference()`
+2. `addInvoiceHeader($number, $issueDate, $dueDate)`
 3. Optional references: `addBuyerReference()`, `addOrderReference()`, `addAdditionalDocumentReference()`
 4. `addAccountingSupplierParty(...)`, `addAccountingCustomerParty(...)`
 5. Optional `addDelivery(...)`, `addPaymentMeans(...)`, `addPaymentTerms(...)`, `addAllowanceCharge(...)`
@@ -57,7 +57,7 @@ A rejection carries a rule code such as `BR-CO-11` or `PEPPOL-EN16931-R010`. Loo
 
 ## Credit notes
 
-A credit note is its own document type: root element `<CreditNote>`, type code 381, lines with `<CreditedQuantity>`, and a `BillingReference` to the invoice it corrects, which BR-55 requires. **Amounts are positive.** The document type expresses the credit, not the sign. Pass the amounts as they are; the package converts negatives for you, so pre-negating them produces a wrong document.
+A credit note is its own document type: root element `<CreditNote>`, type code 381, lines with `<CreditedQuantity>`, and a `BillingReference` to the invoice it corrects, which BR-55 requires. **Amounts are positive.** The document type expresses the credit, not the sign. Only `UblBeBis3Service` builds credit notes; `UblNlBis3Service` has no credit note methods. The calls differ from an invoice: start with `createCreditNoteDocument()` (not `createDocument()`, which makes an `<Invoice>`), then `addCreditNoteHeader($number, $issueDate)`, `addBillingReference($invoiceNumber)`, the parties, the totals, and `addCreditNoteLine()` per line (not `addInvoiceLine()`). `addBuyerReference()` throws on a credit note. `addCreditNoteLine()` makes the price, the quantity and the line amount positive. The tax total and the monetary total are written as you pass them: pass positive numbers, because `generateXml()` always validates a credit note and throws an `InvalidArgumentException` on a negative `line_extension_amount` or `payable_amount` (BR-CN-03, BR-CN-04) and on a missing `BillingReference` (BR-55). `validate()` alone does not check those credit note rules.
 
 ## VAT and company numbers
 

@@ -11,7 +11,7 @@ Builds **UBL 2.1** invoices and credit notes that pass **PEPPOL BIS Billing 3.0*
 ## Features
 
 - 🇳🇱 🇧🇪 Dutch (NLCIUS) and Belgian (EN 16931) invoices, each with its own rule set, because a field one country requires the other rejects
-- 🧾 Credit notes with the billing reference BR-55 demands, and positive amounts as the specification wants them
+- 🧾 Credit notes (Belgian builder) with the billing reference BR-55 demands, and positive amounts as the specification wants them
 - ✅ Validation before sending, with the rule that fired and the corrections that were applied
 - 🔎 VAT numbers against VIES, and company registration numbers such as the KvK number and the Belgian ondernemingsnummer
 - 📮 Sending to the PEPPOL network through your access point provider, with an optional log of what came back

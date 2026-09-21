@@ -8,6 +8,8 @@ description: Generating PEPPOL BIS Billing 3.0 credit notes, the billing referen
 
 This document explains how to generate PEPPOL-compliant Credit Notes using the `darvis/ubl-peppol` package.
 
+Credit notes are built with `UblBeBis3Service`. `UblNlBis3Service` builds invoices only; it has no credit note methods yet. Start with `createCreditNoteDocument()`, not `createDocument()`, and add lines with `addCreditNoteLine()`, not `addInvoiceLine()`.
+
 ## Key Differences: Invoice vs Credit Note
 
 | Aspect           | Invoice            | Credit Note                  |
@@ -106,8 +108,7 @@ $service->addCreditNoteLine([
 
 ## BuyerReference in Credit Notes
 
-The CreditNote schema does not allow `BuyerReference` in the same position as Invoice documents.
-Avoid calling `addBuyerReference()` for credit notes.
+The UBL schema does allow `cbc:BuyerReference` in a CreditNote, but this builder does not place it in the right position yet, and a receiver rejects a wrongly ordered element. `addBuyerReference()` therefore throws an `InvalidArgumentException` on a credit note. Leave it out.
 
 The package automatically validates Credit Note specific rules when calling `generateXml()`:
 

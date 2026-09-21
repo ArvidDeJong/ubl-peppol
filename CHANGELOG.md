@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`testConnection()` reported "Connection successful" for almost every answer.** Only a 401 counted
+  as a failure, so a refused login (403), a wrong `PEPPOL_URL` (404) and a provider that was down
+  (5xx) all looked fine. Those are failures now, each with its own message. A 2xx is
+  `Connection successful` as before. Any other answer, such as the 405 most providers give to a GET
+  on their send URL, still counts as a success but says what happened:
+  `Peppol provider reached (HTTP 405); the credentials were not refused`. If you show or match the
+  message, check it against the new texts.
+- The documentation presented credit notes as something both builders do. Only `UblBeBis3Service`
+  builds them; the Dutch builder does invoices only. The README, the docs, the FAQ and the Boost
+  guideline and skill now say so, and the skill names the right calls (`createCreditNoteDocument()`
+  and `addCreditNoteLine()`).
+- The documentation said the package converts negative amounts on a credit note. That is true for
+  the lines only. The tax total and the monetary total are written as you pass them, and
+  `generateXml()` throws on a negative total (BR-CN-03, BR-CN-04). The docs now tell you to pass
+  positive totals.
+- The credit notes page said the CreditNote schema does not allow `BuyerReference`. It does; this
+  builder does not support it yet and throws, which is what the page now says.
+
 ## [1.8.0] - 2026-09-21
 
 ### Fixed
