@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-09-21
+
 **The generated XML changes**, so this is a minor release. Every change follows the [PEPPOL BIS Billing 3.0 specification](https://docs.peppol.eu/poacc/billing/3.0/bis/); the business term (BT) and the rule are named with each. No public method changed its signature. The six documents of `php examples/validate/generate_samples.php` and six documents from a production application pass the UBL 2.1 XSD and the official OpenPEPPOL Schematron rules, release 2026.5 (`CEN-EN16931-UBL` and `PEPPOL-EN16931-UBL`, which holds the NL-R rules), without an error or a warning.
 
 ### Changed
@@ -426,7 +428,8 @@ _Never released on its own; these changes are part of the next release._
 - Laravel Service Provider
 - Example code
 
-[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.1...HEAD
+[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.7.1...v1.8.0
