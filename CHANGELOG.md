@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-21
+
 ### Fixed
 - **`testConnection()` reported "Connection successful" for almost every answer.** Only a 401 counted
   as a failure, so a refused login (403), a wrong `PEPPOL_URL` (404) and a provider that was down
@@ -368,7 +370,8 @@ _Never released on its own; these changes are part of the next release._
 - Laravel Service Provider
 - Example code
 
-[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.6.0...v1.7.0
