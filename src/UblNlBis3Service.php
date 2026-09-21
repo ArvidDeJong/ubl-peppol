@@ -105,6 +105,8 @@ class UblNlBis3Service
             }
         }
 
+        $this->arrangeInSchemaOrder();
+
         $xml = $this->dom->saveXML();
 
         if ($xml === false) {
@@ -112,6 +114,66 @@ class UblNlBis3Service
         }
 
         return $xml;
+    }
+
+    /**
+     * The children of <Invoice> in the order the UBL 2.1 schema fixes.
+     *
+     * @var array<int, string>
+     */
+    protected const ROOT_ELEMENT_ORDER = [
+        'UBLExtensions', 'UBLVersionID', 'CustomizationID', 'ProfileID', 'ProfileExecutionID', 'ID',
+        'CopyIndicator', 'UUID', 'IssueDate', 'IssueTime', 'DueDate', 'InvoiceTypeCode', 'Note',
+        'TaxPointDate', 'DocumentCurrencyCode', 'TaxCurrencyCode', 'PricingCurrencyCode',
+        'PaymentCurrencyCode', 'PaymentAlternativeCurrencyCode', 'AccountingCostCode', 'AccountingCost',
+        'LineCountNumeric', 'BuyerReference', 'InvoicePeriod', 'OrderReference', 'BillingReference',
+        'DespatchDocumentReference', 'ReceiptDocumentReference', 'StatementDocumentReference',
+        'OriginatorDocumentReference', 'ContractDocumentReference', 'AdditionalDocumentReference',
+        'ProjectReference', 'Signature', 'AccountingSupplierParty', 'AccountingCustomerParty',
+        'PayeeParty', 'BuyerCustomerParty', 'SellerSupplierParty', 'TaxRepresentativeParty', 'Delivery',
+        'DeliveryTerms', 'PaymentMeans', 'PaymentTerms', 'PrepaidPayment', 'AllowanceCharge',
+        'TaxExchangeRate', 'PricingExchangeRate', 'PaymentExchangeRate',
+        'PaymentAlternativeExchangeRate', 'TaxTotal', 'WithholdingTaxTotal', 'LegalMonetaryTotal',
+        'InvoiceLine',
+    ];
+
+    /**
+     * Put the children of <Invoice> in schema order, whatever the order of the add...() calls was.
+     *
+     * A receiver rejects a document with the right values in the wrong order, and its error names
+     * the element, not the order. The sort is stable: elements of the same name (invoice lines,
+     * document references, allowances) keep the order they were added in, and a document that was
+     * built in schema order comes out byte for byte as before. An element this list does not know
+     * stays behind the element it followed.
+     */
+    protected function arrangeInSchemaOrder(): void
+    {
+        $ranks = array_flip(self::ROOT_ELEMENT_ORDER);
+        $children = [];
+        $rank = -1;
+
+        foreach (iterator_to_array($this->rootElement->childNodes) as $position => $node) {
+            // The node name without its prefix. localName is empty for an element that was made
+            // with createElement() instead of createElementNS(), so it cannot be used here.
+            $name = $node instanceof DOMElement ? (string) preg_replace('/^.*:/', '', $node->nodeName) : null;
+
+            if ($name !== null && isset($ranks[$name])) {
+                $rank = $ranks[$name];
+            }
+
+            $children[] = ['node' => $node, 'rank' => $rank, 'position' => $position];
+        }
+
+        $sorted = $children;
+        usort($sorted, fn (array $a, array $b): int => [$a['rank'], $a['position']] <=> [$b['rank'], $b['position']]);
+
+        if ($sorted === $children) {
+            return;
+        }
+
+        foreach ($sorted as $child) {
+            $this->rootElement->appendChild($child['node']);
+        }
     }
 
     /**

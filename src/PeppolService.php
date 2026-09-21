@@ -38,12 +38,10 @@ class PeppolService
     {
         $this->validateCredentials();
 
-        // Create log entry with status pending
-        $peppolLog = PeppolLog::create([
+        // Log entry with status pending, or null when the host app has no log table
+        $peppolLog = $this->startLog([
             'invoice_id' => $invoice->id,
             'invoice_nr' => $invoice->invoice_nr ?? null,
-            'status' => 'pending',
-            'sent_at' => now(),
         ]);
 
         try {
@@ -71,7 +69,7 @@ class PeppolService
 
             if ($response->successful()) {
                 // Update log with success
-                $peppolLog->update([
+                $peppolLog?->update([
                     'status' => 'success',
                     'http_status_code' => $statusCode,
                     'message' => 'Invoice successfully sent to Peppol network',
@@ -88,12 +86,12 @@ class PeppolService
                     'status_code' => $statusCode,
                     'message' => 'Invoice successfully sent to Peppol network',
                     'response' => $response->json() ?? $responseBody,
-                    'log_id' => $peppolLog->id,
+                    'log_id' => $peppolLog?->id,
                 ];
             }
 
             // Update log with error
-            $peppolLog->update([
+            $peppolLog?->update([
                 'status' => 'error',
                 'http_status_code' => $statusCode,
                 'message' => 'Error sending to Peppol network',
@@ -105,7 +103,7 @@ class PeppolService
                 'status_code' => $statusCode,
                 'message' => 'Error sending to Peppol network',
                 'error' => $responseBody,
-                'log_id' => $peppolLog->id,
+                'log_id' => $peppolLog?->id,
             ];
 
         } catch (\Exception $e) {
@@ -115,7 +113,7 @@ class PeppolService
             ]);
 
             // Update log with error
-            $peppolLog->update([
+            $peppolLog?->update([
                 'status' => 'error',
                 'http_status_code' => 0,
                 'message' => 'Error sending to Peppol network',
@@ -127,9 +125,29 @@ class PeppolService
                 'status_code' => 0,
                 'message' => 'Error sending to Peppol network',
                 'error' => $e->getMessage(),
-                'log_id' => $peppolLog->id,
+                'log_id' => $peppolLog?->id,
             ];
         }
+    }
+
+    /**
+     * Open a log row for a send, when there is a table to write it to.
+     *
+     * The peppol_logs table is opt-in: it only exists after the host app published and ran the
+     * migration. Without it a document is sent just the same, and the result carries a null log_id.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function startLog(array $attributes): ?PeppolLog
+    {
+        if (! PeppolLog::tableExists()) {
+            return null;
+        }
+
+        return PeppolLog::create($attributes + [
+            'status' => 'pending',
+            'sent_at' => now(),
+        ]);
     }
 
     /**
@@ -139,11 +157,9 @@ class PeppolService
     {
         $this->validateCredentials();
 
-        // Create log entry with status pending
-        $peppolLog = PeppolLog::create([
+        // Log entry with status pending, or null when the host app has no log table
+        $peppolLog = $this->startLog([
             'invoice_nr' => $invoiceNumber,
-            'status' => 'pending',
-            'sent_at' => now(),
         ]);
 
         try {
@@ -169,7 +185,7 @@ class PeppolService
             ]);
 
             if ($response->successful()) {
-                $peppolLog->update([
+                $peppolLog?->update([
                     'status' => 'success',
                     'http_status_code' => $statusCode,
                     'message' => 'Invoice successfully sent to Peppol network',
@@ -181,11 +197,11 @@ class PeppolService
                     'status_code' => $statusCode,
                     'message' => 'Invoice successfully sent to Peppol network',
                     'response' => $response->json() ?? $responseBody,
-                    'log_id' => $peppolLog->id,
+                    'log_id' => $peppolLog?->id,
                 ];
             }
 
-            $peppolLog->update([
+            $peppolLog?->update([
                 'status' => 'error',
                 'http_status_code' => $statusCode,
                 'message' => 'Error sending to Peppol network',
@@ -197,7 +213,7 @@ class PeppolService
                 'status_code' => $statusCode,
                 'message' => 'Error sending to Peppol network',
                 'error' => $responseBody,
-                'log_id' => $peppolLog->id,
+                'log_id' => $peppolLog?->id,
             ];
 
         } catch (\Exception $e) {
@@ -206,7 +222,7 @@ class PeppolService
                 'error' => $e->getMessage(),
             ]);
 
-            $peppolLog->update([
+            $peppolLog?->update([
                 'status' => 'error',
                 'http_status_code' => 0,
                 'message' => 'Error sending to Peppol network',
@@ -218,7 +234,7 @@ class PeppolService
                 'status_code' => 0,
                 'message' => 'Error sending to Peppol network',
                 'error' => $e->getMessage(),
-                'log_id' => $peppolLog->id,
+                'log_id' => $peppolLog?->id,
             ];
         }
     }

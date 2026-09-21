@@ -22,7 +22,7 @@ They are separate classes on purpose: a field one country requires is rejected b
 
 ## Building a document
 
-The order of elements inside UBL is fixed by the schema. Call the methods in this order:
+The order of elements inside UBL is fixed by the schema. `UblNlBis3Service` puts the elements under `<Invoice>` in that order itself when `generateXml()` runs, so for a Dutch invoice the order of the calls does not matter. `UblBeBis3Service` only moves the totals in front of the lines and otherwise writes what you call in the order you call it. Calling the methods in schema order works for both:
 
 1. `createDocument()`
 2. `addInvoiceHeader($number, $issueDate, $dueDate)`, and for a credit note `addCreditNoteHeader()` plus `addBillingReference()`
@@ -33,7 +33,7 @@ The order of elements inside UBL is fixed by the schema. Call the methods in thi
 7. `addInvoiceLine($lineData)` per line
 8. `generateXml()`
 
-A document with the right values in the wrong order is still rejected, and the error the receiver returns points at the element, not at the order. If XML comes back that looks complete but fails, check the order first.
+A document with the right values in the wrong order is rejected, and the error the receiver returns points at the element, not at the order. If Belgian XML comes back that looks complete but fails, check the order first.
 
 ## Validating
 
@@ -70,7 +70,7 @@ Optional, and limited to four files: `UblPeppolServiceProvider`, `PeppolService`
 
 - Resolve a builder with `app(UblNlBis3Service::class)` or the alias `app('ubl-peppol')`.
 - Sending needs `PEPPOL_URL`, `PEPPOL_USERNAME` and `PEPPOL_PASSWORD`. `PeppolService::testConnection()` checks them without sending an invoice.
-- The `peppol_logs` table is **opt-in**: `php artisan vendor:publish --tag=ubl-peppol-migrations`, then migrate. Never write code that assumes the table exists.
+- The `peppol_logs` table is **opt-in**: `php artisan vendor:publish --tag=ubl-peppol-migrations`, then migrate. Never write code that assumes the table exists. `sendInvoice()` and `sendUblXml()` work without it and then return `'log_id' => null`, and `peppol:cleanup` reports that there is nothing to clean. Before you query `PeppolLog` yourself, ask `PeppolLog::tableExists()`.
 - `php artisan peppol:cleanup` deletes logs older than `log_retention_days` (default 60).
 
 ## Testing

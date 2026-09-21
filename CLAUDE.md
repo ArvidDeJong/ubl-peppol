@@ -24,10 +24,10 @@ Exactly four files may import `Illuminate\...`:
 ## Architecture
 
 - `UblNlBis3Service` and `UblBeBis3Service` are separate classes on purpose: a field the Dutch NLCIUS rules require is rejected under the Belgian EN 16931 profile and the other way around. Never merge them behind a country flag. A fix in one is not automatically right in the other.
-- Elements are written in the order the UBL schema fixes. A document with correct values in the wrong order is rejected, and the receiver's error names the element, not the order, so this is the first thing to check when correct-looking XML fails.
+- Elements are written in the order the UBL schema fixes. A document with correct values in the wrong order is rejected, and the receiver's error names the element, not the order, so this is the first thing to check when correct-looking XML fails. `UblNlBis3Service::arrangeInSchemaOrder()` sorts the children of `<Invoice>` when `generateXml()` runs, with a stable sort, so a document built in schema order comes out byte for byte as before; `tests/Unit/UblNlElementOrderTest.php` pins that. It matches on the node name, because `localName` is empty for an element made with `createElement()`. The Belgian builder only moves the totals in front of the lines.
 - `Validation\UblValidator` holds **static** helpers for single values (unit codes, currency, tax categories, IBAN, VAT format). Validating a whole document is the builder's `validate()`, which returns an `InvoiceValidationResult`.
 - `Validation\CodelistRegistry` carries the code lists; `ValidationTrackingTrait` records the corrections a builder applied so `getCorrections()` can report them.
-- The `peppol_logs` table is opt-in: it arrives by publishing `--tag=ubl-peppol-migrations`, not through `loadMigrationsFrom`. Never write code that assumes the table exists.
+- The `peppol_logs` table is opt-in: it arrives by publishing `--tag=ubl-peppol-migrations`, not through `loadMigrationsFrom`. Never write code that assumes the table exists: a host app that only wants to send would get a `QueryException` instead of a sent invoice, which is what 1.7 did. Everything that writes or deletes a log asks `PeppolLog::tableExists()` first; `tests/Laravel/PeppolSendingTest.php` sends with and without the table.
 
 ## The specification wins
 

@@ -81,19 +81,17 @@ $ubl->addAccountingCustomerParty(
     'NL987654321B01'              // vatNumber (with country prefix!)
 );
 
-// 5. Invoice lines
-$ubl->addInvoiceLine([
-    'id' => '1',
-    'quantity' => 5,
-    'unit_code' => 'HUR',         // Hours
-    'price_amount' => 85.00,
-    'currency' => 'EUR',
-    'name' => 'Software development',
-    'description' => 'Frontend development - 5 hours',
-    'tax_category_id' => 'S',
-    'tax_percent' => 21.0,
-    'tax_scheme_id' => 'VAT'
-]);
+// 5. Payment information
+$ubl->addPaymentMeans(
+    '30',                     // Credit transfer
+    'Credit transfer',
+    'NL-PAY-2026-001',
+    'NL12 ABNA 0123 4567 89', // Dutch IBAN
+    'My Dutch Company BV',
+    'ABNANL2A'               // BIC code
+);
+
+$ubl->addPaymentTerms('Payment within 14 days');
 
 // 6. Taxes
 $ubl->addTaxTotal([
@@ -116,17 +114,19 @@ $ubl->addLegalMonetaryTotal([
     'payable_amount' => 514.25
 ], 'EUR');
 
-// 8. Payment information
-$ubl->addPaymentMeans(
-    '30',                     // Credit transfer
-    'Credit transfer',
-    'NL-PAY-2026-001',
-    'NL12 ABNA 0123 4567 89', // Dutch IBAN
-    'My Dutch Company BV',
-    'ABNANL2A'               // BIC code
-);
-
-$ubl->addPaymentTerms('Payment within 14 days');
+// 8. Invoice lines, last: the schema puts them after the totals
+$ubl->addInvoiceLine([
+    'id' => '1',
+    'quantity' => 5,
+    'unit_code' => 'HUR',         // Hours
+    'price_amount' => 85.00,
+    'currency' => 'EUR',
+    'name' => 'Software development',
+    'description' => 'Frontend development - 5 hours',
+    'tax_category_id' => 'S',
+    'tax_percent' => 21.0,
+    'tax_scheme_id' => 'VAT'
+]);
 
 // 9. Generate XML
 $xml = $ubl->generateXml();

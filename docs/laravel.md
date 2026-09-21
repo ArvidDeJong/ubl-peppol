@@ -54,7 +54,7 @@ PEPPOL_PASSWORD=your-password
 
 ## The log table
 
-`peppol_logs` records what was sent and what came back. It is **opt-in**: an application that only generates XML never needs it. To use it, publish the migration and run it:
+`peppol_logs` records what was sent and what came back. It is **opt-in**: an application that only generates XML never needs it, and sending works without it too. Without the table nothing is recorded and the result of a send has `'log_id' => null`. To use it, publish the migration and run it:
 
 ```bash
 php artisan vendor:publish --tag=ubl-peppol-migrations
@@ -86,7 +86,7 @@ $ubl->addInvoiceHeader('INV-2026-001', '2026-01-15', '2026-02-14');
 $xml = $ubl->generateXml(validateFirst: true);
 ```
 
-A document is built element by element, in the order the UBL schema fixes. [Dutch invoices](netherlands.md) and [Belgian invoices](belgium.md) each walk through a complete one.
+A document is built element by element. The UBL schema fixes the order of the elements; the Dutch builder arranges them itself, for the Belgian builder call the methods in that order. [Dutch invoices](netherlands.md) and [Belgian invoices](belgium.md) each walk through a complete one.
 
 ### Sending via Peppol
 
@@ -143,11 +143,11 @@ $logs = PeppolLog::where('status', 'error')->get();
 ### Cleanup Old Logs
 
 ```bash
-# Delete logs older than 90 days (default)
-php artisan peppol:cleanup-logs
+# Delete logs older than log_retention_days (60 by default)
+php artisan peppol:cleanup
 
 # Delete logs older than 30 days
-php artisan peppol:cleanup-logs --days=30
+php artisan peppol:cleanup --days=30
 ```
 
 ## Validation
@@ -178,6 +178,6 @@ All `PeppolService` methods return an array:
     'message' => string,
     'response' => array|null,  // On success
     'error' => string|null,    // On failure
-    'log_id' => int,           // PeppolLog record ID
+    'log_id' => int|null,      // PeppolLog record ID, null without the peppol_logs table
 ]
 ```

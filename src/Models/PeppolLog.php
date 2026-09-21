@@ -3,6 +3,7 @@
 namespace Darvis\UblPeppol\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class PeppolLog extends Model
 {
@@ -21,6 +22,17 @@ class PeppolLog extends Model
         'response' => 'array',
         'sent_at' => 'datetime',
     ];
+
+    /**
+     * Whether the host app published and ran the migration. The table is opt-in, so everything
+     * that writes a log asks this first instead of assuming it is there.
+     */
+    public static function tableExists(): bool
+    {
+        $model = static::query()->getModel();
+
+        return Schema::connection($model->getConnectionName())->hasTable($model->getTable());
+    }
 
     public function scopeSuccess($query)
     {
