@@ -1,281 +1,131 @@
 ---
-title: VAT numbers
-nav_order: 7
-description: Checking a European VAT number against the VIES service, handling downtime, and what a valid answer does and does not prove.
+title: "VAT numbers"
+nav_order: 8
+description: "Check a European VAT number with ViesService: checkVat(), checkFullVatNumber(), the result array, and how to tell an invalid number from a VIES outage."
 ---
 
-# VIES VAT Number Validation
+# VAT numbers
 
-The `ViesService` provides integration with the European Commission's VIES (VAT Information Exchange System) to validate EU VAT numbers in real-time.
+`Darvis\UblPeppol\ViesService` asks VIES whether a VAT number exists. VIES is the European Commission's service that forwards the question to the tax office of the member state.
 
-## Overview
+## Requirements
 
-VIES is the official EU system for validating VAT numbers across member states. This service allows you to verify:
-- VAT number validity
-- Company name
-- Company address
-- Registration status
+`ViesService` uses PHP's `SoapClient`, so it needs the `soap` extension. Composer does not check this for you. Without the extension the call fails with the PHP error `Class "SoapClient" not found`, which the service does not catch.
 
-## Basic Usage
+```bash
+php -m | grep soap
+```
 
-### Check VAT Number with Country Code
+Every call is a live request to `ec.europa.eu`. The connection timeout is 10 seconds.
+
+## Check a number
 
 ```php
 use Darvis\UblPeppol\ViesService;
 
 $vies = new ViesService();
 
+// Country code and number apart
 $result = $vies->checkVat('BE', '0999000228');
 
-if ($result['valid']) {
-    echo "Valid VAT number!";
-    echo "Company: " . $result['name'];
-    echo "Address: " . $result['address'];
-} else {
-    echo "Invalid: " . $result['error'];
-}
-```
-
-### Check Full VAT Number
-
-```php
+// Or the full number; the first two characters are the country code
 $result = $vies->checkFullVatNumber('BE0999000228');
-
-// Same result structure as checkVat()
 ```
 
-## Response Structure
+Spaces are removed, the country code is made upper case, and a country prefix inside the number (`checkVat('BE', 'BE0999000228')`) is removed. Greece uses `EL` in VAT numbers, not `GR`.
 
-Both methods return an array with the following structure:
+In Laravel you can also resolve it from the container with `app(ViesService::class)`. The package registers no binding for it, so you get a new instance.
 
-```php
-[
-    'valid' => true,                    // Boolean: VAT number is valid
-    'name' => 'Company Name BV',        // String: Registered company name
-    'address' => 'Street 123, City',    // String: Registered address
-    'countryCode' => 'BE',              // String: ISO country code
-    'vatNumber' => '0999000228',        // String: VAT number without prefix
-    'fullVatNumber' => 'BE0999000228',  // String: Complete VAT number
-    'checked_at' => '2026-01-15 10:30:00', // String: Timestamp of check
-    'error' => null                     // String|null: Error message if invalid
-]
-```
+## The result
 
-### Error Response
+Both methods return an array and never throw for an answer from VIES.
 
-When validation fails:
+| Key | When VIES answered | When the call failed |
+| --- | --- | --- |
+| `valid` | `true` or `false` | `false` |
+| `name` | The registered name, or an empty string | `null` |
+| `address` | The registered address, or an empty string | `null` |
+| `countryCode` | The cleaned country code | The country code as you passed it |
+| `vatNumber` | The cleaned number without prefix | The number as you passed it |
+| `fullVatNumber` | Country code plus number | `null` |
+| `checked_at` | `Y-m-d H:i:s` | `Y-m-d H:i:s` |
+| `error` | `null` | A message, see below |
 
-```php
-[
-    'valid' => false,
-    'name' => null,
-    'address' => null,
-    'countryCode' => 'BE',
-    'vatNumber' => '0123456789',
-    'fullVatNumber' => null,
-    'checked_at' => '2026-01-15 10:30:00',
-    'error' => 'Invalid VAT number format'
-]
-```
+`name` and `address` hold what VIES returned. That can be an empty string while `valid` is `true`, so do not depend on them.
 
-## Supported Countries
+`checkFullVatNumber()` with fewer than three characters returns only `valid`, `error` (`VAT number too short`) and `checked_at`.
 
-All EU member states are supported:
-- Austria (AT)
-- Belgium (BE)
-- Bulgaria (BG)
-- Croatia (HR)
-- Cyprus (CY)
-- Czech Republic (CZ)
-- Denmark (DK)
-- Estonia (EE)
-- Finland (FI)
-- France (FR)
-- Germany (DE)
-- Greece (EL)
-- Hungary (HU)
-- Ireland (IE)
-- Italy (IT)
-- Latvia (LV)
-- Lithuania (LT)
-- Luxembourg (LU)
-- Malta (MT)
-- Netherlands (NL)
-- Poland (PL)
-- Portugal (PT)
-- Romania (RO)
-- Slovakia (SK)
-- Slovenia (SI)
-- Spain (ES)
-- Sweden (SE)
+## Tell "invalid" from "VIES is down"
 
-## Error Messages
-
-The service translates VIES error codes to readable messages:
-
-| VIES Code | Message |
-|-----------|---------|
-| INVALID_INPUT | Invalid VAT number format |
-| SERVICE_UNAVAILABLE | VIES service temporarily unavailable |
-| MS_UNAVAILABLE | Member state service unavailable |
-| TIMEOUT | Connection timeout |
-| SERVER_BUSY | Server is busy, please try again later |
-| MS_MAX_CONCURRENT_REQ | Too many concurrent requests |
-| GLOBAL_MAX_CONCURRENT_REQ | Too many concurrent requests |
-
-## Best Practices
-
-### 1. Handle Service Unavailability
-
-The VIES service can be temporarily unavailable. Always handle errors gracefully:
+`valid` is `false` in both cases. The difference is `error`:
 
 ```php
-$result = $vies->checkVat('NL', '123456789B01');
+$result = $vies->checkFullVatNumber($vatNumber);
 
-if (!$result['valid']) {
-    if (str_contains($result['error'], 'unavailable')) {
-        // Service is down, skip validation or retry later
-        logger()->warning('VIES service unavailable', $result);
-    } else {
-        // Invalid VAT number
-        throw new ValidationException($result['error']);
-    }
+if ($result['valid']) {
+    // The number exists.
+} elseif ($result['error'] === null) {
+    // VIES answered: this number does not exist.
+} else {
+    // The question was never answered. Treat the number as unknown, and try again later.
+    logger()->warning('VIES check failed', $result);
 }
 ```
 
-### 2. Cache Results
+Never block an invoice or a customer on the third case: the question was not answered, so you know nothing about the number.
 
-VIES has rate limits. Cache validation results to avoid repeated calls:
+| `error` | Meaning |
+| --- | --- |
+| `Invalid VAT number format` | VIES refused the input (`INVALID_INPUT`) |
+| `VIES service temporarily unavailable` | `SERVICE_UNAVAILABLE` |
+| `Member state service unavailable` | `MS_UNAVAILABLE`: the tax office of that country does not answer |
+| `Connection timeout` | `TIMEOUT` |
+| `Server is busy, please try again later` | `SERVER_BUSY` |
+| `Too many concurrent requests` | `MS_MAX_CONCURRENT_REQ` or `GLOBAL_MAX_CONCURRENT_REQ` |
+| `VIES check failed: ...` | Any other SOAP fault, with the original text |
 
-```php
-$cacheKey = 'vies_' . $fullVatNumber;
-$result = Cache::remember($cacheKey, now()->addDays(30), function() use ($vies, $fullVatNumber) {
-    return $vies->checkFullVatNumber($fullVatNumber);
-});
-```
+## What a valid answer proves
 
-### 3. Timeout Handling
+It proves the number is registered for trade within the EU at the moment you ask. It does not prove the number belongs to the company you are invoicing; compare `name` and `address` yourself when they are filled.
 
-The service has a 10-second timeout. Consider running validation asynchronously for better UX:
+## Use it in a Laravel form
 
-```php
-// In a queued job
-dispatch(function() use ($vatNumber) {
-    $vies = new ViesService();
-    $result = $vies->checkFullVatNumber($vatNumber);
-    
-    // Store result in database
-    VatValidation::create($result);
-});
-```
-
-### 4. Input Cleaning
-
-The service automatically cleans input:
-- Removes spaces
-- Removes country prefix if duplicated
-- Converts to uppercase
+A closure rule is a validation rule written as a function ([Laravel docs](https://laravel.com/docs/validation#using-closures)). This one refuses a number VIES says does not exist, and lets the form through when VIES gave no answer:
 
 ```php
-// All these work the same:
-$vies->checkVat('BE', '0999000228');
-$vies->checkVat('BE', 'BE0999000228');  // Prefix removed
-$vies->checkVat('be', '0999 000 228'); // Cleaned and uppercased
-```
-
-## Laravel Integration
-
-### Validation Rule
-
-Use with Laravel validation:
-
-```php
+// app/Http/Controllers/CustomerController.php
 use Darvis\UblPeppol\ViesService;
 
 $request->validate([
     'vat_number' => [
         'required',
-        function ($attribute, $value, $fail) {
-            $vies = app(ViesService::class);
-            $result = $vies->checkFullVatNumber($value);
-            
-            if (!$result['valid']) {
-                $fail($result['error'] ?? 'Invalid VAT number');
+        function (string $attribute, mixed $value, \Closure $fail) {
+            $result = app(ViesService::class)->checkFullVatNumber((string) $value);
+
+            if (! $result['valid'] && $result['error'] === null) {
+                $fail('This VAT number is not known in VIES.');
             }
-        }
-    ]
+        },
+    ],
 ]);
 ```
 
-### Service Container
-
-Bind to Laravel's service container:
+A request waits for VIES here. Cache the result when you check the same number often:
 
 ```php
-// In AppServiceProvider
-use Darvis\UblPeppol\ViesService;
+use Illuminate\Support\Facades\Cache;
 
-$this->app->singleton(ViesService::class, function ($app) {
-    return new ViesService();
+$result = Cache::remember('vies:'.$vatNumber, now()->addDay(), function () use ($vatNumber) {
+    return app(ViesService::class)->checkFullVatNumber($vatNumber);
 });
-
-// Use anywhere
-$vies = app(ViesService::class);
 ```
 
-## Testing
+Do not cache a result that has an `error`; that would keep an outage for a day. Check `$result['error']` and call `Cache::forget()` when it is set.
 
-### Mock VIES Responses
+## Check only the format, without VIES
 
-For testing, mock the service:
+`UblValidator::validateVatNumber()` checks the prefix and the characters without a network call. See [Validation](validation.md#check-single-values-with-ublvalidator).
 
-```php
-use Darvis\UblPeppol\ViesService;
+## Test your code without calling VIES
 
-// In your test
-$mock = Mockery::mock(ViesService::class);
-$mock->shouldReceive('checkVat')
-    ->with('BE', '0999000228')
-    ->andReturn([
-        'valid' => true,
-        'name' => 'Test Company BV',
-        'address' => 'Test Street 1',
-        'countryCode' => 'BE',
-        'vatNumber' => '0999000228',
-        'fullVatNumber' => 'BE0999000228',
-        'checked_at' => now()->toDateTimeString(),
-        'error' => null,
-    ]);
-
-$this->app->instance(ViesService::class, $mock);
-```
-
-## Limitations
-
-1. **Rate Limits**: VIES has rate limits per IP address
-2. **Availability**: Service may be unavailable during maintenance
-3. **EU Only**: Only validates EU VAT numbers
-4. **Real-time**: Each check makes a live API call (no offline validation)
-5. **No Historical Data**: Only checks current registration status
-
-## Alternative: Offline Validation
-
-For basic format validation without VIES:
-
-```php
-// Belgian VAT format: BE0999000228 (BE + 10 digits)
-if (!preg_match('/^BE[0-9]{10}$/', $vatNumber)) {
-    throw new InvalidArgumentException('Invalid Belgian VAT format');
-}
-
-// Dutch VAT format: NL123456789B01 (NL + 9 digits + B + 2 digits)
-if (!preg_match('/^NL[0-9]{9}B[0-9]{2}$/', $vatNumber)) {
-    throw new InvalidArgumentException('Invalid Dutch VAT format');
-}
-```
-
-## See Also
-
-- [Belgium Implementation](belgium.md) - Belgian VAT number requirements
-- [Netherlands Implementation](netherlands.md) - Dutch VAT number requirements
-- [API Reference](api-reference.md) - Complete API documentation
+See [Testing](testing.md#replace-viesservice).

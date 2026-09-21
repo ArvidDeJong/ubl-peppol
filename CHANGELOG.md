@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Documentation only: nothing in `src/` changes. If you built on the old text, these are the claims that were wrong.
+
+### Added
+- Documentation pages [Installation](https://arviddejong.github.io/ubl-peppol/installation.html), with a "Check that it works" section, and [Testing](https://arviddejong.github.io/ubl-peppol/testing.html): `Http::fake()` for `PeppolService`, with and without the `peppol_logs` table, and a container mock for `ViesService`
+- "Your first invoice" is now one complete Dutch invoice you can copy and run; the Belgian and the credit note page each have a complete example as well. Every complete example in the docs and the README was run against this version
+- `tests/DocsSiteTest.php` checks that the home page links every page, that links between pages resolve, and that the FAQ stays between six and ten questions
+
+### Fixed
+- **`getCorrections()` was described as "values the builder fixed for you" and "the corrections that were applied"** (README, API reference, Boost guideline and skill). Nothing is applied. It returns the totals the Belgian validator calculated, only when the amounts do not add up; the Dutch builder always returns an empty array
+- **`validate()` was described as one check.** The Dutch `validate()` checks code formats and NL-R-003, 005, 007, 008 and 009, does not check amounts and calls an empty document valid. The Belgian `validate()` checks the totals and refuses a document without lines or totals. Credit note rules (BR-55, positive totals) are only enforced by `generateXml()`
+- The docs recommended `app(UblNlBis3Service::class)`. That binding is a singleton and a builder holds one document, so the second invoice in a request or queue worker throws `Document is already initialized`. The docs now say `new UblNlBis3Service()`
+- `sendInvoice()` calls `$invoice->update(['peppol_sent_at' => now()])` after a successful send. The docs never said so; a model without that column gets `'success' => false` for a send that worked. Documented, with `sendUblXml()` as the alternative
+- The Dutch example used the IBAN `NL12 ABNA 0123 4567 89`, which the builder refuses with `Invalid IBAN format` (spaces, and a wrong checksum), and a VAT number as the endpoint with scheme `0106`
+- The Belgian page said to pass `tax_category_name` with "BTCC" values such as `Taux standard`, and listed rules `ubl-BE-01`, `ubl-BE-10` and `ubl-BE-14`. The builder ignores `tax_category_name`, writes no category name and implements none of those rules
+- The package was said to apply the Dutch "NLCIUS" rules and to detect KvK and OIN numbers automatically. It writes the PEPPOL BIS Billing 3.0 customization ID, checks five NL-R rules, and only rewrites scheme `0210` to `0106` for a Dutch customer
+- `PeppolService` was said to be compatible with named providers, with an example URL. It sends one HTTP Basic `POST` with `Content-Type: application/xml`; ask your provider whether it accepts that
+- The error table on the sending page quoted Dutch messages (`PEPPOL_URL is niet geconfigureerd`, `Factuur succesvol verzonden naar Peppol netwerk`). The real messages are `Peppol URL is not configured (PEPPOL_URL)` and `Invoice successfully sent to Peppol network`
+- The company number page used a class `KvkService` that does not exist; it is `CompanyRegistrationService`. `number` in the result is the cleaned input (`HRB12345`), not the input as typed
+- The VAT page printed `$result['error']` for an invalid number, which is `null` when VIES answered. `valid` false with `error` null means "does not exist"; with an error it means "VIES did not answer". The `soap` extension is required for `ViesService` and `bcmath` for IBAN checks; neither was mentioned
+- `UblValidator::validateVatNumber('NL123456789')` was documented as an error. It passes: only the country prefix and the characters are checked
+- The troubleshooting page quoted messages the package never writes (`Invalid date format`, `Invoice number cannot be empty`, `Invalid VAT number format`), advised `htmlspecialchars()` on invoice data, which double-escapes because the builders escape already, and said `addChildElement()` adds custom elements, while it is protected. It now quotes the real messages
+- The validation page showed invented validator output, an upload API for the Dutch validator that is not part of this package, and headings in Dutch
+- The credit note page showed `createDocument()` after `createCreditNoteDocument()` on one builder, which throws, and XML with a `BuyerReference` the builder cannot write
+- Documented the values the builders write that you cannot set yet: `DocumentCurrencyCode` `EUR`, `AccountingCost` `4025:123:4343`, and in the Dutch builder the supplier `RegistrationName` `SupplierOfficialName Ltd`; and that the Belgian `validate()` fails a correct document with a charge or a discount (BR-CO-11, BR-CO-12)
+
+### Changed
+- README in the order of the other darvis packages, with one working quick start and sections for Laravel Boost and Testing
+- FAQ rewritten as ten questions the way they are asked, and the site description, requirements and keywords brought in line with `composer.json` and the code
+
 ## [1.9.0] - 2026-09-21
 
 ### Fixed

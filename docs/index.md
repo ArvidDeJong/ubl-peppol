@@ -1,52 +1,60 @@
 ---
-title: Home
+title: "Home"
 nav_order: 1
-description: darvis/ubl-peppol builds UBL 2.1 invoices and credit notes that pass PEPPOL BIS Billing 3.0 and EN 16931 validation, in plain PHP or inside Laravel.
+permalink: /
+description: "darvis/ubl-peppol builds UBL 2.1 invoices and credit notes for PEPPOL BIS Billing 3.0 with Dutch and Belgian rules, in plain PHP or Laravel. Start here."
 ---
 
 # UBL PEPPOL
 
-Builds UBL 2.1 invoices and credit notes that pass **PEPPOL BIS Billing 3.0** and **EN 16931** validation, with separate rule sets for the Netherlands and Belgium. It is a plain PHP library: Laravel is optional and lives in its own layer.
+`darvis/ubl-peppol` is a PHP library that builds UBL 2.1 e-invoices for **PEPPOL BIS Billing 3.0** (the invoice format the PEPPOL network requires, built on the European standard EN 16931). It has one builder for Dutch invoices and one for Belgian invoices and credit notes, and an optional Laravel layer that posts the XML to your access point provider.
 
 ```bash
 composer require darvis/ubl-peppol
 ```
 
-PHP 8.2 or newer with the DOM extension. Nothing else is required to generate invoices.
+## Who it is for
+
+Developers who already have invoice data (in a database, an ERP or a webshop) and need to turn it into an XML document a PEPPOL receiver accepts. You write the code that maps your data to the builder; the package writes the XML.
 
 ## What it does
 
-- Builds Dutch (NLCIUS) and Belgian (EN 16931) invoices from your own data, element by element or in one call
-- Builds credit notes with the billing reference the rules demand, with the Belgian builder; the Dutch builder does invoices only
-- Validates a document against the business rules before you send it, so a receiver does not reject it
-- Checks European VAT numbers against VIES, and company registration numbers such as the KvK number and the Belgian ondernemingsnummer
-- Sends the result to the PEPPOL network through your access point provider, and logs what came back
+- Builds Dutch invoices with `UblNlBis3Service` and Belgian invoices with `UblBeBis3Service`
+- Builds credit notes with `UblBeBis3Service`; the Dutch builder does invoices only
+- Checks a document before you send it with `validate()`, and tells you which rule failed
+- Checks a European VAT number against VIES, and the format of a company registration number (KvK, KBO, RCS, SIREN/SIRET, Handelsregister)
+- In Laravel: posts the XML to your access point provider with `PeppolService`, and can log each attempt in a `peppol_logs` table
 
-## New to PEPPOL?
+## What it does not do
 
-Three things are worth knowing before you write any code, because they explain why this package does what it does.
+- **It is not an access point.** PEPPOL is a closed network. You reach it through an *access point provider*: a company you have a contract with that delivers documents for you. Without one you can build and check invoices, but not send them.
+- **It does not run the official Schematron.** `validate()` checks the rules this package implements. A receiver checks more. Put a document through an [official validator](validation.md#check-a-document-with-an-official-validator) before you go live.
+- **It does not calculate your invoice.** You pass the line amounts, the VAT and the totals. The Belgian `validate()` checks that they add up; it does not change them.
+- **It does not create PDFs**, and it does not receive invoices.
 
-**PEPPOL is a network, and you cannot reach it directly.** Sending an invoice means handing it to an *access point provider*: a company you have a contract with, that is connected to the network and delivers on your behalf (Storecove and SupplyDrive are examples). This package builds the document and can hand it to your provider's API. It is not an access point itself, and without a provider you can still generate and validate invoices, you just cannot send them.
+## Requirements
 
-**An e-invoice is not a PDF, it is a document that must obey rules.** The rules come in layers: EN 16931 is the European standard, PEPPOL BIS Billing 3.0 is the profile built on it that the network requires, and each country adds its own on top (NLCIUS for the Netherlands). A receiver checks your document against all of them and rejects it as a whole if one rule fails, which is why this package has a separate builder per country.
+- PHP 8.2 or newer with the `dom` and `libxml` extensions
+- The `bcmath` extension when you pass an IBAN to the Dutch builder or call `UblValidator::validateIban()`
+- The `soap` extension when you use `ViesService`
+- Laravel 11, 12 or 13, only when you use the Laravel layer
 
-**A rejection tells you a rule code, not a sentence.** Something like `BR-CO-11` or `PEPPOL-EN16931-R010`. That code is a lookup key into the [specification](https://docs.peppol.eu/poacc/billing/3.0/bis/), which is the authority on what went wrong. [Troubleshooting](troubleshooting.md) lists the ones that come up most.
+## Pages
 
-## Where to start
-
-- [Getting started](getting-started.md) builds your first invoice, with and without Laravel
-- [Dutch invoices](netherlands.md) and [Belgian invoices](belgium.md) cover what each country expects
-- [Validation](validation.md) explains how to check a document before it leaves your application
-- [Troubleshooting](troubleshooting.md) is the place to look when a receiver rejects one
-
-## Before you go live
-
-This package checks the rules it implements, which is not the same as the full check a receiver runs. Put one real document through an official validator before the first invoice goes out:
-
-- [Dutch PEPPOL validator](https://test.peppolautoriteit.nl/validate)
-- [Ecosio validator](https://ecosio.com/en/peppol-and-xml-document-validator/) for Belgian documents
-
-It costs ten minutes and it is the difference between finding a problem yourself and hearing about it from a customer whose invoice bounced.
+- [Installation](installation.md): install, configure and check that it works
+- [Your first invoice](getting-started.md): one complete Dutch invoice you can copy and run
+- [Dutch invoices](netherlands.md): the Dutch rules, the fields of each call and the limits of the Dutch builder
+- [Belgian invoices](belgium.md): a complete Belgian invoice, with a charge or discount
+- [Credit notes](credit-notes.md): a complete credit note and the rules that make it throw
+- [Validation](validation.md): what `validate()` checks per builder and how to read the result
+- [VAT numbers](vat-numbers.md): checking a VAT number with VIES and telling "invalid" from "VIES is down"
+- [Company numbers](company-numbers.md): checking the format of a registration number in five countries
+- [Laravel integration](laravel.md): the container bindings, the config file, the log table and the cleanup command
+- [Sending invoices](peppol-service.md): posting the XML to your provider and reading the result
+- [Testing](testing.md): testing your own code without calling a provider or VIES
+- [API reference](api-reference.md): every public method with its arguments
+- [Troubleshooting](troubleshooting.md): error messages, quoted literally, with cause and fix
+- [FAQ](faq.md): short answers to common questions
 
 ## Support
 
