@@ -117,6 +117,8 @@ The UBL schema allows a buyer reference in a credit note, but this builder canno
 
 PEPPOL requires a buyer reference or an order reference, so use `addOrderReference()` and call it before `addBillingReference()`.
 
+`addAccountingCost()` (BT-19) does work on a credit note. Call it after the header.
+
 ## Which kind of document is this builder
 
 ```php

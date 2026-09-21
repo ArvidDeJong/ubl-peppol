@@ -53,6 +53,9 @@ $ubl->addAccountingSupplierParty(
     'NL123456789B01'        // companyId: your VAT number
 );
 
+// Your KvK number as the legal registration (scheme 0106). A Dutch supplier needs this.
+$ubl->addSupplierLegalRegistration('12345678');
+
 // 5. Your customer.
 $ubl->addAccountingCustomerParty(
     '87654321',                     // endpointId
@@ -147,9 +150,7 @@ Every message is listed in [Troubleshooting](troubleshooting.md).
 
 ## Read this before you send the file to a customer
 
-The Dutch builder writes a few values you cannot set yet, among them the legal name of the supplier. Read [What the Dutch builder writes for you](netherlands.md#what-the-dutch-builder-writes-for-you) and check your `invoice.xml` against it.
-
-Then upload `invoice.xml` to an [official validator](validation.md#check-a-document-with-an-official-validator). `validate()` checks the rules this package implements, which is less than a receiver checks.
+Upload `invoice.xml` to an [official validator](validation.md#check-a-document-with-an-official-validator). `validate()` checks the rules this package implements, which is less than a receiver checks.
 
 ## Check and generate in one call
 

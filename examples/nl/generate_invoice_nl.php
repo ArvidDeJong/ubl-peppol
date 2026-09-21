@@ -33,6 +33,8 @@ try {
             $invoice['supplier']['vat_number'],
             $invoice['supplier']['additional_street']
         )
+        // The legal registration of the supplier (BT-30): a KvK number under scheme 0106 (NL-R-003)
+        ->addSupplierLegalRegistration($invoice['supplier']['kvk_number'])
         ->addAccountingCustomerParty(
             $invoice['customer']['endpoint_id'],
             $invoice['customer']['endpoint_scheme'],

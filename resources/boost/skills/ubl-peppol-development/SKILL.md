@@ -28,12 +28,16 @@ The order of elements inside UBL is fixed by the schema. `UblNlBis3Service` puts
 
 1. `createDocument()`
 2. `addInvoiceHeader($number, $issueDate, $dueDate)`
-3. Optional references: `addBuyerReference()`, `addOrderReference()`, `addAdditionalDocumentReference()`
-4. `addAccountingSupplierParty(...)`, `addAccountingCustomerParty(...)`
+3. Optional: `addAccountingCost($value)` (BT-19; the Belgian builder places it behind the currency itself, any time after the header), then the references `addBuyerReference()`, `addOrderReference()`, `addAdditionalDocumentReference()`
+4. `addAccountingSupplierParty(...)`, `addAccountingCustomerParty(...)`; in the Dutch builder also `addSupplierLegalRegistration($kvkNumber)` and, when needed, `addCustomerLegalRegistration($number, $schemeId)`
 5. Optional `addDelivery(...)`, `addPaymentMeans(...)`, `addPaymentTerms(...)`, `addAllowanceCharge(...)`
 6. `addTaxTotal($taxes)`, `addLegalMonetaryTotal($amounts)`
 7. `addInvoiceLine($lineData)` per line
 8. `generateXml()`
+
+The legal registration identifier (`PartyLegalEntity/CompanyID`, BT-30 and BT-47) is not the VAT number. For a Dutch party NL-R-003 and NL-R-005 want a KvK number under scheme `0106` or an OIN under `0190`, so always call `addSupplierLegalRegistration()` for a Dutch supplier. Without it the Dutch builder only writes BT-30 when the `$companyId` argument is 8 digits, never a VAT number under `0106`. For the customer it writes `$companyId` under `0106` for a Dutch customer, without a scheme for another country, and not at all when it starts with a country prefix.
+
+Nothing is written that the caller did not pass: no default `AccountingCost`, and the supplier's `RegistrationName` is its name (BT-27). In the Dutch `addLegalMonetaryTotal()` pass `allowance_total_amount` (BT-107) and `prepaid_amount` (BT-113) when there is a discount or a prepayment; they are written when more than zero, and BR-CO-13 and BR-CO-16 fail at the receiver without them. Every `addAllowanceCharge()` writes its VAT category, also at 0% (BR-32, BR-37).
 
 A document with the right values in the wrong order is rejected, and the error the receiver returns points at the element, not at the order. If Belgian XML comes back that looks complete but fails, check the order first.
 
@@ -53,7 +57,7 @@ $result->getCorrections();           // suggested totals; nothing is applied to 
 
 - The Dutch `validate()` does not check amounts, reports an empty document as valid, and always returns no corrections. Its `generateXml(true)` message has no corrections block.
 - The Belgian `validate()` refuses a document without lines, totals or a tax total. `getCorrections()` returns the totals the validator calculated itself, only when the amounts do not add up. They are suggestions.
-- The Belgian `validate()` does not see `addAllowanceCharge()` calls, so a correct document with a charge or a discount fails with BR-CO-12 or BR-CO-11. Generate those without `validateFirst` and use an official validator.
+- The Belgian `validate()` includes the `addAllowanceCharge()` calls: `allowance_total_amount` and `charge_total_amount` must equal their sums (BR-CO-11, BR-CO-12) and the taxable amounts include them (BR-S-08).
 - Credit note rules (BR-55, positive totals) are enforced only by `generateXml()`. `validate()` on a credit note without a billing reference returns valid.
 
 `UblValidator` is something else: a set of **static** helpers for single values (`isValidUnitCode`, `isValidCurrencyCodeFormat`, `isValidTaxCategory`, `validateIban`, `validateVatNumber`). It does not validate a document.

@@ -22,14 +22,15 @@ $invoice = [
         'city' => 'Den Helder',                        // City
         'country' => 'NL',                          // Country code (2 letters)
         'vat_number' => 'NL853848932B01',            // VAT number
+        'kvk_number' => '87654321',                 // KvK number: the legal registration (BT-30), scheme 0106
         'additional_street' => null,                // Optional: additional address line
     ],
 
     // Customer information
     'customer' => [
-        'vat_number' => '853848932B01',              // Customer VAT number without country code
-        'endpoint_id' => 'RSSMRA85M01H501Z',         // Geldige Italiaanse Codice Fiscale format
-        'endpoint_scheme' => '0210',                // 0210 for VAT
+        'vat_number' => 'NL001234567B01',            // Customer VAT number, with the country prefix (BR-CO-09)
+        'endpoint_id' => '85384893',                // KvK number
+        'endpoint_scheme' => '0106',                // 0106 for KVK
         'party_id' => 'CUST-'.uniqid(),           // Internal reference
         'name' => 'ARVID.NL B.V.',                  // Company name
         'street' => 'Klantstraat 123',              // Street + number
@@ -37,7 +38,7 @@ $invoice = [
         'city' => 'Amsterdam',                      // City
         'country' => 'NL',                          // Country code (2 letters)
         'additional_street' => 'Tweede verdieping', // Optional: additional address line
-        'registration_number' => 'NL853848932B01',         // KVK nummer (8 cijfers) zonder schemeID
+        'registration_number' => '85384893',        // KvK number (8 digits), the legal registration (BT-47)
         'contact_name' => 'John Doe',               // Contact person name
         'contact_phone' => '+31 20 123 4567',       // Contact phone number
         'contact_email' => 'john.doe@example.com',  // Contact email

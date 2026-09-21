@@ -57,6 +57,7 @@ $ubl->addAccountingSupplierParty(
     '12345678', '0106', '12345678', 'My Dutch Company BV',
     'Damrak 1', '1012 JS', 'Amsterdam', 'NL', 'NL123456789B01'
 );
+$ubl->addSupplierLegalRegistration('12345678'); // your KvK number, scheme 0106
 $ubl->addAccountingCustomerParty(
     '87654321', '0106', '87654321', 'Customer Company BV',
     'Nieuwezijds Voorburgwal 123', '1012 RJ', 'Amsterdam', 'NL',

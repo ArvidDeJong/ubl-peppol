@@ -1,0 +1,234 @@
+<?php
+
+/**
+ * Writes one sample document per case into examples/validate/out/, for the check against an
+ * official validator that CLAUDE.md demands before a release that changes the generated XML.
+ *
+ *   php examples/validate/generate_samples.php
+ *
+ * Upload the Dutch files to https://test.peppolautoriteit.nl/validate and the Belgian files to
+ * https://ecosio.com/en/peppol-and-xml-document-validator/ . See CONTRIBUTING.md.
+ *
+ * The lines, the payment and the delivery come from the invented data in examples/nl/test_data.php
+ * and examples/be/test_data.php. The Belgian parties are defined here, because the Belgian data
+ * file describes Dutch companies and a validator checks the checksum of a 0208 enterprise number.
+ */
+
+require_once __DIR__.'/../../vendor/autoload.php';
+
+use Darvis\UblPeppol\UblBeBis3Service;
+use Darvis\UblPeppol\UblNlBis3Service;
+use Darvis\UblPeppol\Validation\InvoiceValidationResult;
+
+/**
+ * @return array<string, mixed>
+ */
+function sampleData(string $country): array
+{
+    $invoice = [];
+    include __DIR__.'/../'.$country.'/test_data.php';
+
+    return $invoice;
+}
+
+/**
+ * Lines, VAT and totals for the lines of a data file, with an optional document level discount,
+ * charge and prepayment. Everything is at the standard rate of 21%.
+ *
+ * @param  array<int, array<string, mixed>>  $lines
+ * @return array{lines: array<int, array<string, mixed>>, tax: array<int, array<string, mixed>>, totals: array<string, float>}
+ */
+function sampleAmounts(array $lines, float $allowance = 0.0, float $charge = 0.0, float $prepaid = 0.0): array
+{
+    $lineData = [];
+    $lineTotal = 0.0;
+
+    foreach ($lines as $line) {
+        $amount = round((float) $line['quantity'] * (float) $line['price_amount'], 2);
+        $lineTotal += $amount;
+
+        $lineData[] = [
+            'id' => $line['id'],
+            'quantity' => $line['quantity'],
+            'unit_code' => $line['unit_code'],
+            'line_extension_amount' => $amount,
+            'description' => $line['description'],
+            'name' => $line['name'],
+            'price_amount' => $line['price_amount'],
+            'currency' => 'EUR',
+            'order_line_id' => $line['order_line_id'] ?? null,
+            'tax_category_id' => 'S',
+            'tax_percent' => 21.0,
+            'tax_scheme_id' => 'VAT',
+        ];
+    }
+
+    $taxable = round($lineTotal - $allowance + $charge, 2);
+    $tax = round($taxable * 0.21, 2);
+
+    return [
+        'lines' => $lineData,
+        'tax' => [[
+            'taxable_amount' => $taxable,
+            'tax_amount' => $tax,
+            'currency' => 'EUR',
+            'tax_category_id' => 'S',
+            'tax_percent' => 21.0,
+            'tax_scheme_id' => 'VAT',
+        ]],
+        'totals' => [
+            'line_extension_amount' => round($lineTotal, 2),
+            'tax_exclusive_amount' => $taxable,
+            'tax_inclusive_amount' => round($taxable + $tax, 2),
+            'allowance_total_amount' => $allowance,
+            'charge_total_amount' => $charge,
+            'prepaid_amount' => $prepaid,
+            'payable_amount' => round($taxable + $tax - $prepaid, 2),
+        ],
+    ];
+}
+
+/**
+ * A Dutch invoice up to and including the payment terms.
+ *
+ * @param  array<string, mixed>  $data
+ */
+function dutchInvoice(array $data, string $number): UblNlBis3Service
+{
+    $supplier = $data['supplier'];
+    $customer = $data['customer'];
+    $payment = $data['payment'];
+
+    return (new UblNlBis3Service)
+        ->createDocument()
+        ->addInvoiceHeader($number, $data['header']['issue_date'], $data['header']['due_date'])
+        ->addBuyerReference($data['header']['buyer_reference'])
+        ->addOrderReference($data['header']['order_reference'])
+        ->addAccountingSupplierParty(
+            $supplier['endpoint_id'], $supplier['endpoint_scheme'], $supplier['party_id'], $supplier['name'],
+            $supplier['street'], $supplier['postal_code'], $supplier['city'], $supplier['country'], $supplier['vat_number']
+        )
+        // BT-30: the KvK number of the supplier, scheme 0106 (NL-R-003)
+        ->addSupplierLegalRegistration($supplier['kvk_number'])
+        ->addAccountingCustomerParty(
+            $customer['endpoint_id'], $customer['endpoint_scheme'], $customer['party_id'], $customer['name'],
+            $customer['street'], $customer['postal_code'], $customer['city'], $customer['country'],
+            null, $customer['registration_number'], null, null, null, $customer['vat_number']
+        )
+        ->addPaymentMeans($payment['means_code'], $payment['means_name'], $payment['payment_id'], $payment['account_iban'], $payment['account_name'], $payment['bic'])
+        ->addPaymentTerms($payment['terms']['note']);
+}
+
+/**
+ * The Belgian parties, with enterprise numbers that pass the mod 97 check of scheme 0208.
+ */
+function belgianParties(UblBeBis3Service $ubl): UblBeBis3Service
+{
+    return $ubl
+        ->addAccountingSupplierParty(
+            '0681845662', '0208', '0681845662', 'Voorbeeld Leverancier BV', 'Grote Markt 1', '1000', 'Brussel', 'BE', 'BE0681845662'
+        )
+        ->addAccountingCustomerParty(
+            '0999000228', '0208', '0999000228', 'Voorbeeld Klant NV', 'Kerkstraat 123', '2000', 'Antwerpen', 'BE',
+            null, '0999000228', null, null, null, 'BE0999000228'
+        );
+}
+
+$nl = sampleData('nl');
+$be = sampleData('be');
+$cases = [];
+
+// 1. Dutch invoice, nothing special
+$amounts = sampleAmounts($nl['lines']);
+$ubl = dutchInvoice($nl, 'SAMPLE-NL-001')->addTaxTotal($amounts['tax'])->addLegalMonetaryTotal($amounts['totals'], 'EUR');
+foreach ($amounts['lines'] as $line) {
+    $ubl->addInvoiceLine($line);
+}
+$cases['nl-invoice-plain.xml'] = $ubl;
+
+// 2. Dutch invoice with a document level discount (BT-92, BT-107) and a prepayment (BT-113)
+$amounts = sampleAmounts($nl['lines'], allowance: 25.00, prepaid: 100.00);
+$ubl = dutchInvoice($nl, 'SAMPLE-NL-002')
+    ->addAllowanceCharge(false, 25.00, 'Discount', 'S', 21.0, 'EUR')
+    ->addTaxTotal($amounts['tax'])
+    ->addLegalMonetaryTotal($amounts['totals'], 'EUR');
+foreach ($amounts['lines'] as $line) {
+    $ubl->addInvoiceLine($line);
+}
+$cases['nl-invoice-discount-prepayment.xml'] = $ubl;
+
+// 3. Dutch invoice with a buyer accounting reference (BT-19)
+$amounts = sampleAmounts($nl['lines']);
+$ubl = dutchInvoice($nl, 'SAMPLE-NL-003')
+    ->addAccountingCost('PROJECT-7')
+    ->addTaxTotal($amounts['tax'])
+    ->addLegalMonetaryTotal($amounts['totals'], 'EUR');
+foreach ($amounts['lines'] as $line) {
+    $ubl->addInvoiceLine($line);
+}
+$cases['nl-invoice-accounting-cost.xml'] = $ubl;
+
+// 4. Belgian invoice with a document level charge (BT-99, BT-108)
+$amounts = sampleAmounts($be['lines'], charge: 25.00);
+$ubl = (new UblBeBis3Service)
+    ->createDocument()
+    ->addInvoiceHeader('SAMPLE-BE-001', $be['header']['issue_date'], $be['header']['due_date'])
+    ->addAccountingCost('PROJECT-7')
+    ->addBuyerReference($be['header']['buyer_reference'])
+    ->addOrderReference($be['header']['order_reference']);
+belgianParties($ubl)
+    ->addPaymentMeans('30', 'Credit transfer', 'SAMPLE-BE-001', 'BE68539007547034', 'Voorbeeld Leverancier BV', 'BBRUBEBB')
+    ->addPaymentTerms('Payment within 30 days')
+    ->addAllowanceCharge(true, 25.00, 'Insurance fee', 'S', 21.0, 'EUR')
+    ->addTaxTotal($amounts['tax'])
+    ->addLegalMonetaryTotal($amounts['totals'], 'EUR');
+foreach ($amounts['lines'] as $line) {
+    $ubl->addInvoiceLine($line);
+}
+$cases['be-invoice-charge.xml'] = $ubl;
+
+// 5. Belgian credit note. The order reference goes in front of the billing reference.
+$amounts = sampleAmounts($be['lines']);
+$ubl = (new UblBeBis3Service)
+    ->createCreditNoteDocument()
+    ->addCreditNoteHeader('SAMPLE-BE-CN-001', $be['header']['issue_date'])
+    ->addOrderReference($be['header']['order_reference'])
+    ->addBillingReference('SAMPLE-BE-001', $be['header']['issue_date']);
+belgianParties($ubl)
+    ->addTaxTotal($amounts['tax'])
+    ->addLegalMonetaryTotal($amounts['totals'], 'EUR');
+foreach ($amounts['lines'] as $line) {
+    $ubl->addCreditNoteLine($line);
+}
+$cases['be-credit-note.xml'] = $ubl;
+
+// Write and check
+$out = __DIR__.'/out';
+if (! is_dir($out) && ! mkdir($out, 0777, true)) {
+    fwrite(STDERR, "Could not create {$out}\n");
+    exit(1);
+}
+
+$failed = false;
+
+foreach ($cases as $file => $builder) {
+    /** @var InvoiceValidationResult $result */
+    $result = $builder->validate();
+    $xml = $builder->generateXml();
+
+    $wellFormed = (new DOMDocument)->loadXML($xml);
+    file_put_contents($out.'/'.$file, $xml);
+
+    $ok = $wellFormed && $result->isValid();
+    $failed = $failed || ! $ok;
+
+    echo str_pad($file, 40).($wellFormed ? 'well formed' : 'NOT WELL FORMED').'   validate(): '.($result->isValid() ? 'valid' : 'INVALID').PHP_EOL;
+
+    foreach (array_merge($result->errors, $result->warnings) as $message) {
+        echo '    '.$message.PHP_EOL;
+    }
+}
+
+echo PHP_EOL.'Written to '.$out.PHP_EOL;
+
+exit($failed ? 1 : 0);

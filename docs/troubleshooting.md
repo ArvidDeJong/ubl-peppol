@@ -47,9 +47,9 @@ Each entry is a symptom, its cause and the fix. Messages are quoted as the packa
 **Cause:** an `add...()` method ran before `createDocument()`.
 **Fix:** call `createDocument()` first.
 
-### `Typed property Darvis\UblPeppol\UblNlBis3Service::$rootElement must not be accessed before initialization`
+### `generateXml()` throws `Root element is not initialized.`
 
-**Cause:** `generateXml()` was called on a Dutch builder without `createDocument()`. This is a PHP `Error`, not an exception of the package. The Belgian builder returns an empty XML declaration in the same situation.
+**Cause:** `generateXml()` was called on a Dutch builder without `createDocument()`. (In 1.8 and 1.9 this was the PHP error `Typed property Darvis\UblPeppol\UblNlBis3Service::$rootElement must not be accessed before initialization`.) The Belgian builder returns an empty XML declaration in the same situation.
 **Fix:** call `createDocument()` and the `add...()` methods before `generateXml()`.
 
 ### `Validation error(s) in invoice header:`
@@ -72,8 +72,8 @@ The lines that follow name the problem:
 
 ### `VAT number must start with a 2-letter ISO 3166-1 alpha-2 country code (e.g., 'NL', 'BE'). Got: '...'`
 
-**Cause:** the customer's `vatNumber` has no country prefix. The Belgian builder also refuses a lower case prefix.
-**Fix:** pass `NL123456789B01` or `BE0999000228`, in upper case.
+**Cause:** the customer's `vatNumber` has no country prefix (BR-CO-09).
+**Fix:** pass `NL123456789B01` or `BE0999000228`. Both builders write it in upper case.
 
 ### `Invalid IBAN format` or `Invalid BIC/SWIFT code format`
 
@@ -99,9 +99,9 @@ Also: `PEPPOL BR-27 Validation Error: Line extension amount shall NOT be negativ
 
 **Fix:** pass `price_amount` and `quantity` in the line.
 
-### `Warning: Undefined array key "tax_scheme_id"` (or `"currency"`, `"name"`, `"description"`, `"unit_code"`)
+### `Warning: Undefined array key "currency"` (or `"name"`, `"description"`, `"unit_code"`)
 
-**Cause:** a required key is missing from the array you passed to `addInvoiceLine()`. The Belgian builder requires `tax_scheme_id`; the Dutch builder does not.
+**Cause:** a required key is missing from the array you passed to `addInvoiceLine()`.
 **Fix:** add the key. The lists are under [Dutch invoices](netherlands.md#addinvoicelinearray-linedata) and [Belgian invoices](belgium.md#the-calls).
 
 ### `Tax entry #1: Tax scheme ID is required`
@@ -118,10 +118,29 @@ Also: `PEPPOL BR-27 Validation Error: Line extension amount shall NOT be negativ
 
 **Fix:** the Dutch `addAllowanceCharge()` wants a positive amount and a reason. Whether it is a discount is decided by the first argument (`false`), not by the sign.
 
-### The invoice contains `SupplierOfficialName Ltd`, `4025:123:4343`, `BUYER_REF` or `PO-001`
+### The invoice contains `BUYER_REF` or `PO-001`
 
-**Cause:** `BUYER_REF` and `PO-001` are the defaults of `addBuyerReference()` and `addOrderReference()`. The other two are fixed values the builder writes.
-**Fix:** always pass your own reference. For the fixed values, see [What the Dutch builder writes for you](netherlands.md#what-the-dutch-builder-writes-for-you).
+**Cause:** they are the defaults of `addBuyerReference()` and `addOrderReference()`.
+**Fix:** always pass your own reference.
+
+### The invoice contains `SupplierOfficialName Ltd`, `4025:123:4343`, or your VAT number with `schemeID="0106"`
+
+**Cause:** versions before 1.10.0 wrote these fixed values.
+**Fix:** upgrade to 1.10.0 or newer. The supplier's legal name is then the name you pass, the accounting cost is only written through `addAccountingCost()`, and the KvK number goes in with `addSupplierLegalRegistration()`; see [Dutch invoices](netherlands.md#the-legal-registration-of-the-supplier-and-the-customer).
+
+### The receiver reports NL-R-003 or NL-R-005
+
+**Cause:** the legal registration of a Dutch party (`PartyLegalEntity/CompanyID`) has a scheme other than `0106` or `0190`.
+**Fix:** pass the KvK number with `addSupplierLegalRegistration('12345678')` or `addCustomerLegalRegistration('87654321')`, or an OIN with `'0190'` as the second argument.
+
+### `Legal registration scheme must be a 4 digit ISO 6523 ICD code`
+
+**Fix:** pass `'0106'` for a KvK number, `'0190'` for an OIN, `'0208'` for a Belgian enterprise number.
+
+### `Add the header before the accounting cost.`
+
+**Cause:** the Belgian `addAccountingCost()` places the element behind the currency, which the header writes.
+**Fix:** call `addInvoiceHeader()` or `addCreditNoteHeader()` first.
 
 ### A `&` or `<` in a name
 
@@ -143,18 +162,18 @@ Nothing to fix. The builders escape text for you. Do not call `htmlspecialchars(
 | `BR-S-08` or `TaxSubtotal 1: TaxAmount (...) does not match calculation` | A tax entry does not match its lines or its rate |
 | `BR-CO-15` | `tax_inclusive_amount` is not `tax_exclusive_amount` plus VAT |
 | `BR-CO-16` | `payable_amount` is not `tax_inclusive_amount` minus `prepaid_amount` |
-| `BR-CO-11`, `BR-CO-12` | See the next entry |
+| `BR-CO-11`, `BR-CO-12` | The allowance or charge total is not the sum of your `addAllowanceCharge()` calls; see the next entry |
 | `NL-R-003`, `NL-R-005` | A Dutch party has an endpoint scheme other than `0106` or `0190` |
 | `NL-R-008` | Both parties are Dutch and the payment means code is not `30`, `48`, `49`, `57`, `58` or `59` |
 | `NL-R-009` | A line has `order_line_id` and `addOrderReference()` was not called |
 | `Invalid currency code format`, `Invalid schemeID format`, `Invalid payment means code format`, `Invalid tax category ID` | A code has the wrong shape |
 
-### `BR-CO-12: Sum of document charges (0.00) does not match ChargeTotalAmount (10.00)`
+### `BR-CO-12: Sum of document charges (10.00) does not match ChargeTotalAmount (15.00)`
 
-Also `BR-CO-11: Sum of document allowances (0.00) does not match AllowanceTotalAmount (...)`.
+Also `BR-CO-11: Sum of document allowances (...) does not match AllowanceTotalAmount (...)`.
 
-**Cause:** a limitation of the Belgian `validate()`: it does not see your `addAllowanceCharge()` calls, so every document with a charge or a discount fails, even when it is correct.
-**Fix:** call `generateXml()` without `validateFirst` for these documents and check them with an official validator. See [Belgian invoices](belgium.md#a-charge-or-a-discount-fails-validate).
+**Cause:** `charge_total_amount` (or `allowance_total_amount`) in `addLegalMonetaryTotal()` is not the sum of the amounts you passed to `addAllowanceCharge()`.
+**Fix:** make them equal. If the first number is `0.00` while you did add a charge, you are on a version before 1.10.0, where the Belgian `validate()` did not see `addAllowanceCharge()`; upgrade.
 
 ### `validate()` passes and the receiver still rejects the invoice
 

@@ -22,6 +22,8 @@ Call the methods in this order:
 6. `addInvoiceLine()` per line, `addTaxTotal()` and `addLegalMonetaryTotal()`, these three in any order
 7. `generateXml()`
 
+`addAccountingCost()` is the exception: call it anywhere after the header and it lands in the right place.
+
 Steps 3 and 5 are optional, but PEPPOL requires a buyer reference or an order reference (rule PEPPOL-EN16931-R003).
 
 ## The complete example
@@ -68,7 +70,7 @@ $ubl->addAccountingCustomerParty(
     null,                       // contactName
     null,                       // contactPhone
     null,                       // contactEmail
-    'BE0999000228'              // vatNumber, upper case, with the country prefix
+    'BE0999000228'              // vatNumber, with the country prefix
 );
 
 $ubl->addPaymentMeans(
@@ -81,7 +83,7 @@ $ubl->addPaymentMeans(
 );
 $ubl->addPaymentTerms('Payment within 30 days');
 
-// The lines. tax_scheme_id is required in the Belgian builder.
+// The lines.
 $ubl->addInvoiceLine([
     'id' => '1',
     'quantity' => 2,
@@ -122,17 +124,19 @@ The header, the references and the line keys work as in the [Dutch builder](neth
 | Call | Difference from the Dutch builder |
 | --- | --- |
 | `addAccountingSupplierParty()`, `addAccountingCustomerParty()` | No check on empty arguments. The supplier's legal name is the `$name` you pass. A customer `$registrationNumber` is written with scheme `0106` when the country is `NL`, otherwise `0208` |
-| Customer `$vatNumber` | Must start with two **upper case** letters, otherwise the builder throws `VAT number must start with a 2-letter ISO 3166-1 alpha-2 country code` |
+| Customer `$vatNumber` | Must start with a two-letter country code (BR-CO-09), otherwise the builder throws `VAT number must start with a 2-letter ISO 3166-1 alpha-2 country code`. It is written in upper case |
 | `addAdditionalDocumentReference($id, $documentType)` | `$documentType` is written as `cbc:DocumentDescription` |
 | `addPaymentMeans()` | The first six arguments are required. The IBAN is not checked. The payment means name and the account name are written to the XML |
 | `addPaymentTerms()` | Accepts four arguments; only `$note` is written |
 | `addAllowanceCharge()` | All six arguments are required. The VAT category is always written |
 | `addDelivery()` | The first eight arguments are required |
 | `addTaxTotal()` | No check on missing keys. A second call replaces the first |
-| `addLegalMonetaryTotal(array $totals, string $currency)` | `$currency` is required. The optional keys `allowance_total_amount` and `prepaid_amount` are written when they are greater than zero |
-| `addInvoiceLine()` | `tax_scheme_id` is required. `base_quantity` is always written as `1` |
+| `addLegalMonetaryTotal(array $totals, string $currency)` | `$currency` is required. `charge_total_amount` defaults to `0`. The optional keys `allowance_total_amount` and `prepaid_amount` are written when they are greater than zero |
+| `addInvoiceLine()` | `tax_scheme_id` defaults to `VAT`. `base_quantity` is always written as `1` |
+| `addAccountingCost(string $value)` | The buyer accounting reference (BT-19), optional. Call it after the header; the builder puts it directly behind the currency, where the schema wants it, also on a credit note |
+| Legal registration | The supplier gets no `PartyLegalEntity/CompanyID`. The methods `addSupplierLegalRegistration()` and `addCustomerLegalRegistration()` exist only in the Dutch builder |
 
-`cbc:DocumentCurrencyCode` is always `EUR`, and `addInvoiceHeader()` writes `cbc:AccountingCost` with the fixed value `4025:123:4343` into every invoice. You cannot change either through the public methods yet.
+`cbc:DocumentCurrencyCode` is always `EUR`; you cannot change it through the public methods yet. Until 1.10.0 `addInvoiceHeader()` also wrote `<cbc:AccountingCost>4025:123:4343</cbc:AccountingCost>`, the value from the PEPPOL example file, into every invoice. That is gone; use `addAccountingCost()` when your customer gave you a reference.
 
 ## Let the builder add up the lines
 
@@ -156,8 +160,9 @@ The Belgian `validate()` refuses a document without lines, without a monetary to
 | --- | --- |
 | Per line | `line_extension_amount` equals `price_amount` times `quantity` |
 | BR-CO-10 | The lines add up to `line_extension_amount` |
+| BR-CO-11, BR-CO-12 | `allowance_total_amount` and `charge_total_amount` equal the sums of your `addAllowanceCharge()` calls |
 | BR-CO-13 | `tax_exclusive_amount` equals lines minus allowances plus charges |
-| BR-S-08 | Each taxable amount equals the lines of that VAT category, and each tax amount equals taxable amount times rate |
+| BR-S-08 | Each taxable amount equals the lines of that VAT category minus its allowances plus its charges, and each tax amount equals taxable amount times rate |
 | BR-CO-15 | `tax_inclusive_amount` equals `tax_exclusive_amount` plus VAT |
 | BR-CO-16 | `payable_amount` equals `tax_inclusive_amount` minus `prepaid_amount` |
 
@@ -165,19 +170,11 @@ A difference of at most 0.01 is accepted. It also checks the code formats, like 
 
 When something is wrong, `getCorrections()` returns the totals the validator calculated itself. They are **suggestions**: nothing in your document is changed. See [Validation](validation.md#corrections-are-suggestions).
 
-### A charge or a discount fails `validate()`
+### A charge or a discount
 
-`validate()` compares `charge_total_amount` and `allowance_total_amount` with a sum of zero, because the builder does not pass your `addAllowanceCharge()` calls to the validator. A correct document with a charge of 10.00 therefore reports:
+`addAllowanceCharge()` is part of the check: BR-CO-11 compares `allowance_total_amount` with the sum of your discounts, BR-CO-12 compares `charge_total_amount` with the sum of your charges, and the taxable amount of a VAT category includes them (BR-S-08). Until 1.10.0 `validate()` did not see these calls and failed every document that had one.
 
-```text
-BR-CO-12: Sum of document charges (0.00) does not match ChargeTotalAmount (10.00)
-```
-
-and a BR-S-08 error for the taxable amount. A discount reports `BR-CO-11` in the same way. The suggested corrections are wrong in this case, because they leave the charge out.
-
-Until this is fixed: for a document with `addAllowanceCharge()`, call `generateXml()` without `validateFirst`, and check the XML with an [official validator](validation.md#check-a-document-with-an-official-validator).
-
-## A charge or a discount
+## An example with a charge
 
 ```php
 // A freight charge of 10.00 with 21% VAT. Call this before the lines and the totals.
@@ -203,7 +200,7 @@ $ubl->addLegalMonetaryTotal([
 ], 'EUR');
 ```
 
-Pass `false` as the first argument for a discount, and put its total in `allowance_total_amount`.
+Pass `false` as the first argument for a discount, and put its total in `allowance_total_amount`. `validate()` accepts both.
 
 ## Belgian VAT categories
 
