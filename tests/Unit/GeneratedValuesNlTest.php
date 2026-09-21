@@ -210,6 +210,43 @@ it('writes no rate for a charge that is not subject to VAT (BT-103, BR-O-07)', f
         ->and($xpath->evaluate('count(/i:Invoice/cac:AllowanceCharge/cac:TaxCategory/cbc:Percent)'))->toBe(0.0);
 });
 
+// BT-46, Buyer identifier, and its scheme BT-46-1 (0..1). PEPPOL-COMMON-R040 to R054 test the format
+// of an identifier under a scheme: fatal for 0208 (R043), a warning for 0106 (R054).
+
+const NL_CUSTOMER_ID = '/i:Invoice/cac:AccountingCustomerParty/cac:Party/cac:PartyIdentification/cbc:ID';
+
+it('does not write an internal customer number as a KvK number (BT-46, PEPPOL-COMMON-R054)', function () {
+    $xpath = nlXpath(nlBuilder()->addAccountingCustomerParty(
+        '87654321', '0106', 'CUST-710', 'Customer Company BV', 'Nieuwezijds Voorburgwal 123', '1012 RJ', 'Amsterdam', 'NL'
+    )->generateXml());
+
+    expect($xpath->evaluate('string('.NL_CUSTOMER_ID.')'))->toBe('CUST-710')
+        ->and($xpath->evaluate('count('.NL_CUSTOMER_ID.'/@schemeID)'))->toBe(0.0)
+        // The endpoint keeps its scheme: that is the identifier the scheme belongs to.
+        ->and($xpath->evaluate('string(/i:Invoice/cac:AccountingCustomerParty/cac:Party/cbc:EndpointID/@schemeID)'))->toBe('0106');
+});
+
+it('does not write an internal customer number under the scheme of a foreign endpoint (BT-46, PEPPOL-COMMON-R043)', function () {
+    $xpath = nlXpath(nlBuilder()->addAccountingCustomerParty(
+        '0999000228', '0208', 'CUST-711', 'Voorbeeld Klant NV', 'Kerkstraat 123', '2000', 'Antwerpen', 'BE'
+    )->generateXml());
+
+    expect($xpath->evaluate('count('.NL_CUSTOMER_ID.'/@schemeID)'))->toBe(0.0);
+});
+
+it('keeps the scheme on a customer identifier that is the endpoint or fits the scheme (BT-46)', function (string $endpoint, string $scheme, string $partyId) {
+    $xpath = nlXpath(nlBuilder()->addAccountingCustomerParty(
+        $endpoint, $scheme, $partyId, 'Customer Company BV', 'Nieuwezijds Voorburgwal 123', '1012 RJ', 'Amsterdam', 'NL'
+    )->generateXml());
+
+    expect($xpath->evaluate('string('.NL_CUSTOMER_ID.'/@schemeID)'))->toBe($scheme)
+        ->and($xpath->evaluate('string('.NL_CUSTOMER_ID.')'))->toBe($partyId);
+})->with([
+    'the KvK number that is also the endpoint, as before' => ['87654321', '0106', '87654321'],
+    'another KvK number' => ['87654321', '0106', '12345678'],
+    'an OIN of 20 digits' => ['00000001234567890000', '0190', '00000001234567890000'],
+]);
+
 // The guard the docblock of generateXml() promises
 
 it('throws a RuntimeException when the document was never created', function () {

@@ -80,6 +80,8 @@ addCustomerLegalRegistration(string $identifier, string $schemeId = '0106'): sel
 
 See [Dutch invoices](netherlands.md#the-legal-registration-of-the-supplier-and-the-customer).
 
+The customer's `$partyId` (BT-46) is whatever you call this customer, for example your own customer number. The Dutch builder writes the endpoint's scheme on it only when it is the endpoint identifier itself, 8 digits under scheme `0106` (a KvK number) or 20 digits under `0190` (an OIN); otherwise the optional `schemeID` is left out. Until 1.9 every value got the scheme, so `CUST-710` went out as a KvK number and the receiver's validation answered with `PEPPOL-COMMON-R054`.
+
 `UblBeBis3Service` has the same positions with other names: `$name` for `$partyName`, `$country` for `$countryCode`, `$vatNumber` for the supplier's `$companyId`, and `$registrationNumber` for the customer's `$companyId`. It has no `$taxSchemeId` argument.
 
 ### Delivery, payment, allowances and charges
