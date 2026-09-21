@@ -253,12 +253,25 @@ class PeppolService
                 ])
                 ->get($this->baseUrl);
 
+            $status = $response->status();
+
+            // The send URL takes a POST at most providers, so a GET that comes back as 405 or 400
+            // still shows the provider was reached and did not refuse the credentials. A refusal,
+            // an unknown URL and a server error are failures, not "Connection successful".
+            $failure = match (true) {
+                $status === 401 => 'Authentication failed - check credentials',
+                $status === 403 => 'Access denied - the credentials are not allowed to use this URL',
+                $status === 404 => 'Peppol URL not found - check PEPPOL_URL',
+                $status >= 500 => "The Peppol provider answered with a server error (HTTP {$status})",
+                default => null,
+            };
+
             return [
-                'success' => $response->status() !== 401,
-                'status_code' => $response->status(),
-                'message' => $response->status() === 401
-                    ? 'Authentication failed - check credentials'
-                    : 'Connection successful',
+                'success' => $failure === null,
+                'status_code' => $status,
+                'message' => $failure ?? ($response->successful()
+                    ? 'Connection successful'
+                    : "Peppol provider reached (HTTP {$status}); the credentials were not refused"),
             ];
 
         } catch (\Exception $e) {

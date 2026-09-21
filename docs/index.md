@@ -17,7 +17,7 @@ PHP 8.2 or newer with the DOM extension. Nothing else is required to generate in
 ## What it does
 
 - Builds Dutch (NLCIUS) and Belgian (EN 16931) invoices from your own data, element by element or in one call
-- Builds credit notes with the billing reference the rules demand
+- Builds credit notes with the billing reference the rules demand, with the Belgian builder; the Dutch builder does invoices only
 - Validates a document against the business rules before you send it, so a receiver does not reject it
 - Checks European VAT numbers against VIES, and company registration numbers such as the KvK number and the Belgian ondernemingsnummer
 - Sends the result to the PEPPOL network through your access point provider, and logs what came back

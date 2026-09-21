@@ -33,10 +33,12 @@
 
 - q: Can I generate a credit note?
   a: >
-    Yes, with the same builder. A credit note is a separate document type with its own root element, a type
+    Yes, with the Belgian builder, `UblBeBis3Service`; the Dutch builder does invoices only. A credit note is a
+    separate document type with its own root element, a type
     code of 381 and a reference to the invoice it corrects, which rule BR-55 requires. Amounts must be
-    positive: the document type says it is a credit, not a minus sign. The package converts negative amounts
-    for you.
+    positive: the document type says it is a credit, not a minus sign. `addCreditNoteLine()` makes the price, the
+    quantity and the line amount positive for you. The tax total and the monetary total are written as you pass
+    them, and `generateXml()` throws on a negative total (BR-CN-03, BR-CN-04), so pass those as positive numbers.
 
 - q: Why does validation pass here but the receiver still rejects the invoice?
   a: >
