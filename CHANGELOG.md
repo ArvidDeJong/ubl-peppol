@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-09-21
+
 Documentation only: nothing in `src/` changes. If you built on the old text, these are the claims that were wrong.
 
 ### Added
@@ -399,7 +401,8 @@ _Never released on its own; these changes are part of the next release._
 - Laravel Service Provider
 - Example code
 
-[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.1...HEAD
+[1.9.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.7.0...v1.7.1
