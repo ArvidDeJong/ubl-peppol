@@ -1,419 +1,99 @@
 ---
-title: Company numbers
-nav_order: 8
-description: Validating company registration numbers such as the Dutch KvK and the Belgian ondernemingsnummer before they go into an invoice.
+title: "Company numbers"
+nav_order: 9
+description: "Check the format of a company registration number: Dutch KvK, Belgian KBO with its checksum, Luxembourg RCS, French SIREN and SIRET, German HRA and HRB."
 ---
 
-# Company Registration Number Validation
+# Company numbers
 
-The `CompanyRegistrationService` provides validation for company registration numbers across multiple European countries. This service validates format, checksums, and provides detailed information about each registration type.
+`Darvis\UblPeppol\CompanyRegistrationService` checks whether a company registration number has the right **format** for its country. It makes no network call and does not know whether the company exists.
 
-## Overview
-
-Different European countries use different systems for company registration:
-
-- **Netherlands (NL)**: KVK (Kamer van Koophandel) - 8 digits
-- **Belgium (BE)**: KBO (Kruispuntbank van Ondernemingen) - 10 digits with mod97 checksum
-- **Luxembourg (LU)**: RCS (Registre de Commerce et des Sociétés) - 1 letter + 6 digits
-- **France (FR)**: SIREN (9 digits) or SIRET (14 digits)
-- **Germany (DE)**: Handelsregister - HRA/HRB + 1-6 digits
-
-## Basic Usage
-
-### Validate a Registration Number
+## Check a number
 
 ```php
 use Darvis\UblPeppol\CompanyRegistrationService;
 
 $service = new CompanyRegistrationService();
 
-// Validate Dutch KVK number
-$result = $service->validate('12345678', 'NL');
+$result = $service->validate('0681.845.662', 'BE');
 
 if ($result['valid']) {
-    echo "Valid KVK number: " . $result['formatted'];
-    echo "Type: " . $result['type_name'];
+    $number = $result['formatted'];   // "0681845662"
 } else {
-    echo "Invalid: " . $result['error'];
+    $message = $result['error'];      // for example "Invalid checksum. KBO number failed mod97 validation."
 }
 ```
 
-## Response Structure
+The arguments are the number first, then the two-letter country code. Spaces, dots and dashes are removed from the number before the check, and the country code is made upper case.
 
-All validation methods return a consistent array structure:
+## What is checked per country
 
-```php
-[
-    'valid' => true,                    // Boolean: number is valid
-    'country' => 'NL',                  // String: ISO country code
-    'country_name' => 'Netherlands',    // String: Country name
-    'number' => '12345678',             // String: Original input (cleaned)
-    'formatted' => '12345678',          // String: Formatted number (null if invalid)
-    'type' => 'KVK',                    // String: Registration type code
-    'type_name' => 'Kamer van Koophandel', // String: Full type name
-    'error' => null                     // String|null: Error message if invalid
-]
-```
+| Country | `type` | Format | Checksum | Example |
+| --- | --- | --- | --- | --- |
+| `NL` | `KVK` | 8 digits | No | `12345678` |
+| `BE` | `KBO` | 10 digits | Yes: the last two digits are 97 minus (the first eight digits modulo 97) | `0681845662` |
+| `LU` | `RCS` | 1 letter and 6 digits | No | `B123456` |
+| `FR` | `SIREN` or `SIRET` | 9 digits (SIREN) or 14 digits (SIRET) | No | `732829320`, `73282932000074` |
+| `DE` | `HRA` or `HRB` | `HRA` or `HRB` and 1 to 6 digits, space optional | No | `HRB 12345` |
 
-## Country-Specific Validation
+`getSupportedCountries()` returns this list as an array with the keys `name`, `type`, `type_name`, `format` and `example` per country code.
 
-### Netherlands (NL) - KVK
+## The result
 
-**Format**: 8 digits
+`validate()` always returns an array and never throws.
 
-```php
-$result = $service->validate('12345678', 'NL');
+| Key | Holds |
+| --- | --- |
+| `valid` | `true` or `false` |
+| `country` | The country code, upper case |
+| `country_name` | The English name of the country |
+| `number` | The number after cleaning: `12 34 56 78` becomes `12345678`, `HRB 12345` becomes `HRB12345` |
+| `formatted` | The number for display, or `null` when invalid. Germany gets a space (`HRB 12345`), Luxembourg is made upper case |
+| `type` | `KVK`, `KBO`, `RCS`, `SIREN`, `SIRET`, `HRA` or `HRB`. `null` when a French or German number has the wrong shape |
+| `type_name` | The full name of the register. Missing when `type` is `null` |
+| `error` | `null` when valid, otherwise a sentence |
 
-// Valid examples:
-// 12345678
-// 68184566
+Extra keys: a valid SIRET adds `siren` (the first 9 digits) and `nic` (the last 5). A valid German number adds `registration_number` (the digits).
 
-// Invalid examples:
-// 1234567 (too short)
-// 123456789 (too long)
-// ABC12345 (contains letters)
-```
+A country the service does not know returns `valid` false, `type` null and the error `Unsupported country code: US`. That result has no `country_name`, `formatted` or `type_name` key, and `number` is the input as you passed it.
 
-**Response**:
-```php
-[
-    'valid' => true,
-    'country' => 'NL',
-    'country_name' => 'Netherlands',
-    'number' => '12345678',
-    'formatted' => '12345678',
-    'type' => 'KVK',
-    'type_name' => 'Kamer van Koophandel',
-    'error' => null,
-]
-```
+## The error messages
 
-### Belgium (BE) - KBO
+| Country | `error` |
+| --- | --- |
+| `NL` | `Invalid format. Expected 8 digits.` |
+| `BE` | `Invalid format. Expected 10 digits.` or `Invalid checksum. KBO number failed mod97 validation.` |
+| `LU` | `Invalid format. Expected 1 letter + 6 digits (e.g., B123456).` |
+| `FR` | `Invalid format. Expected 9 digits (SIREN) or 14 digits (SIRET).`, or `Invalid SIREN format. Expected 9 digits.` and `Invalid SIRET format. Expected 14 digits.` when the length is right but a character is not a digit |
+| `DE` | `Invalid format. Expected HRA or HRB followed by 1-6 digits (e.g., HRB 12345).` |
 
-**Format**: 10 digits with mod97 checksum validation
-
-The last 2 digits are a checksum: `97 - (first 8 digits mod 97)`
+## Use it in a Laravel form
 
 ```php
-$result = $service->validate('0681845662', 'BE');
+// app/Http/Controllers/CustomerController.php
+use Darvis\UblPeppol\CompanyRegistrationService;
 
-// Valid example: 0681845662
-// Calculation: 97 - (06818456 % 97) = 97 - 35 = 62 ✓
-
-// Invalid examples:
-// 0681845663 (wrong checksum)
-// 068184566 (too short)
-```
-
-**Response**:
-```php
-[
-    'valid' => true,
-    'country' => 'BE',
-    'country_name' => 'Belgium',
-    'number' => '0681845662',
-    'formatted' => '0681845662',
-    'type' => 'KBO',
-    'type_name' => 'Kruispuntbank van Ondernemingen',
-    'error' => null,
-]
-```
-
-### Luxembourg (LU) - RCS
-
-**Format**: 1 letter + 6 digits (usually starts with 'B')
-
-```php
-$result = $service->validate('B123456', 'LU');
-
-// Valid examples:
-// B123456
-// A999999
-// b123456 (automatically uppercased)
-
-// Invalid examples:
-// 123456 (missing letter)
-// BB12345 (two letters)
-// B12345 (too short)
-```
-
-**Response**:
-```php
-[
-    'valid' => true,
-    'country' => 'LU',
-    'country_name' => 'Luxembourg',
-    'number' => 'B123456',
-    'formatted' => 'B123456',
-    'type' => 'RCS',
-    'type_name' => 'Registre de Commerce et des Sociétés',
-    'error' => null,
-]
-```
-
-### France (FR) - SIREN / SIRET
-
-**SIREN Format**: 9 digits (company identifier)
-
-```php
-$result = $service->validate('732829320', 'FR');
-
-// Response includes:
-[
-    'valid' => true,
-    'country' => 'FR',
-    'country_name' => 'France',
-    'number' => '732829320',
-    'formatted' => '732829320',
-    'type' => 'SIREN',
-    'type_name' => 'Système d\'Identification du Répertoire des Entreprises',
-    'error' => null,
-]
-```
-
-**SIRET Format**: 14 digits (establishment identifier = SIREN + NIC)
-
-```php
-$result = $service->validate('73282932000074', 'FR');
-
-// Response includes:
-[
-    'valid' => true,
-    'country' => 'FR',
-    'country_name' => 'France',
-    'number' => '73282932000074',
-    'formatted' => '73282932000074',
-    'type' => 'SIRET',
-    'type_name' => 'Système d\'Identification du Répertoire des Établissements',
-    'siren' => '732829320',      // First 9 digits
-    'nic' => '00074',             // Last 5 digits
-    'error' => null,
-]
-```
-
-### Germany (DE) - Handelsregister
-
-**Format**: HRA or HRB + 1-6 digits
-
-- **HRA**: Handelsregister Abteilung A (Personengesellschaften - partnerships)
-- **HRB**: Handelsregister Abteilung B (Kapitalgesellschaften - corporations/GmbH)
-
-```php
-$result = $service->validate('HRB 12345', 'DE');
-
-// Valid examples:
-// HRB 12345
-// HRB12345 (space optional)
-// HRA 1
-// hrb 999999 (case insensitive)
-
-// Invalid examples:
-// HR 12345 (missing A or B)
-// HRC 12345 (invalid letter)
-// HRB 1234567 (too many digits)
-```
-
-**Response**:
-```php
-[
-    'valid' => true,
-    'country' => 'DE',
-    'country_name' => 'Germany',
-    'number' => 'HRB 12345',
-    'formatted' => 'HRB 12345',
-    'type' => 'HRB',
-    'type_name' => 'Handelsregister Abteilung B (Kapitalgesellschaften)',
-    'registration_number' => '12345',
-    'error' => null,
-]
-```
-
-## Helper Methods
-
-### Get Supported Countries
-
-```php
-$countries = $service->getSupportedCountries();
-
-// Returns:
-[
-    'NL' => [
-        'name' => 'Netherlands',
-        'type' => 'KVK',
-        'type_name' => 'Kamer van Koophandel',
-        'format' => '8 digits',
-        'example' => '12345678',
-    ],
-    'BE' => [...],
-    'LU' => [...],
-    'FR' => [...],
-    'DE' => [...],
-]
-```
-
-## Input Cleaning
-
-The service automatically cleans input by removing:
-- Spaces
-- Dots (.)
-- Dashes (-)
-
-Letters are preserved for Luxembourg (RCS) and Germany (Handelsregister).
-
-```php
-// All these are equivalent:
-$service->validate('12345678', 'NL');
-$service->validate('12 34 56 78', 'NL');
-$service->validate('12.34.56.78', 'NL');
-$service->validate('12-34-56-78', 'NL');
-```
-
-## Laravel Integration
-
-### Validation Rule
-
-Create a custom validation rule:
-
-```php
-use Darvis\UblPeppol\KvkService;
+$country = (string) $request->input('country');
 
 $request->validate([
-    'kvk_number' => [
+    'registration_number' => [
         'required',
-        function ($attribute, $value, $fail) use ($country) {
-            $service = app(KvkService::class);
-            $result = $service->validate($value, $country);
-            
-            if (!$result['valid']) {
-                $fail($result['error'] ?? 'Invalid company registration number');
+        function (string $attribute, mixed $value, \Closure $fail) use ($country) {
+            $result = app(CompanyRegistrationService::class)->validate((string) $value, $country);
+
+            if (! $result['valid']) {
+                $fail($result['error']);
             }
-        }
-    ]
+        },
+    ],
 ]);
 ```
 
-### Service Container
+Store `$result['number']`, not the raw input, so the value goes into an invoice without dots and spaces.
 
-Bind to Laravel's service container:
+## Where the number goes in an invoice
 
-```php
-// In AppServiceProvider
-use Darvis\UblPeppol\KvkService;
+- Netherlands: the KvK number is the `endpointId` with scheme `0106`, and the `companyId` of the customer. See [Dutch invoices](netherlands.md#scheme-ids-what-kind-of-number-is-this).
+- Belgium: the enterprise number is the `endpointId` with scheme `0208`, and the `registrationNumber` of the customer. See [Belgian invoices](belgium.md#scheme-id-0208-the-enterprise-number).
 
-$this->app->singleton(KvkService::class, function ($app) {
-    return new KvkService();
-});
-
-// Use anywhere
-$service = app(KvkService::class);
-```
-
-## Error Handling
-
-When validation fails, the response includes a descriptive error message:
-
-```php
-$result = $service->validate('123', 'NL');
-
-// Returns:
-[
-    'valid' => false,
-    'country' => 'NL',
-    'country_name' => 'Netherlands',
-    'number' => '123',
-    'formatted' => null,
-    'type' => 'KVK',
-    'type_name' => 'Kamer van Koophandel',
-    'error' => 'Invalid format. Expected 8 digits.',
-]
-```
-
-### Unsupported Countries
-
-```php
-$result = $service->validate('12345', 'US');
-
-// Returns:
-[
-    'valid' => false,
-    'country' => 'US',
-    'number' => '12345',
-    'type' => null,
-    'error' => 'Unsupported country code: US',
-]
-```
-
-## Best Practices
-
-### 1. Store Clean Numbers
-
-Store registration numbers without formatting:
-
-```php
-$result = $service->validate($input, $country);
-
-if ($result['valid']) {
-    // Store the cleaned number
-    $company->registration_number = $result['number'];
-    $company->registration_type = $result['type'];
-    $company->save();
-}
-```
-
-### 2. Display Formatted Numbers
-
-Use the formatted version for display:
-
-```php
-$result = $service->validate($company->registration_number, $company->country);
-
-echo $result['formatted']; // HRB 12345 (with space for DE)
-```
-
-### 3. Validate Before Saving
-
-Always validate before storing:
-
-```php
-public function store(Request $request)
-{
-    $service = app(KvkService::class);
-    $result = $service->validate($request->kvk_number, $request->country);
-    
-    if (!$result['valid']) {
-        return back()->withErrors(['kvk_number' => $result['error']]);
-    }
-    
-    // Continue with saving...
-}
-```
-
-### 4. Country-Specific Forms
-
-Show appropriate format hints based on country:
-
-```php
-$countries = $service->getSupportedCountries();
-
-foreach ($countries as $code => $info) {
-    echo "{$info['name']}: {$info['format']} (e.g., {$info['example']})";
-}
-```
-
-## Validation Summary Table
-
-| Country | Type | Format | Example | Checksum |
-|---------|------|--------|---------|----------|
-| NL | KVK | 8 digits | 12345678 | No |
-| BE | KBO | 10 digits | 0681845662 | Yes (mod97) |
-| LU | RCS | 1 letter + 6 digits | B123456 | No |
-| FR | SIREN | 9 digits | 732829320 | No |
-| FR | SIRET | 14 digits | 73282932000074 | No |
-| DE | HR | HRA/HRB + 1-6 digits | HRB 12345 | No |
-
-## See Also
-
-- [VIES VAT Validation](vat-numbers.md) - Validate EU VAT numbers
-- [Belgium Implementation](belgium.md) - Belgian UBL specifics
-- [Netherlands Implementation](netherlands.md) - Dutch UBL specifics
-- [API Reference](api-reference.md) - Complete API documentation
+To check whether a VAT number exists, use [VAT numbers](vat-numbers.md).

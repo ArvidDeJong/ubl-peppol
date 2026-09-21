@@ -1,7 +1,7 @@
 ---
-title: FAQ
-nav_order: 13
-description: Short answers about generating PEPPOL BIS Billing 3.0 invoices with darvis/ubl-peppol, the Dutch and Belgian rules, and validation.
+title: "FAQ"
+nav_order: 15
+description: "Short answers about darvis/ubl-peppol: what it is, PHP and Laravel versions, sending to PEPPOL, credit notes, validation, VIES, the log table and testing."
 faq: true
 ---
 

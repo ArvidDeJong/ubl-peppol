@@ -1,183 +1,153 @@
 ---
-title: Laravel integration
-nav_order: 9
-description: "Using the package inside a Laravel application: the service provider, the config file, the log table and the cleanup command."
+title: "Laravel integration"
+nav_order: 10
+description: "What darvis/ubl-peppol adds in Laravel: the container bindings, the ubl-peppol config file, the optional peppol_logs table and the peppol:cleanup command."
 ---
 
-# Laravel Integration
+# Laravel integration
 
-This package provides seamless Laravel integration for sending UBL invoices via the Peppol network.
+Laravel is optional. The builders, `UblValidator`, `ViesService` and `CompanyRegistrationService` are plain PHP. The Laravel layer is four classes:
 
-## Requirements
+| Class | What it does |
+| --- | --- |
+| `Darvis\UblPeppol\UblPeppolServiceProvider` | Registers the config, the bindings, the publish tags and the command. Laravel discovers it by itself |
+| `Darvis\UblPeppol\PeppolService` | Posts the XML to your access point provider. See [Sending invoices](peppol-service.md) |
+| `Darvis\UblPeppol\Models\PeppolLog` | The Eloquent model for the optional `peppol_logs` table |
+| `Darvis\UblPeppol\Console\CleanupPeppolLogsCommand` | The `peppol:cleanup` command |
 
-- Laravel 11, 12 or 13
-- PHP 8.2+ with the DOM extension
+The package has no routes, views, middleware, events or translations.
 
-Laravel is optional: the invoice builders and the validator work without it. This page is about what the package adds when there *is* an application around it.
+[Installation](installation.md#install-in-a-laravel-application) has the setup steps. This page explains what you get.
 
-## Installation
+## Build an invoice inside Laravel
 
-```bash
-composer require darvis/ubl-peppol
+Create a new builder for every document:
+
+```php
+// app/Actions/BuildInvoiceXml.php
+namespace App\Actions;
+
+use App\Models\Invoice;
+use Darvis\UblPeppol\UblNlBis3Service;
+
+class BuildInvoiceXml
+{
+    public function handle(Invoice $invoice): string
+    {
+        $ubl = new UblNlBis3Service();
+
+        $ubl->createDocument();
+        $ubl->addInvoiceHeader(
+            $invoice->number,
+            $invoice->issued_at->format('Y-m-d'),
+            $invoice->due_at->format('Y-m-d'),
+        );
+        // ... parties, payment, tax total, monetary total and lines,
+        // as in "Your first invoice"
+
+        return $ubl->generateXml(validateFirst: true);
+    }
+}
 ```
 
-The service provider is automatically registered via Laravel's package discovery.
+`App\Models\Invoice` and its columns are your own; the package has no invoice model. The dates are formatted because the builder accepts a `YYYY-MM-DD` string or a `\DateTime`, and refuses the `CarbonImmutable` that a model returns when you use immutable dates. [Your first invoice](getting-started.md) has the complete list of calls.
 
-## Configuration
+### Do not take the Dutch builder from the container twice
 
-Publish the configuration file:
+The service provider binds `UblNlBis3Service` as a **singleton** (one shared instance per application), with the alias `ubl-peppol`. `app(UblNlBis3Service::class)` and `app('ubl-peppol')` return that same instance every time, and a builder holds one document. The second invoice in the same request, queue worker or test therefore throws:
+
+```text
+Document is already initialized. Avoid initializing the document multiple times.
+```
+
+Use `new UblNlBis3Service()` instead, as above. `UblBeBis3Service` has no binding, so `app(UblBeBis3Service::class)` does give a new instance each time.
+
+## The config file
+
+The config key is `ubl-peppol`. Publishing the file is optional; without it the defaults and your `.env` values apply.
 
 ```bash
 php artisan vendor:publish --tag=ubl-peppol-config
 ```
 
-This creates `config/ubl-peppol.php`:
+| Key | Env variable | Default | What it does |
+| --- | --- | --- | --- |
+| `log_retention_days` | `PEPPOL_LOG_RETENTION_DAYS` | `60` | How many days `peppol:cleanup` keeps a log row |
+| `password` | `PEPPOL_PASSWORD` | none | Password for your access point provider |
+| `url` | `PEPPOL_URL` | none | The address `PeppolService` posts the XML to |
+| `username` | `PEPPOL_USERNAME` | none | Username for your access point provider |
 
-```php
-return [
-    'log_retention_days' => env('PEPPOL_LOG_RETENTION_DAYS', 60),
-    'password' => env('PEPPOL_PASSWORD'),
-    'url' => env('PEPPOL_URL'),
-    'username' => env('PEPPOL_USERNAME'),
-];
-```
+Only `PeppolService` and `peppol:cleanup` read these values. The builders read no configuration.
 
-Publishing is optional. Without it the defaults apply and the `.env` values below are still picked up.
+`PeppolService` is a singleton as well, and it reads the three credentials when it is created. When you change the config at runtime, for example per tenant, create the service with `new PeppolService()` after the change.
 
-Add the following to your `.env` file:
+After you change `.env` on a server that caches its config, run `php artisan config:clear`.
 
-```env
-PEPPOL_URL=https://your-peppol-provider.com/api
-PEPPOL_USERNAME=your-username
-PEPPOL_PASSWORD=your-password
-```
+## The log table is optional
 
-## The log table
-
-`peppol_logs` records what was sent and what came back. It is **opt-in**: an application that only generates XML never needs it, and sending works without it too. Without the table nothing is recorded and the result of a send has `'log_id' => null`. To use it, publish the migration and run it:
+`peppol_logs` keeps one row per attempt to send. It is not created by itself:
 
 ```bash
 php artisan vendor:publish --tag=ubl-peppol-migrations
 php artisan migrate
 ```
 
-Rows are cleaned up by `php artisan peppol:cleanup`, which keeps `log_retention_days` days (60 by default). Pass `--days=30` to override it for one run. Schedule it if you send a lot:
+The first command copies a migration named `..._create_peppol_logs_table.php` to `database/migrations`.
 
-```php
-// routes/console.php
-Schedule::command('peppol:cleanup')->weekly();
-```
+Without the table, sending works and the result has `'log_id' => null`. With the table, `PeppolService` writes a row with status `pending` before the request and updates it to `success` or `error` afterwards.
 
-## Usage
+| Column | Type | Holds |
+| --- | --- | --- |
+| `id` | big integer | |
+| `invoice_id` | unsigned big integer, nullable | The `id` of the object you passed to `sendInvoice()` |
+| `invoice_nr` | string, nullable | The invoice number |
+| `status` | `pending`, `success` or `error` | |
+| `http_status_code` | integer, nullable | The HTTP status of the provider, `0` when the request itself failed |
+| `message` | text, nullable | `Invoice successfully sent to Peppol network` or `Error sending to Peppol network` |
+| `error` | text, nullable | The response body of a refusal, or the exception message |
+| `response` | JSON, nullable | The JSON answer of the provider on success |
+| `sent_at` | timestamp, nullable | When the attempt started |
+| `created_at`, `updated_at` | timestamps | |
 
-### Generating UBL XML
-
-Resolve a builder from the container, or new one up; both work. Pick it by the receiver's country.
-
-```php
-use Darvis\UblPeppol\UblNlBis3Service;
-
-$ubl = app(UblNlBis3Service::class);
-
-$ubl->createDocument();
-$ubl->addInvoiceHeader('INV-2026-001', '2026-01-15', '2026-02-14');
-// supplier, customer, lines, tax total, monetary total
-
-$xml = $ubl->generateXml(validateFirst: true);
-```
-
-A document is built element by element. The UBL schema fixes the order of the elements; the Dutch builder arranges them itself, for the Belgian builder call the methods in that order. [Dutch invoices](netherlands.md) and [Belgian invoices](belgium.md) each walk through a complete one.
-
-### Sending via Peppol
-
-```php
-use Darvis\UblPeppol\PeppolService;
-
-$peppolService = app(PeppolService::class);
-
-// Send with Invoice model
-$result = $peppolService->sendInvoice($invoice, $xml);
-
-// Send XML directly
-$result = $peppolService->sendUblXml($xml, 'INV-2026-001');
-
-if ($result['success']) {
-    // Invoice sent successfully
-    $logId = $result['log_id'];
-} else {
-    // Handle error
-    $error = $result['error'];
-}
-```
-
-### Testing Connection
-
-```php
-$peppolService = app(PeppolService::class);
-$result = $peppolService->testConnection();
-
-if ($result['success']) {
-    echo 'Connection successful';
-} else {
-    echo $result['message'];
-}
-```
-
-### Viewing Logs
+### Read the log
 
 ```php
 use Darvis\UblPeppol\Models\PeppolLog;
 
-// Get all logs
-$logs = PeppolLog::all();
+PeppolLog::success()->get();          // status success
+PeppolLog::error()->get();            // status error
+PeppolLog::pending()->get();          // started and never finished
+PeppolLog::recent(7)->get();          // created in the last 7 days (default 60)
+PeppolLog::olderThan(90)->get();      // created more than 90 days ago
 
-// Get logs for specific invoice
-$logs = PeppolLog::where('invoice_id', $invoiceId)->get();
+PeppolLog::where('invoice_id', $invoice->id)->latest()->first();
 
-// Get failed logs
-$logs = PeppolLog::where('status', 'error')->get();
+PeppolLog::tableExists();             // false until you ran the migration
 ```
 
-## Artisan Commands
+A scope is a named query filter on an Eloquent model ([Laravel docs](https://laravel.com/docs/eloquent#local-scopes)). Querying the model without the table throws a database error, so ask `PeppolLog::tableExists()` first in code that must work in both situations.
 
-### Cleanup Old Logs
+## Clean up old log rows
 
 ```bash
-# Delete logs older than log_retention_days (60 by default)
-php artisan peppol:cleanup
-
-# Delete logs older than 30 days
-php artisan peppol:cleanup --days=30
+php artisan peppol:cleanup             # deletes rows older than log_retention_days (60)
+php artisan peppol:cleanup --days=30   # deletes rows older than 30 days, for this run
 ```
 
-## Validation
+The output is `Deleting Peppol logs older than 60 days...` and then `✓ 3 log(s) deleted.` Without the table the command says there is nothing to clean up and ends successfully.
+
+Schedule it when you send often:
 
 ```php
-$result = $ubl->validate();
+// routes/console.php
+use Illuminate\Support\Facades\Schedule;
 
-if (! $result->isValid()) {
-    foreach ($result->errors as $error) {
-        echo $error;
-    }
-
-    // Or all of them at once:
-    logger()->warning($result->getErrorsAsString());
-}
+Schedule::command('peppol:cleanup')->weekly();
 ```
 
-Validation belongs to the builder. `UblValidator` is a set of static helpers for single values (a unit code, a currency, an IBAN), not a document validator.
+In your own code, `PeppolLog::cleanupOldLogs(int $days = 60)` deletes the same rows and returns how many.
 
-## Response Structure
+## Next steps
 
-All `PeppolService` methods return an array:
-
-```php
-[
-    'success' => bool,
-    'status_code' => int,
-    'message' => string,
-    'response' => array|null,  // On success
-    'error' => string|null,    // On failure
-    'log_id' => int|null,      // PeppolLog record ID, null without the peppol_logs table
-]
-```
+- [Sending invoices](peppol-service.md)
+- [Testing](testing.md) your own code with `Http::fake()`

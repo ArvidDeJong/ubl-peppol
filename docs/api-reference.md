@@ -1,403 +1,298 @@
 ---
-title: API reference
-nav_order: 11
-description: Every public method of the Dutch and Belgian invoice builders, the validator and the supporting services, with their parameters.
+title: "API reference"
+nav_order: 13
+description: "Every public method of both invoice builders, InvoiceValidationResult, UblValidator, ViesService, CompanyRegistrationService, PeppolService and PeppolLog."
 ---
 
-# API Reference
+# API reference
 
-This page contains the complete API documentation for both UBL service classes.
+All classes live in the namespace `Darvis\UblPeppol`. Every `add...()` method returns the builder, so calls can be chained. Arguments are positional; PHP named arguments work as well.
 
-## UblBeBis3Service (Belgium)
+## The two builders side by side
 
-For Belgian UBL invoices according to EN 16931 standard.
+`UblNlBis3Service` builds Dutch invoices, `UblBeBis3Service` builds Belgian invoices and credit notes. The method names are the same; the arguments are not always.
 
-### Constructor & Basic Methods
+### Document
 
-#### `__construct()`
+| Method | `UblNlBis3Service` | `UblBeBis3Service` |
+| --- | --- | --- |
+| `createDocument(): self` | Starts an `<Invoice>`. Throws a `RuntimeException` on a second call | The same |
+| `generateXml(bool $validateFirst = false): string` | Puts the elements in schema order and returns the XML. With `true` it calls `validate()` first and throws an `InvalidArgumentException` on errors | Returns the XML. With `true` the same, plus suggested corrections in the message. On a credit note it always checks the [credit note rules](credit-notes.md#the-rules-generatexml-enforces) |
+| `validate(): InvoiceValidationResult` | Code formats and five Dutch rules | Totals and code formats. See [Validation](validation.md#the-two-builders-check-different-things) |
+| `enableStrictCodelistValidation(?string $jsonPath = null, ?CodelistRegistry $registry = null): self` | See [Strict code lists](validation.md#strict-code-lists) | The same |
 
-```php
-$ubl = new UblBeBis3Service();
-```
-
-#### `createDocument(): self`
-
-Initializes the UBL document with namespaces.
-
-```php
-$ubl->createDocument();
-```
-
-#### `generateXml(bool $validateFirst = false): string`
-
-Generates the final UBL XML string. When `validateFirst` is true, it runs basic validation before output.
+### Header and references
 
 ```php
-$xml = $ubl->generateXml();
-$xml = $ubl->generateXml(true);
+addInvoiceHeader(string $invoiceNumber, $issueDate, $dueDate): self
+addBuyerReference(?string $buyerRef = 'BUYER_REF'): self
+addOrderReference(string $orderNumber = 'PO-001'): self
+addAdditionalDocumentReference(string $id, ?string $documentType = null): self
 ```
 
-#### `validate(): InvoiceValidationResult`
-
-Checks the document against the business rules the package implements and returns the result. Use it before sending, or let `generateXml(validateFirst: true)` do both.
-
-```php
-$result = $ubl->validate();
-
-$result->isValid();               // bool
-$result->getErrorsAsString();     // every rule that fired, one per line
-$result->getWarningsAsString();
-$result->getCorrections();        // values the builder fixed for you
-```
-
-This is not the full check a receiver runs. See [Validation](validation.md).
-
-#### `enableStrictCodelistValidation(?string $jsonPath = null, ?CodelistRegistry $registry = null): self`
-
-Enables strict codelist validation using a JSON file or a registry instance.
-
-```php
-use Darvis\UblPeppol\Validation\CodelistRegistry;
-
-$ubl->enableStrictCodelistValidation('/path/to/peppol-codelists.json');
-$registry = CodelistRegistry::fromJsonFile('/path/to/peppol-codelists.json');
-$ubl->enableStrictCodelistValidation(registry: $registry);
-```
-
-### Document Header
-
-#### `addInvoiceHeader(string $invoiceNumber, $issueDate, $dueDate): self`
-
-```php
-$ubl->addInvoiceHeader('INV-2026-001', '2026-01-15', '2026-02-14');
-```
-
-#### `addBuyerReference(?string $buyerRef = 'BUYER_REF'): self`
-
-```php
-$ubl->addBuyerReference('KLANT-001');
-```
-
-#### `addOrderReference(string $orderNumber = 'PO-001'): self`
-
-```php
-$ubl->addOrderReference('ORDER-2026-001');
-```
-
-#### `addAdditionalDocumentReference(string $id, ?string $documentType = null): self`
-
-```php
-$ubl->addAdditionalDocumentReference('DOC-001', 'Contract');
-```
-
-### Credit Notes
-
-A credit note is a different document type, not an invoice with negative amounts. See [Credit notes](credit-notes.md) for the whole picture.
-
-#### `createCreditNoteDocument(): self`
-
-Starts a `<CreditNote>` document instead of an `<Invoice>`. Use it in place of `createDocument()`.
-
-#### `addCreditNoteHeader(string $creditNoteNumber, $issueDate): self`
-
-Adds the header with type code 381. There is no due date on a credit note.
-
-```php
-$ubl->createCreditNoteDocument();
-$ubl->addCreditNoteHeader('CN-2026-001', '2026-01-21');
-```
-
-#### `addBillingReference(string $originalInvoiceNumber, ?string $originalIssueDate = null): self`
-
-The invoice this credit note corrects. Required by rule BR-55: without it the document is rejected.
-
-```php
-$ubl->addBillingReference('INV-2026-001', '2026-01-15');
-```
-
-#### `addCreditNoteLine(array $lineData): self`
-
-Same shape as `addInvoiceLine()`, but writes `<CreditedQuantity>`. Pass amounts as positive numbers; negatives are converted for you, because the document type expresses the credit, not the sign.
-
-#### `isCreditNote(): bool`
-
-Whether the current document is a credit note.
+The same in both builders, with two differences: the Dutch builder ignores `$documentType`, and the Belgian `addBuyerReference()` throws on a credit note. The date arguments have no type declaration in the code; a `YYYY-MM-DD` string or a `\DateTime` is accepted.
 
 ### Parties
 
-#### `addAccountingSupplierParty(...): self`
+`UblNlBis3Service`:
 
 ```php
-$ubl->addAccountingSupplierParty(
-    string $endpointId,           // VAT number WITHOUT country prefix (e.g., '0123456789' not 'BE0123456789')
-    string $endpointSchemeID,     // '0208' for Belgium
-    string $partyId,              // Company ID
-    string $name,                 // Company name
-    string $street,               // Street name + number
-    string $postalCode,           // Postal code
-    string $city,                 // City name
-    string $country,              // 'BE'
-    string $vatNumber,            // VAT number WITH prefix (e.g., 'BE0123456789')
-    ?string $additionalStreet = null
-);
-```
-
-**Important for Belgium**: The `endpointId` parameter should be the VAT number **WITHOUT** the "BE" prefix (e.g., `0123456789`), while the `vatNumber` parameter should include the prefix (e.g., `BE0123456789`).
-
-#### `addAccountingCustomerParty(...): self`
-
-```php
-$ubl->addAccountingCustomerParty(
-    string $endpointId,                  // VAT number WITHOUT country prefix for BE (e.g., '0987654321')
-    string $endpointSchemeID,            // '0208' for Belgium, '0106' for Netherlands
+addAccountingSupplierParty(
+    string $endpointId,
+    string $endpointSchemeID,
     string $partyId,
-    string $name,
+    string $partyName,
     string $street,
     string $postalCode,
     string $city,
-    string $country,
+    string $countryCode,
+    string $companyId,                  // the supplier's VAT number
+    ?string $additionalStreet = null
+): self
+
+addAccountingCustomerParty(
+    string $endpointId,
+    string $endpointSchemeID,
+    string $partyId,
+    string $partyName,
+    string $street,
+    string $postalCode,
+    string $city,
+    string $countryCode,
     ?string $additionalStreet = null,
-    ?string $registrationNumber = null,  // KVK/KBO number
+    ?string $companyId = null,          // the customer's registration number (KvK)
     ?string $contactName = null,
     ?string $contactPhone = null,
     ?string $contactEmail = null,
-    ?string $vatNumber = null            // VAT number WITH country prefix (e.g., BE0987654321, NL123456789B01)
-);
+    ?string $vatNumber = null,          // with the country prefix
+    string $taxSchemeId = 'VAT'
+): self
 ```
 
-**Important**:
+`UblBeBis3Service` has the same positions with other names: `$name` for `$partyName`, `$country` for `$countryCode`, `$vatNumber` for the supplier's `$companyId`, and `$registrationNumber` for the customer's `$companyId`. It has no `$taxSchemeId` argument.
 
-- For **Belgium**: The `endpointId` should be the VAT number **WITHOUT** the "BE" prefix (e.g., `0987654321`), while `vatNumber` includes the prefix (e.g., `BE0987654321`)
-- For **Netherlands**: The `endpointId` is typically the KVK number (8 digits)
-- The `vatNumber` parameter must include the country prefix per BR-CO-09 validation rule
-- If no VAT number is provided, the `PartyTaxScheme` element will be omitted
+### Delivery, payment, allowances and charges
 
-### Invoice Lines
-
-#### `addInvoiceLine(array $lineData): self`
+`UblNlBis3Service`:
 
 ```php
-$ubl->addInvoiceLine([
-    'id' => '1',
-    'quantity' => 2,
-    'unit_code' => 'C62',        // Pieces
-    'price_amount' => 100.00,
-    'currency' => 'EUR',
-    'name' => 'Product name',
-    'description' => 'Product description',
-    'tax_category_id' => 'S',    // Standard rate
-    'tax_percent' => 21.0,
-    'tax_scheme_id' => 'VAT'
-]);
+addDelivery(
+    string $deliveryDate,
+    ?string $locationId = null,
+    string $locationSchemeId = '0088',
+    ?string $street = null,
+    ?string $additionalStreet = null,
+    ?string $city = null,
+    ?string $postalCode = null,
+    ?string $countryCode = null,
+    ?string $partyName = null
+): self
+
+addPaymentMeans(
+    string $paymentMeansCode = '30',
+    string $paymentMeansName = 'Credit transfer',
+    ?string $paymentId = null,
+    ?string $accountId = null,              // IBAN
+    ?string $accountName = null,
+    ?string $financialInstitutionId = null, // BIC
+    ?string $paymentChannelCode = null,
+    ?string $paymentDueDate = null
+): self
+
+addPaymentTerms(?string $note = null): self
+
+addAllowanceCharge(
+    bool $isCharge = true,
+    float $amount = 0.0,
+    string $reason = '',
+    string $taxCategoryId = 'S',
+    float $taxPercent = 0.0,
+    string $currency = 'EUR'
+): self
 ```
 
-### Taxes & Totals
-
-#### `addTaxTotal(array $taxTotals): self`
+`UblBeBis3Service`:
 
 ```php
-$ubl->addTaxTotal([
-    [
-        'taxable_amount' => '100.00',
-        'tax_amount' => '21.00',
-        'currency' => 'EUR',
-        'tax_category_id' => 'S',
-        'tax_percent' => 21.0,
-        'tax_scheme_id' => 'VAT'
-    ]
-]);
-```
-
-#### `addLegalMonetaryTotal(array $totals, string $currency): self`
-
-```php
-$ubl->addLegalMonetaryTotal([
-    'line_extension_amount' => 100.00,
-    'tax_exclusive_amount' => 100.00,
-    'tax_inclusive_amount' => 121.00,
-    'charge_total_amount' => 0.00,
-    'payable_amount' => 121.00
-], 'EUR');
-```
-
-### Payment Information
-
-#### `addPaymentMeans(...): self`
-
-```php
-$ubl->addPaymentMeans(
-    string $paymentMeansCode,     // '30' = Credit transfer
-    ?string $paymentMeansName,    // 'Credit transfer'
-    string $paymentId,            // Payment reference
-    string $account_iban,         // IBAN number (without schemeID per UBL-CR-654)
-    ?string $account_name,        // Account holder
-    ?string $bic,                 // BIC code
-    ?string $channel_code,
-    ?string $due_date
-);
-```
-
-**Note**: The IBAN is added without `schemeID` attribute per UBL-CR-654 compliance rule.
-
-#### `addPaymentTerms(?string $note, ?float $discount_percent, ?float $discount_amount, ?string $discount_date): self`
-
-```php
-$ubl->addPaymentTerms('Payment within 30 days', null, null, null);
-```
-
-### Allowances & Charges
-
-#### `addAllowanceCharge(...): self`
-
-```php
-$ubl->addAllowanceCharge(
-    bool $isCharge,              // true = charge, false = allowance
-    float $amount,               // Amount
-    string $reason,              // Reason
-    string $taxCategoryId,       // 'S'
-    float $taxPercent,           // 21.0
-    string $currency             // 'EUR'
-);
-```
-
-### Delivery
-
-#### `addDelivery(...): self`
-
-```php
-$ubl->addDelivery(
-    string $deliveryDate,        // 'YYYY-MM-DD'
-    string $locationId,          // Location ID
-    string $locationSchemeId,    // '0088'
-    string $street,              // Delivery address
+addDelivery(
+    string $deliveryDate,
+    string $locationId,
+    string $locationSchemeId,
+    string $street,
     ?string $additional_street,
     string $city,
     string $postal_code,
     string $country,
     ?string $party_name = null
-);
+): self
+
+addPaymentMeans(
+    string $paymentMeansCode,
+    ?string $paymentMeansName,
+    string $paymentId,
+    string $account_iban,
+    ?string $account_name,
+    ?string $bic,
+    ?string $channel_code = null,           // not written
+    ?string $due_date = null                // not written
+): self
+
+addPaymentTerms(
+    ?string $note = null,
+    ?float $discount_percent = null,        // not written
+    ?float $discount_amount = null,         // not written
+    ?string $discount_date = null           // not written
+): self
+
+addAllowanceCharge(
+    bool $isCharge,
+    float $amount,
+    string $reason,
+    string $taxCategoryId,
+    float $taxPercent,
+    string $currency
+): self
 ```
 
-## UblNlBis3Service (Netherlands)
-
-For Dutch UBL invoices. Has largely the same API as UblBeBis3Service, with these differences:
-
-### Dutch Specifications
-
-- Automatic KVK number detection with schemeID '0106'
-- Support for OIN numbers with schemeID '0190'
-- Dutch validation rules
-
-#### `generateXml(bool $validateFirst = false): string`
-
-Same as Belgium. Optional validation is available before XML generation.
-
-#### `enableStrictCodelistValidation(?string $jsonPath = null, ?CodelistRegistry $registry = null): self`
-
-Same as Belgium. Strict validation requires a JSON codelist file.
-
-### Usage
+### Totals and lines
 
 ```php
-use Darvis\UblPeppol\UblNlBis3Service;
-
-$ubl = new UblNlBis3Service();
-// Use the same methods as UblBeBis3Service
+addTaxTotal(array $taxes): self
+addLegalMonetaryTotal(array $amounts, string $currency = 'EUR'): self   // Dutch builder
+addLegalMonetaryTotal(array $totals, string $currency): self            // Belgian builder
+addInvoiceLine(array $lineData): self
 ```
 
-## Common Parameters
+The array keys are listed under [Dutch invoices](netherlands.md#the-calls) and [Belgian invoices](belgium.md#the-calls).
 
-### Unit Codes (UN/ECE Recommendation 20)
+### Only in `UblBeBis3Service`
 
-- `C62` - Pieces
-- `MTR` - Meter
-- `KGM` - Kilogram
-- `LTR` - Liter
-- `HUR` - Hour
+| Method | What it does |
+| --- | --- |
+| `createCreditNoteDocument(): self` | Starts a `<CreditNote>` instead of an `<Invoice>` |
+| `addCreditNoteHeader(string $creditNoteNumber, $issueDate): self` | The header with type code 381. No due date. `$issueDate` is a `YYYY-MM-DD` string or a `\DateTime` |
+| `addBillingReference(string $originalInvoiceNumber, ?string $originalIssueDate = null): self` | The invoice the credit note corrects. Required on a credit note |
+| `addCreditNoteLine(array $lineData): self` | A line with `<cbc:CreditedQuantity>`. Makes quantity, price and line amount positive |
+| `isCreditNote(): bool` | `true` after `createCreditNoteDocument()` |
+| `calculateTotals(): array` | Adds up the lines added so far. Returns `totals`, `tax_totals` and `total_tax_amount` |
+| `getInvoiceLines(): array`, `getTotals(): array`, `getTaxTotals(): array` | What you passed in so far |
 
-### Tax Category IDs
+See [Credit notes](credit-notes.md) and [Let the builder add up the lines](belgium.md#let-the-builder-add-up-the-lines).
 
-- `S` - Standard rate (21% Belgium/Netherlands)
-- `Z` - Zero rate (0%)
-- `E` - Exempt
-- `AE` - Reverse charge
+## `Validation\InvoiceValidationResult`
 
-### Country Codes (ISO 3166-1)
+Returned by `validate()`. Public read-only properties: `bool $isValid`, `array $errors`, `array $warnings`, `array $corrections`.
 
-- `BE` - Belgium
-- `NL` - Netherlands
-- `DE` - Germany
-- `FR` - France
+| Method | Returns |
+| --- | --- |
+| `isValid(): bool` | `true` without errors |
+| `hasErrors(): bool`, `hasWarnings(): bool` | |
+| `getErrorsAsString(string $separator = "\n"): string` | |
+| `getWarningsAsString(string $separator = "\n"): string` | |
+| `getCorrections(): array` | Suggested totals. Nothing is applied to the document |
+| `getCorrection(string $key): mixed` | One suggested value, or `null` |
+| `toArray(): array` | `is_valid`, `errors`, `warnings`, `corrections` |
+| `InvoiceValidationResult::success(): self` | A valid result |
+| `InvoiceValidationResult::fromException(\Throwable $e): self` | An invalid result with the exception message as its only error |
 
-### Endpoint Scheme IDs
+## `Validation\UblValidator`
 
-- `0208` - Belgium VAT number (WITHOUT "BE" prefix - use only the 10 digits)
-- `0106` - Netherlands KVK number (8 digits)
-- `0190` - Netherlands OIN number
-
-## PeppolService
-
-For sending UBL invoices to the Peppol network.
-
-### Constructor
+Static helpers for single values. The full table is under [Validation](validation.md#check-single-values-with-ublvalidator).
 
 ```php
-$peppolService = new PeppolService();
+UblValidator::validateVatNumber(?string $vatNumber): ?string
+UblValidator::isValidVatNumber(string $vatNumber): bool
+UblValidator::validateIban(?string $iban): ?string
+UblValidator::isValidUnitCode(string $unitCode): bool
+UblValidator::isValidTaxCategory(string $categoryId): bool
+UblValidator::isValidCurrencyCodeFormat(string $currencyCode): bool
+UblValidator::isValidSchemeIdFormat(string $schemeId): bool
+UblValidator::isValidPaymentMeansCodeFormat(string $paymentMeansCode): bool
+UblValidator::isValidClassificationScheme(string $schemeId): bool
+UblValidator::getClassificationSchemeDescription(string $schemeId): string
+UblValidator::validateInvoiceData(array $data): array
+UblValidator::validateBasicCodes(array $codes): InvoiceValidationResult
+UblValidator::validateStrictCodelists(array $codes, CodelistRegistry $registry): InvoiceValidationResult
+UblValidator::validateInvoiceTotals(array $invoiceLines, array $totals, array $taxTotals, float $allowanceTotalAmount = 0.0, float $chargeTotalAmount = 0.0, float $prepaidAmount = 0.0, array $documentAllowances = [], array $documentCharges = []): InvoiceValidationResult
 ```
 
-Reads configuration from `config/ubl-peppol.php` or environment variables.
+The last three are what the builders' `validate()` calls.
 
-### `sendInvoice(object $invoice, string $ublXml): array`
-
-Send an invoice to the Peppol network.
+## `Validation\CodelistRegistry`
 
 ```php
-$result = $peppolService->sendInvoice($invoice, $ublXml);
-// Returns: ['success' => bool, 'status_code' => int, 'message' => string, 'log_id' => int]
+new CodelistRegistry(array $lists)                      // ['iso4217' => ['EUR'], ...]
+CodelistRegistry::fromJsonFile(string $path): self      // throws when the file is missing or not JSON
+$registry->isLoaded(string $listName): bool             // false for a missing or empty list
+$registry->has(string $listName, string $code): bool    // codes are compared in upper case
 ```
 
-### `sendUblXml(string $ublXml, ?string $invoiceNumber = null): array`
-
-Send UBL XML directly without an Invoice model.
+## `Constants\UnitCodes`
 
 ```php
-$result = $peppolService->sendUblXml($ublXml, 'INV-2026-001');
+UnitCodes::isValid(string $code): bool
+UnitCodes::getDescription(string $code): ?string        // 'hour' for 'HUR'
+UnitCodes::getAll(): array                              // every code the package knows
 ```
 
-### `testConnection(): array`
-
-Test the connection to the Peppol provider.
+## `ViesService`
 
 ```php
-$result = $peppolService->testConnection();
-// Returns: ['success' => bool, 'status_code' => int, 'message' => string]
+checkVat(string $countryCode, string $vatNumber): array
+checkFullVatNumber(string $fullVatNumber): array
 ```
 
-### `getConfig(): array`
+Needs the `soap` extension. See [VAT numbers](vat-numbers.md).
 
-Get current configuration (password hidden).
+## `CompanyRegistrationService`
 
 ```php
-$config = $peppolService->getConfig();
-// Returns: ['url' => string, 'username' => string, 'password_configured' => bool]
+validate(string $number, string $countryCode): array
+getSupportedCountries(): array
 ```
 
-## PeppolLog Model
+See [Company numbers](company-numbers.md).
 
-For tracking sent invoices.
-
-### Scopes
+## `PeppolService` (Laravel)
 
 ```php
-PeppolLog::success();      // Status = success
-PeppolLog::error();        // Status = error
-PeppolLog::pending();      // Status = pending
-PeppolLog::recent(7);      // Last 7 days
-PeppolLog::olderThan(60);  // Older than 60 days
+sendUblXml(string $ublXml, ?string $invoiceNumber = null): array
+sendInvoice(object $invoice, string $ublXml): array
+testConnection(): array
+getConfig(): array          // url, username, password_configured
 ```
 
-### Static Methods
+The constructor takes no arguments; it reads the `ubl-peppol` config. See [Sending invoices](peppol-service.md).
+
+## `Models\PeppolLog` (Laravel)
 
 ```php
-PeppolLog::cleanupOldLogs(60);  // Delete logs older than 60 days
+PeppolLog::tableExists(): bool
+PeppolLog::cleanupOldLogs(int $days = 60): int
+
+// query scopes
+PeppolLog::success();
+PeppolLog::error();
+PeppolLog::pending();
+PeppolLog::recent(int $days = 60);
+PeppolLog::olderThan(int $days);
 ```
+
+See [The log table is optional](laravel.md#the-log-table-is-optional).
+
+## `UblPeppolConfig` (Laravel)
+
+The one class that reads the config: `UblPeppolConfig::url()`, `username()`, `password()` (each a string, empty when not set) and `logRetentionDays()` (an integer, default 60).
+
+## Artisan
+
+```bash
+php artisan peppol:cleanup [--days=]
+```
+
+## Publish tags
+
+| Tag | Publishes |
+| --- | --- |
+| `ubl-peppol-config` | `config/ubl-peppol.php` |
+| `ubl-peppol-migrations` | The migration for the `peppol_logs` table |

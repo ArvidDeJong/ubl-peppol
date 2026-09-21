@@ -1,53 +1,64 @@
-- q: Do I need Laravel to use this package?
+- q: What is darvis/ubl-peppol?
   a: >
-    No. The invoice builders, the validator and the VAT and company number checks are plain PHP and need
-    nothing but the DOM extension. Laravel is only required for the optional layer: the service provider,
-    `PeppolService`, the `PeppolLog` model and the cleanup command. A test in the suite guards that the
-    core never reaches for Illuminate, so that stays true.
+    A PHP library that builds UBL 2.1 e-invoices for PEPPOL BIS Billing 3.0, the format the PEPPOL network
+    requires. `UblNlBis3Service` builds Dutch invoices and `UblBeBis3Service` builds Belgian invoices and
+    credit notes. An optional Laravel layer posts the XML to your access point provider. It is free and MIT
+    licensed.
+
+- q: How do I create a PEPPOL invoice in PHP or Laravel?
+  a: >
+    Run `composer require darvis/ubl-peppol`, create a `UblNlBis3Service` or `UblBeBis3Service`, call
+    `createDocument()`, add the header, the parties, the payment means, the tax total, the monetary total and
+    the lines, then call `generateXml()`. The page "Your first invoice" has a complete example you can copy.
+
+- q: Which PHP and Laravel versions does it need?
+  a: >
+    PHP 8.2 or newer with the `dom` and `libxml` extensions. The `bcmath` extension is needed to check an
+    IBAN and the `soap` extension for the VIES check. Laravel 11, 12 or 13 is only needed for the optional
+    Laravel layer; the builders and the validators are plain PHP.
+
+- q: Does this package send my invoices to the PEPPOL network?
+  a: >
+    Not by itself. It is not an access point. In Laravel, `PeppolService` posts the XML to the API of an
+    access point provider you have a contract with, using HTTP Basic authentication and the values
+    `PEPPOL_URL`, `PEPPOL_USERNAME` and `PEPPOL_PASSWORD`. A provider whose API works differently needs your
+    own sending code.
 
 - q: What is the difference between the Dutch and the Belgian builder?
   a: >
-    They generate the same kind of document but enforce different rule sets. `UblNlBis3Service` follows
-    the Dutch NLCIUS rules, `UblBeBis3Service` the Belgian EN 16931 rules. Fields that one country requires
-    are rejected by the other, which is why they are separate classes rather than one class with a country
-    flag. Pick the one that matches the receiver, not the sender.
+    Pick the builder by the country of the receiver. `UblNlBis3Service` builds invoices only, sorts the
+    elements into schema order itself, and its `validate()` checks code formats and five Dutch NL-R rules.
+    `UblBeBis3Service` also builds credit notes, needs its methods called in schema order, and its
+    `validate()` checks that the amounts add up.
 
-- q: My receiver rejects the invoice with a rule code. What now?
+- q: Can I create a credit note?
   a: >
-    The code, for example `BR-CO-11` or `PEPPOL-EN16931-R010`, is from the PEPPOL BIS Billing 3.0
-    specification and points straight at the paragraph that explains what was expected. Look it up at
-    docs.peppol.eu, then check the Troubleshooting page, which lists the codes that come up most often
-    and what usually causes them.
+    Yes, with `UblBeBis3Service`; the Dutch builder has no credit notes. Start with
+    `createCreditNoteDocument()`, add `addBillingReference()` for the invoice you correct, and add lines with
+    `addCreditNoteLine()`. All amounts are positive. `generateXml()` throws when the billing reference is
+    missing (BR-55) or a total is negative.
 
-- q: Does this package send my invoices to PEPPOL?
+- q: Does validate() fix my invoice, and is a valid result enough?
   a: >
-    Only through an access point provider you already have an account with. `PeppolService` posts the
-    generated document to that provider's endpoint using the credentials in the config file. The package
-    is not an access point itself and cannot reach the PEPPOL network on its own.
+    No to both. `validate()` changes nothing. `getCorrections()` returns suggested totals, only from the
+    Belgian builder and only when the amounts do not add up. The package checks the rules it implements, which
+    is less than the Schematron a receiver runs, so check a document with an official PEPPOL validator before
+    you go live.
 
-- q: Does a valid VIES answer mean the VAT number is correct?
+- q: Does a valid VIES answer prove the VAT number is correct?
   a: >
-    It means the number exists and is registered for cross-border trade at the moment you ask. It does not
-    prove the number belongs to the party you are invoicing, and VIES regularly returns errors or times out
-    because a member state's own service is down. Treat a failed lookup as "unknown", never as "invalid".
+    It proves the number is registered at the moment you ask, not that it belongs to your customer. When
+    VIES cannot answer, `ViesService` also returns `valid` false, but with a message in `error`. Treat that
+    as unknown, never as invalid.
 
-- q: Can I generate a credit note?
+- q: Is the peppol_logs table required?
   a: >
-    Yes, with the Belgian builder, `UblBeBis3Service`; the Dutch builder does invoices only. A credit note is a
-    separate document type with its own root element, a type
-    code of 381 and a reference to the invoice it corrects, which rule BR-55 requires. Amounts must be
-    positive: the document type says it is a credit, not a minus sign. `addCreditNoteLine()` makes the price, the
-    quantity and the line amount positive for you. The tax total and the monetary total are written as you pass
-    them, and `generateXml()` throws on a negative total (BR-CN-03, BR-CN-04), so pass those as positive numbers.
+    No. Publish it with `php artisan vendor:publish --tag=ubl-peppol-migrations` and run `php artisan
+    migrate` only if you want a record of each attempt to send. Without the table `PeppolService` sends the
+    same way and the result has a `log_id` of null.
 
-- q: Why does validation pass here but the receiver still rejects the invoice?
+- q: How do I test code that sends invoices without calling my provider?
   a: >
-    This package checks the business rules it implements, which is not the same as the full Schematron the
-    receiver runs. Always run a generated document through an official validator before going live. Once you
-    are live, a rejection usually means a rule this package does not cover yet, and that is worth an issue.
-
-- q: Is the log table required?
-  a: >
-    No, it is opt-in. Publish and run the migration only if you want a record of what was sent and what came
-    back. An application that only generates XML never needs it, and `PeppolService` sends without it as well:
-    the result then has a `log_id` of null.
+    `PeppolService` uses Laravel's HTTP client, so `Http::fake()` replaces the provider and
+    `Http::preventStrayRequests()` stops any real request. `ViesService` uses SOAP; replace it in the container
+    with `$this->mock(ViesService::class, ...)`. The Testing page has complete examples.

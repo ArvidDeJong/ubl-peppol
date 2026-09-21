@@ -1,277 +1,200 @@
 ---
-title: Sending invoices
-nav_order: 10
-description: Sending a generated invoice to the PEPPOL network through an access point provider, and reading back what happened.
+title: "Sending invoices"
+nav_order: 11
+description: "Send UBL XML to your PEPPOL access point provider from Laravel with PeppolService: sendUblXml(), sendInvoice(), testConnection() and the result array."
 ---
 
-# Peppol Service
+# Sending invoices
 
-This guide covers sending UBL invoices to the Peppol network via access point providers.
+`Darvis\UblPeppol\PeppolService` posts a finished XML document to your access point provider. It is part of the Laravel layer: it uses Laravel's HTTP client, log and config.
 
-## Overview
+## What it sends
 
-The `PeppolService` enables you to send generated UBL invoices directly to the Peppol network through your access point provider (e.g., SupplyDrive, Storecove, etc.).
+One HTTP `POST` to `PEPPOL_URL`, with:
 
-## Installation
+- HTTP Basic authentication from `PEPPOL_USERNAME` and `PEPPOL_PASSWORD`
+- the headers `Content-Type: application/xml` and `Accept: application/json`
+- the XML as the request body
 
-### 1. Publish Configuration
+Ask your provider whether its API accepts exactly that. `PeppolService` has no other mode: no API key header, no JSON envelope, no OAuth. With such a provider, build the XML with this package and send it with your own HTTP code.
 
-```bash
-php artisan vendor:publish --tag=ubl-peppol-config
-```
+Set the three values first; see [Installation](installation.md#install-in-a-laravel-application).
 
-This creates `config/ubl-peppol.php` with the following settings:
-
-```php
-return [
-    'url' => env('PEPPOL_URL'),
-    'username' => env('PEPPOL_USERNAME'),
-    'password' => env('PEPPOL_PASSWORD'),
-    'log_retention_days' => env('PEPPOL_LOG_RETENTION_DAYS', 60),
-];
-```
-
-### 2. Publish Migrations
-
-```bash
-php artisan vendor:publish --tag=ubl-peppol-migrations
-php artisan migrate
-```
-
-This creates the `peppol_logs` table for tracking sent invoices.
-
-### 3. Configure Environment
-
-Add your Peppol access point credentials to `.env`:
-
-```env
-PEPPOL_URL=https://your-provider.com/api/endpoint
-PEPPOL_USERNAME=your_username
-PEPPOL_PASSWORD=your_password
-```
-
-## Usage
-
-### Basic Usage
+## Test the connection
 
 ```php
+// php artisan tinker
+app(\Darvis\UblPeppol\PeppolService::class)->testConnection();
+```
+
+This sends one `GET` to `PEPPOL_URL` with your credentials. It sends no document.
+
+| Answer of the provider | `success` | `message` |
+| --- | --- | --- |
+| 2xx | `true` | `Connection successful` |
+| 401 | `false` | `Authentication failed - check credentials` |
+| 403 | `false` | `Access denied - the credentials are not allowed to use this URL` |
+| 404 | `false` | `Peppol URL not found - check PEPPOL_URL` |
+| 500 and higher | `false` | `The Peppol provider answered with a server error (HTTP 503)` |
+| Anything else, such as 405 or 400 | `true` | `Peppol provider reached (HTTP 405); the credentials were not refused` |
+| No answer at all | `false` | `Cannot connect to Peppol provider`, with the reason in `error` |
+
+A send address often accepts only a `POST`, so a 405 on this `GET` is normal and counts as success. The result also has `status_code`; it is `0` when there was no answer.
+
+## Send a document
+
+```php
+// app/Http/Controllers/InvoiceSendController.php
+namespace App\Http\Controllers;
+
+use App\Actions\BuildInvoiceXml;
+use App\Models\Invoice;
 use Darvis\UblPeppol\PeppolService;
-use Darvis\UblPeppol\UblBeBis3Service;
+use Illuminate\Http\RedirectResponse;
 
-// 1. Generate UBL XML
-$ublService = new UblBeBis3Service();
-$ublService->createDocument();
-$ublService->addInvoiceHeader('INV-2026-001', '2026-01-15', '2026-02-14');
-// ... add more elements ...
-$ublXml = $ublService->generateXml();
-
-// 2. Send to Peppol network
-$peppolService = new PeppolService();
-$result = $peppolService->sendInvoice($invoice, $ublXml);
-
-if ($result['success']) {
-    echo "Invoice sent! Log ID: " . $result['log_id'];
-} else {
-    echo "Error: " . $result['error'];
-}
-```
-
-### Send XML Without Invoice Model
-
-If you don't have an Invoice model, you can send XML directly:
-
-```php
-$result = $peppolService->sendUblXml($ublXml, 'INV-2026-001');
-```
-
-### Test Connection
-
-Verify your credentials before sending:
-
-```php
-$result = $peppolService->testConnection();
-
-if ($result['success']) {
-    echo "Connection OK!";
-} else {
-    echo "Connection failed: " . $result['message'];
-}
-```
-
-### Get Configuration
-
-Check current configuration (password is hidden):
-
-```php
-$config = $peppolService->getConfig();
-// Returns: ['url' => '...', 'username' => '...', 'password_configured' => true/false]
-```
-
-## Response Format
-
-All methods return an array with the following structure:
-
-### Success Response
-
-```php
-[
-    'success' => true,
-    'status_code' => 200,
-    'message' => 'Factuur succesvol verzonden naar Peppol netwerk',
-    'response' => [...],  // Provider response data
-    'log_id' => 123,      // PeppolLog record ID
-]
-```
-
-### Error Response
-
-```php
-[
-    'success' => false,
-    'status_code' => 400,
-    'message' => 'Fout bij verzenden naar Peppol netwerk',
-    'error' => 'Error details...',
-    'log_id' => 123,
-]
-```
-
-## PeppolLog Model
-
-All sent invoices are logged in the `peppol_logs` table.
-
-### Table Structure
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | bigint | Primary key |
-| invoice_id | bigint | Optional reference to invoice |
-| invoice_nr | string | Invoice number |
-| status | enum | 'pending', 'success', 'error' |
-| http_status_code | int | HTTP response code |
-| message | text | Success/error message |
-| error | text | Error details |
-| response | json | Provider response |
-| sent_at | timestamp | When sent |
-| created_at | timestamp | Record created |
-| updated_at | timestamp | Record updated |
-
-### Query Scopes
-
-```php
-use Darvis\UblPeppol\Models\PeppolLog;
-
-// Get successful sends
-$successful = PeppolLog::success()->get();
-
-// Get errors
-$errors = PeppolLog::error()->get();
-
-// Get pending
-$pending = PeppolLog::pending()->get();
-
-// Get recent logs (last N days)
-$recent = PeppolLog::recent(7)->get();
-
-// Get logs older than N days
-$old = PeppolLog::olderThan(60)->get();
-```
-
-### Cleanup Old Logs
-
-```php
-// Delete logs older than 60 days (default)
-$deleted = PeppolLog::cleanupOldLogs();
-
-// Delete logs older than 30 days
-$deleted = PeppolLog::cleanupOldLogs(30);
-```
-
-### Scheduled Cleanup
-
-Add to your Laravel scheduler (`routes/console.php` or `app/Console/Kernel.php`):
-
-```php
-use Illuminate\Support\Facades\Schedule;
-
-Schedule::command('peppol:cleanup')->daily();
-```
-
-Or create a custom command:
-
-```php
-// In a scheduled command
-PeppolLog::cleanupOldLogs(UblPeppolConfig::logRetentionDays());
-```
-
-## Laravel Integration
-
-### Dependency Injection
-
-```php
-use Darvis\UblPeppol\PeppolService;
-
-class InvoiceController extends Controller
+class InvoiceSendController extends Controller
 {
-    public function send(Invoice $invoice, PeppolService $peppolService)
+    public function __invoke(Invoice $invoice, BuildInvoiceXml $build, PeppolService $peppol): RedirectResponse
     {
-        $ublXml = $this->generateUbl($invoice);
-        return $peppolService->sendInvoice($invoice, $ublXml);
+        $xml = $build->handle($invoice);
+
+        $result = $peppol->sendUblXml($xml, $invoice->number);
+
+        if (! $result['success']) {
+            return back()->withErrors(['peppol' => $result['message'].': '.$result['error']]);
+        }
+
+        $invoice->update(['sent_to_peppol_at' => now()]);
+
+        return back()->with('status', 'Invoice sent.');
     }
 }
 ```
 
-### Queue Job Example
+Laravel injects `PeppolService` because it is type-hinted in the method. `BuildInvoiceXml` is the class from [Laravel integration](laravel.md#build-an-invoice-inside-laravel); `Invoice`, its `number` and its `sent_to_peppol_at` column are your own.
+
+`sendUblXml(string $ublXml, ?string $invoiceNumber = null)` posts the XML. The invoice number is only used for the log.
+
+## The result
+
+`sendUblXml()` and `sendInvoice()` return an array and do not throw for an HTTP problem.
+
+| Key | On success | On failure |
+| --- | --- | --- |
+| `success` | `true`: the provider answered with a 2xx status | `false` |
+| `status_code` | The HTTP status | The HTTP status, or `0` when the request itself failed |
+| `message` | `Invoice successfully sent to Peppol network` | `Error sending to Peppol network` |
+| `response` | The JSON answer as an array, or the raw body when it is not JSON | Not present |
+| `error` | Not present | The response body, or the exception message |
+| `log_id` | The `id` of the `peppol_logs` row, or `null` without the table | The same |
+
+`success` means your **provider accepted the request**. Delivery to the receiver happens later, inside the PEPPOL network. Whether it arrived is something you read from your provider, not from this package.
+
+They do throw a `RuntimeException` before any request when a credential is missing:
+
+```text
+Peppol URL is not configured (PEPPOL_URL)
+Peppol username is not configured (PEPPOL_USERNAME)
+Peppol password is not configured (PEPPOL_PASSWORD)
+```
+
+## `sendInvoice()` updates your model
+
+`sendInvoice(object $invoice, string $ublXml)` takes your own invoice object. It reads `$invoice->id` and, when present, `$invoice->invoice_nr`, and stores both on the log row.
+
+After a successful send it also does this, when the object has an `update` method, which every Eloquent model has:
 
 ```php
+$invoice->update(['peppol_sent_at' => now()]);
+```
+
+So an Eloquent model needs:
+
+1. a nullable `peppol_sent_at` timestamp column, and
+2. `peppol_sent_at` in `$fillable` (or an unguarded model).
+
+```php
+// database/migrations/2026_01_15_000000_add_peppol_sent_at_to_invoices_table.php
+Schema::table('invoices', function (Blueprint $table) {
+    $table->timestamp('peppol_sent_at')->nullable();
+});
+```
+
+**Without the column, a send that worked is reported as a failure.** The document is already with your provider when the update throws. The exception is caught, the result becomes `'success' => false` with `status_code` `0` and the database error in `error`, and the log row is changed from `success` to `error`. Code that retries on failure then sends the invoice twice.
+
+If you do not want that column, use `sendUblXml()` as in the example above and record the send yourself. `sendUblXml()` never touches your model.
+
+## What is written to your application log
+
+Every send writes to Laravel's default log channel:
+
+| Level | Message | Context |
+| --- | --- | --- |
+| info | `Peppol: Sending invoice` or `Peppol: Sending UBL XML` | `invoice_id`, `invoice_nr` |
+| info | `Peppol: Response received` | `status_code` and the full response body |
+| error | `Peppol: Error sending` | The exception message |
+
+The response body of a provider can contain invoice data. Keep that in mind when your logs go to an external service. The password is never logged.
+
+## Read the configuration back
+
+```php
+app(\Darvis\UblPeppol\PeppolService::class)->getConfig();
+// ['url' => 'https://...', 'username' => '...', 'password_configured' => true]
+```
+
+The service is a singleton and reads the config when it is created. See [The config file](laravel.md#the-config-file).
+
+## Send from a queue
+
+Sending waits for your provider, so a queued job (a task Laravel runs in the background, see the [Laravel docs](https://laravel.com/docs/queues)) keeps the request fast:
+
+```php
+// app/Jobs/SendInvoiceToPeppol.php
+namespace App\Jobs;
+
+use App\Actions\BuildInvoiceXml;
+use App\Models\Invoice;
 use Darvis\UblPeppol\PeppolService;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use RuntimeException;
 
-class SendPeppolInvoice implements ShouldQueue
+class SendInvoiceToPeppol implements ShouldQueue
 {
+    use Queueable;
+
     public int $tries = 3;
+
     public int $backoff = 60;
 
-    public function __construct(
-        public Invoice $invoice,
-        public string $ublXml
-    ) {}
+    public function __construct(public Invoice $invoice) {}
 
-    public function handle(PeppolService $peppolService): void
+    public function handle(BuildInvoiceXml $build, PeppolService $peppol): void
     {
-        $result = $peppolService->sendInvoice($this->invoice, $this->ublXml);
-        
-        if (!$result['success']) {
-            throw new \Exception($result['error']);
+        $result = $peppol->sendUblXml($build->handle($this->invoice), $this->invoice->number);
+
+        // Retry only when the provider was not reached or had a server error.
+        if (! $result['success'] && ($result['status_code'] === 0 || $result['status_code'] >= 500)) {
+            throw new RuntimeException($result['error']);
         }
+
+        if (! $result['success']) {
+            $this->fail($result['error']);
+
+            return;
+        }
+
+        $this->invoice->update(['sent_to_peppol_at' => now()]);
     }
 }
 ```
 
-## Supported Providers
+A 4xx answer means the provider refused the document. Sending the same XML again gives the same answer, so the job fails at once instead of retrying.
 
-The `PeppolService` uses HTTP Basic Authentication and sends XML via POST. This is compatible with most Peppol access point providers:
+Build the XML inside the job with `new UblNlBis3Service()`. A queue worker is one long-running application, and the container's Dutch builder can hold only one document; see [Laravel integration](laravel.md#do-not-take-the-dutch-builder-from-the-container-twice).
 
-- **SupplyDrive** - `https://rest.supplydrive.com/PEPPOL-SD-MESSAGES-HTTP/LIVE`
-- **Storecove** - Check their API documentation
-- **Basware** - Check their API documentation
-- **Other providers** - Any provider supporting HTTP POST with Basic Auth
+## Next steps
 
-## Error Handling
-
-### Common Errors
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `PEPPOL_URL is niet geconfigureerd` | Missing URL | Add `PEPPOL_URL` to `.env` |
-| `PEPPOL_USERNAME is niet geconfigureerd` | Missing username | Add `PEPPOL_USERNAME` to `.env` |
-| `PEPPOL_PASSWORD is niet geconfigureerd` | Missing password | Add `PEPPOL_PASSWORD` to `.env` |
-| HTTP 401 | Invalid credentials | Check username/password |
-| HTTP 400 | Invalid XML | Validate UBL XML first |
-
-### Validation Before Sending
-
-Always validate your UBL XML before sending:
-
-1. Use online validators (see [Validation](validation.md))
-2. Check for required fields
-3. Verify VAT numbers and formats
+- [Testing](testing.md) shows how to test this without calling your provider
+- [Troubleshooting](troubleshooting.md#sending) lists the errors

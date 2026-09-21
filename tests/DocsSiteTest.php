@@ -62,6 +62,30 @@ test('pages use Liquid only where it is intended', function () {
     }
 });
 
+test('the home page links every page, and every link between pages resolves', function () {
+    $home = (string) file_get_contents(docsPath('index.md'));
+
+    foreach (glob(docsPath('*.md')) as $page) {
+        $name = basename($page);
+
+        if ($name !== 'index.md') {
+            expect($home)->toContain('('.$name.')');
+        }
+
+        preg_match_all('/\]\(([a-z0-9-]+\.md)(#[^)]*)?\)/', (string) file_get_contents($page), $links);
+
+        foreach ($links[1] as $target) {
+            expect(is_file(docsPath($target)))->toBeTrue($name.' links to '.$target.', which does not exist');
+        }
+    }
+});
+
+test('the FAQ stays between six and ten questions', function () {
+    $questions = substr_count("\n".file_get_contents(docsPath('_data/faq.yml')), "\n- q: ");
+
+    expect($questions)->toBeGreaterThanOrEqual(6)->toBeLessThanOrEqual(10);
+});
+
 test('inline scripts survive the theme compressing each page to one line', function () {
     $pages = glob(docsPath('*.md'));
     expect($pages)->not->toBeEmpty();

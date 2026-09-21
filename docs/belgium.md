@@ -1,254 +1,222 @@
 ---
-title: Belgian invoices
-nav_order: 4
-description: How to build a UBL invoice that meets the Belgian EN 16931 rules with darvis/ubl-peppol, including VAT categories and the mandatory references.
+title: "Belgian invoices"
+nav_order: 5
+description: "Build a Belgian PEPPOL invoice with UblBeBis3Service: a complete example, scheme ID 0208, the order of the calls, calculateTotals() and what validate() checks."
 ---
 
-# Belgium Implementation (EN 16931)
+# Belgian invoices
 
-This guide covers the specific requirements for generating UBL invoices that comply with the Belgian EN 16931 standard.
+`Darvis\UblPeppol\UblBeBis3Service` builds an invoice or a [credit note](credit-notes.md) for a Belgian receiver. It writes a PEPPOL BIS Billing 3.0 document, and its `validate()` checks that the amounts add up.
 
-## Belgian Specifications
+## The order of the calls matters
 
-### PEPPOL BIS Billing 3.0 + EN 16931
-Belgium uses the standard PEPPOL BIS Billing 3.0 with additional national requirements according to EN 16931.
+The UBL schema fixes the order of the elements inside `<Invoice>`, and a receiver rejects a document that has them in another order. The Belgian builder writes most elements in the order you call them. Only the tax total and the monetary total are moved in front of the lines.
 
-### Important Belgian Rules
+Call the methods in this order:
 
-#### ubl-BE-01: Second AdditionalDocumentReference
-```php
-// Required: PEPPOL reference
-$ubl->addAdditionalDocumentReference('PEPPOL', 'PEPPOLInvoice');
-```
+1. `createDocument()`
+2. `addInvoiceHeader()`
+3. `addBuyerReference()`, then `addOrderReference()`, then `addAdditionalDocumentReference()`
+4. `addAccountingSupplierParty()`, then `addAccountingCustomerParty()`
+5. `addDelivery()`, then `addPaymentMeans()`, then `addPaymentTerms()`, then `addAllowanceCharge()`
+6. `addInvoiceLine()` per line, `addTaxTotal()` and `addLegalMonetaryTotal()`, these three in any order
+7. `generateXml()`
 
-#### ubl-BE-10: Tax Category Names
-Use correct BTCC values:
-```php
-// Standard rate (21%)
-'tax_category_name' => 'Taux standard'
+Steps 3 and 5 are optional, but PEPPOL requires a buyer reference or an order reference (rule PEPPOL-EN16931-R003).
 
-// Zero rate (0%)
-'tax_category_name' => 'Taux zéro'
-```
-
-#### ubl-BE-14: TaxTotal in InvoiceLine
-For Belgian compliance, TaxTotal is omitted at InvoiceLine level.
-
-## Complete Belgian Invoice
+## The complete example
 
 ```php
+<?php
+// invoice-be.php
+
+require __DIR__.'/vendor/autoload.php';
+
 use Darvis\UblPeppol\UblBeBis3Service;
 
 $ubl = new UblBeBis3Service();
+
 $ubl->createDocument();
-
-// 1. Invoice header
-$ubl->addInvoiceHeader('BE-INV-2026-001', '2026-01-15', '2026-02-14');
-
-// 2. Required references
+$ubl->addInvoiceHeader('INV-2026-001', '2026-01-15', '2026-02-14');
 $ubl->addBuyerReference('CLIENT-001');
-$ubl->addOrderReference('ORDER-2026-001');
 
-// 3. PEPPOL reference (ubl-BE-01)
-$ubl->addAdditionalDocumentReference('PEPPOL', 'PEPPOLInvoice');
-
-// 4. Supplier (Belgian company)
+// You, the supplier.
 $ubl->addAccountingSupplierParty(
-    '0123456789',             // VAT number WITHOUT "BE" prefix as endpoint
-    '0208',                   // Belgian VAT scheme (0208)
-    'BE0123456789',           // Party ID
-    'My Belgian Company BV',
-    'Grote Markt 1',
-    '1000',
-    'Brussel',
-    'BE',
-    'BE0123456789'            // VAT number (with prefix)
+    '0681845662',               // endpointId: your enterprise number, 10 digits
+    '0208',                     // endpointSchemeID: 0208 means "Belgian enterprise number"
+    '0681845662',               // partyId
+    'My Belgian Company BV',    // name
+    'Grote Markt 1',            // street
+    '1000',                     // postalCode
+    'Brussel',                  // city
+    'BE',                       // country
+    'BE0681845662'              // vatNumber, with the BE prefix
 );
 
-// 5. Customer
+// Your customer.
 $ubl->addAccountingCustomerParty(
-    '0987654321',             // VAT number WITHOUT "BE" prefix as endpoint
-    '0208',                   // Belgian VAT scheme (0208)
-    'BE0987654321',           // Party ID
-    'Customer Company NV',
-    'Kerkstraat 123',
-    '2000',
-    'Antwerpen',
-    'BE'
+    '0999000228',               // endpointId
+    '0208',                     // endpointSchemeID
+    '0999000228',               // partyId
+    'Customer Company NV',      // name
+    'Kerkstraat 123',           // street
+    '2000',                     // postalCode
+    'Antwerpen',                // city
+    'BE',                       // country
+    null,                       // additionalStreet
+    '0999000228',               // registrationNumber: the customer's enterprise number
+    null,                       // contactName
+    null,                       // contactPhone
+    null,                       // contactEmail
+    'BE0999000228'              // vatNumber, upper case, with the country prefix
 );
 
-// 6. Invoice lines
+$ubl->addPaymentMeans(
+    '30',                       // 30 is the code for a bank transfer
+    'Credit transfer',
+    'INV-2026-001',             // paymentId: the reference for the payment
+    'BE68539007547034',         // your IBAN
+    'My Belgian Company BV',    // account name
+    'BBRUBEBB'                  // BIC
+);
+$ubl->addPaymentTerms('Payment within 30 days');
+
+// The lines. tax_scheme_id is required in the Belgian builder.
 $ubl->addInvoiceLine([
     'id' => '1',
     'quantity' => 2,
-    'unit_code' => 'C62',
+    'unit_code' => 'C62',       // C62 is the code for "piece"
     'price_amount' => 100.00,
-    'line_extension_amount' => 200.00, // Optional; defaults to quantity * price when omitted
     'currency' => 'EUR',
-    'name' => 'Consultancy services',
-    'description' => 'IT consultancy - 2 days',
+    'name' => 'Consultancy',
+    'description' => 'IT consultancy, 2 days',
     'tax_category_id' => 'S',
     'tax_percent' => 21.0,
-    'tax_scheme_id' => 'VAT'
+    'tax_scheme_id' => 'VAT',
 ]);
 
-// 7. Taxes (ubl-BE-10 compliance)
+// Let the builder add up the lines, then pass the result back in.
+$calculated = $ubl->calculateTotals();
+
+$ubl->addTaxTotal($calculated['tax_totals']);
+$ubl->addLegalMonetaryTotal($calculated['totals'], 'EUR');
+
+// Check, then write the XML. This throws when the document does not hold up.
+file_put_contents(__DIR__.'/invoice-be.xml', $ubl->generateXml(validateFirst: true));
+
+echo 'Saved invoice-be.xml'.PHP_EOL;
+```
+
+`php invoice-be.php` prints `Saved invoice-be.xml`. The file holds an `<Invoice>` with a tax total of 42.00 and a payable amount of 242.00.
+
+## Scheme ID 0208: the enterprise number
+
+`0208` is the scheme for the Belgian enterprise number (KBO in Dutch, BCE in French). It has ten digits. They are the digits of the Belgian VAT number, so for VAT number `BE0681845662` the endpoint is `0681845662`. Pass the endpoint **without** `BE` and the `vatNumber` argument **with** `BE`.
+
+`CompanyRegistrationService` checks the checksum of an enterprise number; see [Company numbers](company-numbers.md).
+
+## The calls
+
+The header, the references and the line keys work as in the [Dutch builder](netherlands.md#the-calls). These are the differences.
+
+| Call | Difference from the Dutch builder |
+| --- | --- |
+| `addAccountingSupplierParty()`, `addAccountingCustomerParty()` | No check on empty arguments. The supplier's legal name is the `$name` you pass. A customer `$registrationNumber` is written with scheme `0106` when the country is `NL`, otherwise `0208` |
+| Customer `$vatNumber` | Must start with two **upper case** letters, otherwise the builder throws `VAT number must start with a 2-letter ISO 3166-1 alpha-2 country code` |
+| `addAdditionalDocumentReference($id, $documentType)` | `$documentType` is written as `cbc:DocumentDescription` |
+| `addPaymentMeans()` | The first six arguments are required. The IBAN is not checked. The payment means name and the account name are written to the XML |
+| `addPaymentTerms()` | Accepts four arguments; only `$note` is written |
+| `addAllowanceCharge()` | All six arguments are required. The VAT category is always written |
+| `addDelivery()` | The first eight arguments are required |
+| `addTaxTotal()` | No check on missing keys. A second call replaces the first |
+| `addLegalMonetaryTotal(array $totals, string $currency)` | `$currency` is required. The optional keys `allowance_total_amount` and `prepaid_amount` are written when they are greater than zero |
+| `addInvoiceLine()` | `tax_scheme_id` is required. `base_quantity` is always written as `1` |
+
+`cbc:DocumentCurrencyCode` is always `EUR`, and `addInvoiceHeader()` writes `cbc:AccountingCost` with the fixed value `4025:123:4343` into every invoice. You cannot change either through the public methods yet.
+
+## Let the builder add up the lines
+
+`calculateTotals()` adds up the lines you added so far and returns three keys:
+
+| Key | Holds |
+| --- | --- |
+| `totals` | `line_extension_amount`, `tax_exclusive_amount`, `tax_inclusive_amount`, `charge_total_amount`, `allowance_total_amount`, `payable_amount`: ready for `addLegalMonetaryTotal()` |
+| `tax_totals` | One entry per VAT category and rate: ready for `addTaxTotal()` |
+| `total_tax_amount` | The VAT of all categories together |
+
+It groups lines by `tax_category_id` and `tax_percent`, and rounds the VAT per group to two decimals. It knows nothing about `addAllowanceCharge()`: with a charge or a discount, calculate the totals yourself.
+
+`getInvoiceLines()`, `getTotals()` and `getTaxTotals()` return what you passed in so far.
+
+## What `validate()` checks
+
+The Belgian `validate()` refuses a document without lines, without a monetary total or without a tax total. Then it checks the arithmetic:
+
+| Rule | Check |
+| --- | --- |
+| Per line | `line_extension_amount` equals `price_amount` times `quantity` |
+| BR-CO-10 | The lines add up to `line_extension_amount` |
+| BR-CO-13 | `tax_exclusive_amount` equals lines minus allowances plus charges |
+| BR-S-08 | Each taxable amount equals the lines of that VAT category, and each tax amount equals taxable amount times rate |
+| BR-CO-15 | `tax_inclusive_amount` equals `tax_exclusive_amount` plus VAT |
+| BR-CO-16 | `payable_amount` equals `tax_inclusive_amount` minus `prepaid_amount` |
+
+A difference of at most 0.01 is accepted. It also checks the code formats, like the Dutch builder does. It does not check the Dutch `NL-R` rules.
+
+When something is wrong, `getCorrections()` returns the totals the validator calculated itself. They are **suggestions**: nothing in your document is changed. See [Validation](validation.md#corrections-are-suggestions).
+
+### A charge or a discount fails `validate()`
+
+`validate()` compares `charge_total_amount` and `allowance_total_amount` with a sum of zero, because the builder does not pass your `addAllowanceCharge()` calls to the validator. A correct document with a charge of 10.00 therefore reports:
+
+```text
+BR-CO-12: Sum of document charges (0.00) does not match ChargeTotalAmount (10.00)
+```
+
+and a BR-S-08 error for the taxable amount. A discount reports `BR-CO-11` in the same way. The suggested corrections are wrong in this case, because they leave the charge out.
+
+Until this is fixed: for a document with `addAllowanceCharge()`, call `generateXml()` without `validateFirst`, and check the XML with an [official validator](validation.md#check-a-document-with-an-official-validator).
+
+## A charge or a discount
+
+```php
+// A freight charge of 10.00 with 21% VAT. Call this before the lines and the totals.
+$ubl->addAllowanceCharge(true, 10.00, 'Freight', 'S', 21.0, 'EUR');
+
 $ubl->addTaxTotal([
     [
-        'taxable_amount' => '200.00',
-        'tax_amount' => '42.00',
+        'taxable_amount' => 210.00,     // lines 200.00 + charge 10.00
+        'tax_amount' => 44.10,
         'currency' => 'EUR',
         'tax_category_id' => 'S',
-        'tax_category_name' => 'Taux standard', // Belgian BTCC value
         'tax_percent' => 21.0,
-        'tax_scheme_id' => 'VAT'
-    ]
+        'tax_scheme_id' => 'VAT',
+    ],
 ]);
 
-// 8. Totals
 $ubl->addLegalMonetaryTotal([
-    'line_extension_amount' => 200.00,
-    'tax_exclusive_amount' => 200.00,
-    'tax_inclusive_amount' => 242.00,
-    'charge_total_amount' => 0.00,
-    'payable_amount' => 242.00
-], 'EUR');
-
-// 9. Payment information
-$ubl->addPaymentMeans(
-    '30',                     // Credit transfer
-    'Credit transfer',
-    'BE-PAY-2026-001',
-    'BE12 3456 7890 1234',   // Belgian IBAN
-    'My Belgian Company BV',
-    'BBRUBEBB',              // BIC code
-    null,                    // Channel code not used in Belgium
-    null                     // Due date handled at invoice level
-);
-
-$ubl->addPaymentTerms('Payment within 30 days', null, null, null);
-
-// 10. Generate XML
-$xml = $ubl->generateXml();
-```
-
-## Belgian VAT Rates
-
-| Rate | Percentage | Tax Category ID | BTCC Name |
-|------|------------|-----------------|-----------|
-| Standard | 21% | S | Taux standard |
-| Reduced | 6% | S | Taux réduit |
-| Zero | 0% | Z | Taux zéro |
-| Exempt | 0% | E | Exonéré |
-
-## Belgian VAT Numbers
-
-Format: `BE0123456789` (BE + 10 digits)
-
-```php
-// Validation
-if (!preg_match('/^BE[0-9]{10}$/', $vatNumber)) {
-    throw new InvalidArgumentException('Invalid Belgian VAT number');
-}
-```
-
-## Belgian EndpointID
-
-**Important**: For Belgium, the `EndpointID` should be the **VAT number WITHOUT the "BE" prefix**, not the KBO number.
-
-Format: 10 digits (VAT number without country code)
-
-```php
-// Example VAT number: BE0999000228
-// EndpointID should be: 0999000228 (without "BE")
-// Scheme ID: 0208 (Belgian VAT)
-
-// Extract EndpointID from VAT number
-$vatNumber = 'BE0999000228';
-$endpointId = preg_replace('/^BE/i', '', $vatNumber); // Result: 0999000228
-$endpointId = preg_replace('/[^0-9]/', '', $endpointId); // Remove non-numeric
-
-// Validation
-if (strlen($endpointId) !== 10 || !ctype_digit($endpointId)) {
-    throw new InvalidArgumentException('Invalid Belgian VAT number for EndpointID');
-}
-```
-
-### KBO Number Validation (for reference)
-
-KBO numbers use mod97 checksum validation. The last 2 digits are: `97 - (first 8 digits mod 97)`
-
-```php
-// Example: 0681845662
-// Basis: 06818456
-// Checksum: 97 - (6818456 % 97) = 97 - 35 = 62 ✓
-
-function isValidKboNumber(string $kbo): bool {
-    if (strlen($kbo) !== 10 || !ctype_digit($kbo)) {
-        return false;
-    }
-    $basis = (int) substr($kbo, 0, 8);
-    $checksum = (int) substr($kbo, 8, 2);
-    return $checksum === (97 - ($basis % 97));
-}
-```
-
-## AllowanceCharge for Minimum Order Surcharges
-
-For minimum order amounts, use `AllowanceCharge` instead of invoice lines:
-
-```php
-// Minimum order surcharge as AllowanceCharge
-$ubl->addAllowanceCharge(
-    true,                           // isCharge (true = surcharge)
-    74.63,                          // amount
-    'Minimum order surcharge',      // reason
-    'S',                            // taxCategoryId
-    21.0,                           // taxPercent
-    'EUR'                           // currency
-);
-
-// Totals must reflect the charge
-$ubl->addLegalMonetaryTotal([
-    'line_extension_amount' => 0.37,    // Sum of invoice lines only
-    'tax_exclusive_amount' => 75.00,    // Lines + charges
-    'tax_inclusive_amount' => 90.75,
-    'charge_total_amount' => 74.63,     // Sum of charges
-    'payable_amount' => 90.75
+    'line_extension_amount' => 200.00,  // the lines only
+    'tax_exclusive_amount' => 210.00,   // lines - allowances + charges
+    'tax_inclusive_amount' => 254.10,
+    'charge_total_amount' => 10.00,
+    'payable_amount' => 254.10,
 ], 'EUR');
 ```
 
-**Formula**: `TaxExclusiveAmount = LineExtensionAmount + ChargeTotalAmount`
+Pass `false` as the first argument for a discount, and put its total in `allowance_total_amount`.
 
-## Validation
+## Belgian VAT categories
 
-### Belgian PEPPOL Validator
-Test your invoices at: https://ecosio.com/en/peppol-and-xml-document-validator/
+| Situation | `tax_category_id` | `tax_percent` |
+| --- | --- | --- |
+| Standard rate | `S` | `21.0` |
+| Reduced rates | `S` | `12.0` or `6.0` |
+| Zero rate | `Z` | `0.0` |
+| Exempt | `E` | `0.0` |
+| Reverse charge | `AE` | `0.0` |
 
-### Common Errors
+The builder writes no name for a VAT category. A `tax_category_name` key in a tax entry is ignored.
 
-1. **ubl-BE-01**: Missing PEPPOL AdditionalDocumentReference
-2. **ubl-BE-10**: Wrong tax category names (use BTCC values)
-3. **ubl-BE-14**: TaxTotal in wrong position in InvoiceLine
+## Check the result
 
-## Endpoint Scheme IDs for Belgium
-
-- `0208` - VAT number (most used)
-- `0096` - DUNS number
-- `0088` - EAN/GLN number
-
-## Example Validation Response
-
-✅ **Successful**:
-```
-✓ ubl-BE-01: PEPPOL reference present
-✓ ubl-BE-10: Correct BTCC values used
-✓ ubl-BE-14: TaxTotal correctly positioned
-✓ XSD validation passed
-```
-
-❌ **Error**:
-```
-✗ ubl-BE-10: Tax category name "Standard rate" not allowed
-  Use: "Taux standard"
-```
+Upload the XML to the [Ecosio validator](https://ecosio.com/en/peppol-and-xml-document-validator/) before you send a first invoice.
