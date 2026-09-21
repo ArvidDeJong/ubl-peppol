@@ -40,3 +40,10 @@ gh_edit_repository: https://github.com/ArvidDeJong/ubl-peppol
 gh_edit_branch: main
 gh_edit_source: docs
 gh_edit_view_mode: tree
+
+# Social preview image for every page (Open Graph and Twitter card, through jekyll-seo-tag).
+defaults:
+  - scope:
+      path: ""
+    values:
+      image: /assets/images/social-preview.png
