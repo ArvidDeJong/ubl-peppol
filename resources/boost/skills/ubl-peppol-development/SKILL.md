@@ -15,7 +15,7 @@ Pick by the **receiver's** country, never the sender's.
 
 | Receiver | Class | Builds | `validate()` checks |
 | --- | --- | --- | --- |
-| Netherlands | `UblNlBis3Service` | Invoices | Code formats and the Dutch rules NL-R-003, 005, 007 (a warning), 008 and 009. Not the amounts |
+| Netherlands | `UblNlBis3Service` | Invoices and, since 1.10.0, credit notes | Code formats, the Dutch rules NL-R-003, 005, 007 (a warning), 008 and 009, and the billing reference of a credit note. Not the amounts |
 | Belgium | `UblBeBis3Service` | Invoices and credit notes | Code formats and the totals: BR-CO-10, 13, 15, 16 and BR-S-08 |
 
 Both write the PEPPOL BIS Billing 3.0 customization ID.
@@ -58,7 +58,7 @@ $result->getCorrections();           // suggested totals; nothing is applied to 
 - The Dutch `validate()` does not check amounts, reports an empty document as valid, and always returns no corrections. Its `generateXml(true)` message has no corrections block.
 - The Belgian `validate()` refuses a document without lines, totals or a tax total. `getCorrections()` returns the totals the validator calculated itself, only when the amounts do not add up. They are suggestions.
 - The Belgian `validate()` includes the `addAllowanceCharge()` calls: `allowance_total_amount` and `charge_total_amount` must equal their sums (BR-CO-11, BR-CO-12) and the taxable amounts include them (BR-S-08).
-- Credit note rules (BR-55, positive totals) are enforced only by `generateXml()`. `validate()` on a credit note without a billing reference returns valid.
+- Belgian builder: credit note rules (BR-55, positive totals) are enforced only by `generateXml()`; `validate()` on a credit note without a billing reference returns valid. Dutch builder: both `validate()` and `generateXml()` report the missing billing reference (`[BR-55] [NL-R-001]`); it does not check the totals.
 
 `UblValidator` is something else: a set of **static** helpers for single values (`isValidUnitCode`, `isValidCurrencyCodeFormat`, `isValidTaxCategory`, `validateIban`, `validateVatNumber`). It does not validate a document.
 
@@ -70,7 +70,7 @@ A rejection carries a rule code such as `BR-CO-11` or `PEPPOL-EN16931-R010`. Loo
 
 ## Credit notes
 
-A credit note is its own document type: root element `<CreditNote>`, type code 381, lines with `<CreditedQuantity>`, and a `BillingReference` to the invoice it corrects, which BR-55 requires. **Amounts are positive.** The document type expresses the credit, not the sign. Only `UblBeBis3Service` builds credit notes; `UblNlBis3Service` has no credit note methods. The calls differ from an invoice: start with `createCreditNoteDocument()` (not `createDocument()`, which makes an `<Invoice>`), then `addCreditNoteHeader($number, $issueDate)`, `addBillingReference($invoiceNumber)` (call `addOrderReference()` before it), the parties, the totals, and `addCreditNoteLine()` per line (not `addInvoiceLine()`). `addBuyerReference()` throws on a credit note. `addCreditNoteLine()` makes the price, the quantity and the line amount positive. The tax total and the monetary total are written as you pass them: pass positive numbers, because `generateXml()` always validates a credit note and throws an `InvalidArgumentException` on a negative `line_extension_amount` or `payable_amount` (BR-CN-03, BR-CN-04) and on a missing `BillingReference` (BR-55). `validate()` alone does not check those credit note rules.
+A credit note is its own document type: root element `<CreditNote>`, type code 381, lines with `<CreditedQuantity>`, and a `BillingReference` to the invoice it corrects, which BR-55 requires. **Amounts are positive.** The document type expresses the credit, not the sign. Both builders build credit notes with the same four methods; `UblNlBis3Service` has them since 1.10.0, and on an older version a Dutch credit note ends in `Call to undefined method ...::createCreditNoteDocument()`. The calls differ from an invoice: start with `createCreditNoteDocument()` (not `createDocument()`, which makes an `<Invoice>`), then `addCreditNoteHeader($number, $issueDate)`, `addBillingReference($invoiceNumber)` (call `addOrderReference()` before it), the parties, the totals, and `addCreditNoteLine()` per line (not `addInvoiceLine()`). In the Belgian builder `addBuyerReference()` throws on a credit note and `addOrderReference()` must come before `addBillingReference()`; the Dutch builder takes both and sorts the elements into the order of the `<CreditNote>` schema, which is not the order of `<Invoice>`. The Dutch builder throws a `RuntimeException` when invoice and credit note calls are mixed (`addInvoiceLine()` on a credit note). `addCreditNoteLine()` makes the price, the quantity and the line amount positive. The tax total and the monetary total are written as you pass them: pass positive numbers, because the Belgian `generateXml()` always validates a credit note and throws an `InvalidArgumentException` on a negative `line_extension_amount` or `payable_amount` (BR-CN-03, BR-CN-04), and both builders throw on a missing `BillingReference` (BR-55). The Belgian `validate()` alone does not check those credit note rules.
 
 ## VAT and company numbers
 

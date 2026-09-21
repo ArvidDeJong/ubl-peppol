@@ -10,7 +10,7 @@ All classes live in the namespace `Darvis\UblPeppol`. Every `add...()` method re
 
 ## The two builders side by side
 
-`UblNlBis3Service` builds Dutch invoices, `UblBeBis3Service` builds Belgian invoices and credit notes. The method names are the same; the arguments are not always.
+`UblNlBis3Service` builds Dutch invoices and credit notes, `UblBeBis3Service` builds Belgian ones. The method names are the same; the arguments are not always.
 
 ### Document
 
@@ -176,19 +176,26 @@ addInvoiceLine(array $lineData): self
 
 The array keys are listed under [Dutch invoices](netherlands.md#the-calls) and [Belgian invoices](belgium.md#the-calls).
 
-### Only in `UblBeBis3Service`
+### Credit notes, in both builders
 
 | Method | What it does |
 | --- | --- |
 | `createCreditNoteDocument(): self` | Starts a `<CreditNote>` instead of an `<Invoice>` |
-| `addCreditNoteHeader(string $creditNoteNumber, $issueDate): self` | The header with type code 381. No due date. `$issueDate` is a `YYYY-MM-DD` string or a `\DateTime` |
-| `addBillingReference(string $originalInvoiceNumber, ?string $originalIssueDate = null): self` | The invoice the credit note corrects. Required on a credit note |
+| `addCreditNoteHeader(string $creditNoteNumber, $issueDate): self` | The header with type code 381. No due date. `$issueDate` is a `YYYY-MM-DD` string or a `\DateTime`; the Dutch builder refuses a date in the future |
+| `addBillingReference(string $originalInvoiceNumber, ?string $originalIssueDate = null): self` | The invoice the credit note corrects. Required on a credit note. The Dutch builder throws on an empty number or a date that is not `YYYY-MM-DD` |
 | `addCreditNoteLine(array $lineData): self` | A line with `<cbc:CreditedQuantity>`. Makes quantity, price and line amount positive |
 | `isCreditNote(): bool` | `true` after `createCreditNoteDocument()` |
+
+In the Dutch builder since 1.10.0. There, the invoice methods throw a `RuntimeException` on a credit note and the credit note methods throw one on an invoice. See [Credit notes](credit-notes.md).
+
+### Only in `UblBeBis3Service`
+
+| Method | What it does |
+| --- | --- |
 | `calculateTotals(): array` | Adds up the lines added so far. Returns `totals`, `tax_totals` and `total_tax_amount` |
 | `getInvoiceLines(): array`, `getTotals(): array`, `getTaxTotals(): array` | What you passed in so far |
 
-See [Credit notes](credit-notes.md) and [Let the builder add up the lines](belgium.md#let-the-builder-add-up-the-lines).
+See [Let the builder add up the lines](belgium.md#let-the-builder-add-up-the-lines).
 
 ## `Validation\InvoiceValidationResult`
 

@@ -12,7 +12,7 @@ This page builds one complete Dutch invoice, checks it and saves it as `invoice.
 
 | The receiver is in | Use | Builds |
 | --- | --- | --- |
-| The Netherlands | `Darvis\UblPeppol\UblNlBis3Service` | Invoices |
+| The Netherlands | `Darvis\UblPeppol\UblNlBis3Service` | Invoices and credit notes |
 | Belgium | `Darvis\UblPeppol\UblBeBis3Service` | Invoices and credit notes |
 
 The two are separate classes because their checks differ. This page uses the Dutch builder. [Belgian invoices](belgium.md) has the same example for Belgium.

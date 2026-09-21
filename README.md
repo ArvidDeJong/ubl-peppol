@@ -5,11 +5,11 @@
 [![PHP version](https://img.shields.io/packagist/dependency-v/darvis/ubl-peppol/php.svg)](https://packagist.org/packages/darvis/ubl-peppol)
 [![License](https://img.shields.io/packagist/l/darvis/ubl-peppol.svg)](LICENSE)
 
-A PHP library that builds **UBL 2.1** e-invoices for **PEPPOL BIS Billing 3.0**, the format the PEPPOL network requires (built on EN 16931). It has one builder for Dutch invoices and one for Belgian invoices and credit notes. The builders are plain PHP; an optional Laravel layer posts the XML to your access point provider.
+A PHP library that builds **UBL 2.1** e-invoices for **PEPPOL BIS Billing 3.0**, the format the PEPPOL network requires (built on EN 16931). It has one builder for Dutch and one for Belgian invoices and credit notes. The builders are plain PHP; an optional Laravel layer posts the XML to your access point provider.
 
 ## Features
 
-- Dutch invoices with `UblNlBis3Service`, which puts the elements in schema order for you
+- Dutch invoices and credit notes with `UblNlBis3Service`, which puts the elements in schema order for you
 - Belgian invoices and credit notes with `UblBeBis3Service`, which can add up the lines with `calculateTotals()`
 - `validate()` before sending: code formats and the Dutch NL-R rules in the Dutch builder, the totals (BR-CO-10, 13, 15, 16, BR-S-08) in the Belgian builder
 - `ViesService` checks a European VAT number against VIES and tells "invalid" apart from "VIES did not answer"
@@ -109,7 +109,7 @@ Full documentation at **[arviddejong.github.io/ubl-peppol](https://arviddejong.g
 - [Installation](https://arviddejong.github.io/ubl-peppol/installation.html): requirements, configuration and a check that it works
 - [Your first invoice](https://arviddejong.github.io/ubl-peppol/getting-started.html): the example above, line by line
 - [Dutch invoices](https://arviddejong.github.io/ubl-peppol/netherlands.html) and [Belgian invoices](https://arviddejong.github.io/ubl-peppol/belgium.html): the fields of every call and what each builder checks
-- [Credit notes](https://arviddejong.github.io/ubl-peppol/credit-notes.html): with the Belgian builder
+- [Credit notes](https://arviddejong.github.io/ubl-peppol/credit-notes.html): with either builder
 - [Validation](https://arviddejong.github.io/ubl-peppol/validation.html): what `validate()` checks and how to read the result
 - [VAT numbers](https://arviddejong.github.io/ubl-peppol/vat-numbers.html) and [company numbers](https://arviddejong.github.io/ubl-peppol/company-numbers.html)
 - [Laravel integration](https://arviddejong.github.io/ubl-peppol/laravel.html) and [sending invoices](https://arviddejong.github.io/ubl-peppol/peppol-service.html)
