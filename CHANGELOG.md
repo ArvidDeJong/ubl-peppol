@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Social preview image for the documentation site (`docs/assets/images/social-preview.png`), set as the default Open Graph and Twitter card image in `docs/_config.yml`
+
 ## [1.7.0] - 2026-09-18
 
 Upgrading is `composer update darvis/ubl-peppol`. Two things change behaviour rather than just adding to it:
