@@ -656,6 +656,26 @@ class UblNlBis3Service
     }
 
     /**
+     * Whether a party identifier may carry the scheme of the endpoint: when it is the endpoint
+     * identifier itself, or when it has the format of that scheme. The scheme attribute is optional
+     * (BT-46-1), so leaving it out is always valid; writing it on another kind of value is not.
+     */
+    private function partyIdFitsScheme(string $partyId, string $endpointId, string $schemeId): bool
+    {
+        $partyId = trim($partyId);
+
+        if ($partyId === trim($endpointId)) {
+            return true;
+        }
+
+        return match ($schemeId) {
+            '0106' => preg_match('/^[0-9]{8}$/', $partyId) === 1,
+            '0190' => preg_match('/^[0-9]{20}$/', $partyId) === 1,
+            default => false,
+        };
+    }
+
+    /**
      * @throws \RuntimeException When the document is missing or is an invoice
      */
     private function requireCreditNoteDocument(string $method, string $invoiceMethod): void
@@ -1104,9 +1124,19 @@ class UblNlBis3Service
         $partyIdentification = $this->createElement('cac', 'PartyIdentification');
         $partyIdentification = $party->appendChild($partyIdentification);
 
-        $idElement = $this->createElement('cbc', 'ID', $partyId, ['schemeID' => $effectiveSchemeID]);
+        // BT-46 is whatever the seller calls this buyer, often an internal customer number. The scheme
+        // of the endpoint only belongs on it when it is that kind of identifier: the Schematron tests
+        // the format of a value under a scheme (PEPPOL-COMMON-R054 for 0106, fatal R043 for 0208).
+        $partyIdAttributes = $this->partyIdFitsScheme($partyId, $endpointId, $effectiveSchemeID)
+            ? ['schemeID' => $effectiveSchemeID]
+            : [];
+
+        $idElement = $this->createElement('cbc', 'ID', $partyId, $partyIdAttributes);
         $partyIdentification->appendChild($idElement);
-        $this->usedPartySchemeIds[] = $effectiveSchemeID;
+
+        if ($partyIdAttributes !== []) {
+            $this->usedPartySchemeIds[] = $effectiveSchemeID;
+        }
 
         // PartyName
         $partyNameElement = $this->createElement('cac', 'PartyName');
