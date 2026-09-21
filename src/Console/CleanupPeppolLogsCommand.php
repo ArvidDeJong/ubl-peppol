@@ -16,6 +16,12 @@ class CleanupPeppolLogsCommand extends Command
 
     public function handle(): int
     {
+        if (! PeppolLog::tableExists()) {
+            $this->info('There is no peppol_logs table, so there is nothing to clean up. Publish it with: php artisan vendor:publish --tag=ubl-peppol-migrations');
+
+            return self::SUCCESS;
+        }
+
         $option = $this->option('days');
 
         // Without an explicit --days, follow the config. It used to be hard-coded to 60 here,

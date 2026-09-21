@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Sending failed without the `peppol_logs` table.** The table is opt-in, but `sendInvoice()` and
+  `sendUblXml()` always wrote a log row before they sent, so an application that had not published
+  the migration got a `QueryException` (`no such table: peppol_logs`) instead of a sent invoice.
+  `peppol:cleanup` failed the same way. A document is now sent with or without the table. Without it
+  nothing is recorded and the result has `'log_id' => null`; with it everything is as before.
+  `PeppolLog::tableExists()` tells you which of the two applies. If your code uses `log_id`, allow
+  for null.
+- **A Dutch invoice built in the order the documentation showed was rejected.** `UblNlBis3Service`
+  wrote the elements in the order of the calls, and the example in the docs and the Boost guideline
+  added the invoice lines before the tax total and the monetary total, which the UBL schema does
+  not allow. The builder now puts the elements under `<Invoice>` in schema order when
+  `generateXml()` runs, whatever the order of the calls. Lines, document references and allowances
+  keep the order you added them in. A document that was already built in schema order comes out
+  byte for byte as before, so nothing a receiver accepted changes. The Belgian builder is unchanged.
+- The Laravel page named the command `peppol:cleanup-logs` with a default of 90 days. It is
+  `peppol:cleanup`, and it keeps `log_retention_days` days, 60 by default.
+
 ## [1.7.1] - 2026-09-21
 
 ### Added

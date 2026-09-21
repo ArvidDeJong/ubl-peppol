@@ -47,4 +47,5 @@
 - q: Is the log table required?
   a: >
     No, it is opt-in. Publish and run the migration only if you want a record of what was sent and what came
-    back. An application that only generates XML never needs it.
+    back. An application that only generates XML never needs it, and `PeppolService` sends without it as well:
+    the result then has a `log_id` of null.
