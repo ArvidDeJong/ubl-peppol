@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-21
+
 ### Fixed
 - **Sending failed without the `peppol_logs` table.** The table is opt-in, but `sendInvoice()` and
   `sendUblXml()` always wrote a log row before they sent, so an application that had not published
@@ -347,7 +349,8 @@ _Never released on its own; these changes are part of the next release._
 - Laravel Service Provider
 - Example code
 
-[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.5.0...v1.6.0
