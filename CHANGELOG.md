@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-**The generated XML changes**, so this is a minor release. Every change follows the [PEPPOL BIS Billing 3.0 specification](https://docs.peppol.eu/poacc/billing/3.0/bis/); the business term (BT) and the rule are named with each. No public method changed its signature. Before releasing, the maintainer runs `php examples/validate/generate_samples.php` and checks the files with an official validator; see `CONTRIBUTING.md`.
+**The generated XML changes**, so this is a minor release. Every change follows the [PEPPOL BIS Billing 3.0 specification](https://docs.peppol.eu/poacc/billing/3.0/bis/); the business term (BT) and the rule are named with each. No public method changed its signature. The six documents of `php examples/validate/generate_samples.php` and six documents from a production application pass the UBL 2.1 XSD and the official OpenPEPPOL Schematron rules, release 2026.5 (`CEN-EN16931-UBL` and `PEPPOL-EN16931-UBL`, which holds the NL-R rules), without an error or a warning.
 
 ### Changed
 - **`cbc:AccountingCost` (BT-19, buyer accounting reference) is no longer written by default**, in both builders. Before: `addInvoiceHeader()` wrote `<cbc:AccountingCost>4025:123:4343</cbc:AccountingCost>`, the value from the PEPPOL example file, into every invoice. Now: the element is left out, which the specification allows (0..1). What you do: nothing, unless your customer gave you a booking reference; then call the new `addAccountingCost('their reference')`
