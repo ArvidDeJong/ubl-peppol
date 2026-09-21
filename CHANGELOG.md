@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-09-21
+
 ### Fixed
 - **A document dated today was refused as "in the future".** `addInvoiceHeader()` of both builders threw `Invoice date cannot be in the future` for today's date passed as a `YYYY-MM-DD` string, and the Dutch `addCreditNoteHeader()`, new in 1.10.0, also for a `DateTime` of today. The parsed date carried the time of the moment it was parsed, which is later than "today" at midnight. A date of tomorrow is still refused. What you do: nothing; a workaround that passed a `DateTime` instead of a string keeps working
 
@@ -431,7 +433,8 @@ _Never released on its own; these changes are part of the next release._
 - Laravel Service Provider
 - Example code
 
-[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.1...HEAD
+[1.10.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.8.0...v1.9.0
