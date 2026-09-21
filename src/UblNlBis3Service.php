@@ -444,7 +444,7 @@ class UblNlBis3Service
             $issueDate = $issueDate->format('Y-m-d');
         } elseif (is_string($issueDate)) {
             $issueDate = trim($issueDate);
-            $issueDateObj = \DateTime::createFromFormat('Y-m-d', $issueDate);
+            $issueDateObj = \DateTime::createFromFormat('!Y-m-d', $issueDate);
 
             if (! $issueDateObj || $issueDateObj->format('Y-m-d') !== $issueDate) {
                 $errors[] = 'Invalid invoice date. Please use YYYY-MM-DD format';
@@ -466,7 +466,7 @@ class UblNlBis3Service
             $dueDate = $dueDate->format('Y-m-d');
         } elseif (is_string($dueDate)) {
             $dueDate = trim($dueDate);
-            $dueDateObj = \DateTime::createFromFormat('Y-m-d', $dueDate);
+            $dueDateObj = \DateTime::createFromFormat('!Y-m-d', $dueDate);
 
             if (! $dueDateObj || $dueDateObj->format('Y-m-d') !== $dueDate) {
                 $errors[] = 'Invalid due date. Please use YYYY-MM-DD format';
@@ -586,8 +586,10 @@ class UblNlBis3Service
             $issueDate = $issueDate->format('Y-m-d');
         }
 
+        // The "!" sets the time to midnight. Without it the parsed date carries the time of this
+        // moment, and a document dated today compares later than "today" and is refused.
         $issueDate = trim($issueDate);
-        $issueDateObj = \DateTime::createFromFormat('Y-m-d', $issueDate);
+        $issueDateObj = \DateTime::createFromFormat('!Y-m-d', $issueDate);
 
         if (! $issueDateObj || $issueDateObj->format('Y-m-d') !== $issueDate) {
             $errors[] = 'Invalid issue date. Please use YYYY-MM-DD format or a DateTime object';
@@ -635,7 +637,7 @@ class UblNlBis3Service
         }
 
         if ($originalIssueDate !== null && $originalIssueDate !== '') {
-            $date = \DateTime::createFromFormat('Y-m-d', $originalIssueDate);
+            $date = \DateTime::createFromFormat('!Y-m-d', $originalIssueDate);
 
             if (! $date || $date->format('Y-m-d') !== $originalIssueDate) {
                 throw new \InvalidArgumentException('Invalid issue date of the credited invoice. Please use YYYY-MM-DD format (BT-26).');

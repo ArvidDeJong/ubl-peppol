@@ -154,7 +154,7 @@ class UblBeBis3Service
             $issueDate = $issueDate->format('Y-m-d');
         } elseif (is_string($issueDate)) {
             $issueDate = trim($issueDate);
-            $issueDateObj = \DateTime::createFromFormat('Y-m-d', $issueDate);
+            $issueDateObj = \DateTime::createFromFormat('!Y-m-d', $issueDate);
             if (! $issueDateObj || $issueDateObj->format('Y-m-d') !== $issueDate) {
                 $errors[] = 'Invalid issue date. Please use YYYY-MM-DD format';
             }
@@ -584,7 +584,7 @@ class UblBeBis3Service
             $issueDate = $issueDate->format('Y-m-d');
         } elseif (is_string($issueDate)) {
             $issueDate = trim($issueDate);
-            $issueDateObj = \DateTime::createFromFormat('Y-m-d', $issueDate);
+            $issueDateObj = \DateTime::createFromFormat('!Y-m-d', $issueDate);
 
             if (! $issueDateObj || $issueDateObj->format('Y-m-d') !== $issueDate) {
                 $errors[] = 'Invalid invoice date. Please use YYYY-MM-DD format';
@@ -606,7 +606,7 @@ class UblBeBis3Service
             $dueDate = $dueDate->format('Y-m-d');
         } elseif (is_string($dueDate)) {
             $dueDate = trim($dueDate);
-            $dueDateObj = \DateTime::createFromFormat('Y-m-d', $dueDate);
+            $dueDateObj = \DateTime::createFromFormat('!Y-m-d', $dueDate);
 
             if (! $dueDateObj || $dueDateObj->format('Y-m-d') !== $dueDate) {
                 $errors[] = 'Invalid due date. Please use YYYY-MM-DD format';

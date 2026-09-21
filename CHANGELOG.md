@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A document dated today was refused as "in the future".** `addInvoiceHeader()` of both builders threw `Invoice date cannot be in the future` for today's date passed as a `YYYY-MM-DD` string, and the Dutch `addCreditNoteHeader()`, new in 1.10.0, also for a `DateTime` of today. The parsed date carried the time of the moment it was parsed, which is later than "today" at midnight. A date of tomorrow is still refused. What you do: nothing; a workaround that passed a `DateTime` instead of a string keeps working
+
 ## [1.10.0] - 2026-09-21
 
 **The generated XML changes**, so this is a minor release. Every change follows the [PEPPOL BIS Billing 3.0 specification](https://docs.peppol.eu/poacc/billing/3.0/bis/); the business term (BT) and the rule are named with each. No public method changed its signature. The six documents of `php examples/validate/generate_samples.php` and six documents from a production application pass the UBL 2.1 XSD and the official OpenPEPPOL Schematron rules, release 2026.5 (`CEN-EN16931-UBL` and `PEPPOL-EN16931-UBL`, which holds the NL-R rules), without an error or a warning.
