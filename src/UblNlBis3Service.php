@@ -33,6 +33,14 @@ class UblNlBis3Service
 
     protected string $ns_invoice_uri = 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2';
 
+    protected string $ns_creditnote_uri = 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2';
+
+    /** @var bool True when the document is a <CreditNote> (type 381) instead of an <Invoice> */
+    protected bool $isCreditNote = false;
+
+    /** @var bool True once addBillingReference() wrote the reference to the credited invoice (BG-3) */
+    protected bool $hasBillingReference = false;
+
     // Namespace prefixes
     protected string $ns_prefix_cac = 'cac';
 
@@ -104,6 +112,40 @@ class UblNlBis3Service
     }
 
     /**
+     * Create the base XML document structure for a credit note (<CreditNote>, type 381).
+     *
+     * Follow it with addCreditNoteHeader(), addBillingReference() and addCreditNoteLine(); every
+     * other add...() method is the same as for an invoice.
+     *
+     * @throws \RuntimeException When document is already initialized
+     */
+    public function createCreditNoteDocument(): self
+    {
+        if (isset($this->rootElement)) {
+            throw new \RuntimeException('Document is already initialized. Avoid initializing the document multiple times.');
+        }
+
+        $this->isCreditNote = true;
+
+        $this->rootElement = $this->dom->createElementNS($this->ns_creditnote_uri, 'CreditNote');
+        $this->rootElement->setAttribute('xmlns:cac', $this->ns_cac_uri);
+        $this->rootElement->setAttribute('xmlns:cbc', $this->ns_cbc_uri);
+        $this->rootElement->setAttribute('xmlns', $this->ns_creditnote_uri);
+
+        $this->dom->appendChild($this->rootElement);
+
+        return $this;
+    }
+
+    /**
+     * Check if the current document is a credit note
+     */
+    public function isCreditNote(): bool
+    {
+        return $this->isCreditNote;
+    }
+
+    /**
      * Generate the XML string
      *
      * @return string The generated XML as a string
@@ -124,6 +166,12 @@ class UblNlBis3Service
         // arrangeInSchemaOrder() reads the root element, which only exists after createDocument()
         if (! isset($this->rootElement)) {
             throw new \RuntimeException('Root element is not initialized. Call createDocument() before adding elements.');
+        }
+
+        // Checked on every credit note, as the Belgian builder does: without the reference every
+        // receiver rejects the document, and the rejection arrives after it was sent.
+        if ($this->isCreditNote && ! $this->hasBillingReference) {
+            throw new \InvalidArgumentException(self::MISSING_BILLING_REFERENCE);
         }
 
         $this->arrangeInSchemaOrder();
@@ -159,6 +207,32 @@ class UblNlBis3Service
     ];
 
     /**
+     * The children of <CreditNote> in the order the UBL 2.1 schema fixes. It is not the order of
+     * <Invoice>: there is no DueDate, the type code comes before Note, ContractDocumentReference and
+     * AdditionalDocumentReference come before StatementDocumentReference, and AllowanceCharge comes
+     * behind the exchange rates.
+     *
+     * @var array<int, string>
+     */
+    protected const CREDIT_NOTE_ROOT_ELEMENT_ORDER = [
+        'UBLExtensions', 'UBLVersionID', 'CustomizationID', 'ProfileID', 'ProfileExecutionID', 'ID',
+        'CopyIndicator', 'UUID', 'IssueDate', 'IssueTime', 'TaxPointDate', 'CreditNoteTypeCode', 'Note',
+        'DocumentCurrencyCode', 'TaxCurrencyCode', 'PricingCurrencyCode', 'PaymentCurrencyCode',
+        'PaymentAlternativeCurrencyCode', 'AccountingCostCode', 'AccountingCost', 'LineCountNumeric',
+        'BuyerReference', 'InvoicePeriod', 'DiscrepancyResponse', 'OrderReference', 'BillingReference',
+        'DespatchDocumentReference', 'ReceiptDocumentReference', 'ContractDocumentReference',
+        'AdditionalDocumentReference', 'StatementDocumentReference', 'OriginatorDocumentReference',
+        'Signature', 'AccountingSupplierParty', 'AccountingCustomerParty', 'PayeeParty',
+        'BuyerCustomerParty', 'SellerSupplierParty', 'TaxRepresentativeParty', 'Delivery',
+        'DeliveryTerms', 'PaymentMeans', 'PaymentTerms', 'TaxExchangeRate', 'PricingExchangeRate',
+        'PaymentExchangeRate', 'PaymentAlternativeExchangeRate', 'AllowanceCharge', 'TaxTotal',
+        'LegalMonetaryTotal', 'CreditNoteLine',
+    ];
+
+    protected const MISSING_BILLING_REFERENCE = '[BR-55] [NL-R-001] A credit note must reference the invoice it credits (BG-3). '
+        .'Call addBillingReference($originalInvoiceNumber, $originalIssueDate) before generateXml().';
+
+    /**
      * Put the children of <Invoice> in schema order, whatever the order of the add...() calls was.
      *
      * A receiver rejects a document with the right values in the wrong order, and its error names
@@ -169,7 +243,7 @@ class UblNlBis3Service
      */
     protected function arrangeInSchemaOrder(): void
     {
-        $ranks = array_flip(self::ROOT_ELEMENT_ORDER);
+        $ranks = array_flip($this->isCreditNote ? self::CREDIT_NOTE_ROOT_ELEMENT_ORDER : self::ROOT_ELEMENT_ORDER);
         $children = [];
         $rank = -1;
 
@@ -224,6 +298,11 @@ class UblNlBis3Service
             if (! in_array($this->customerEndpointSchemeId, ['0106', '0190'], true)) {
                 $errors[] = 'NL-R-005: Customer endpoint schemeID must be 0106 (KVK) or 0190 (OIN).';
             }
+        }
+
+        // BR-55, and NL-R-001 for a Dutch supplier: a credit note references the credited invoice
+        if ($this->isCreditNote && ! $this->hasBillingReference) {
+            $errors[] = self::MISSING_BILLING_REFERENCE;
         }
 
         // NL-R-007: Payment means required when payment is from customer to supplier
@@ -344,6 +423,10 @@ class UblNlBis3Service
      */
     public function addInvoiceHeader(string $invoiceNumber, $issueDate, $dueDate): self
     {
+        if ($this->isCreditNote) {
+            throw new \RuntimeException('This document is a credit note. Call addCreditNoteHeader() instead of addInvoiceHeader().');
+        }
+
         $errors = [];
 
         // Validate invoice number
@@ -474,6 +557,116 @@ class UblNlBis3Service
         // BuyerReference is now added separately via addBuyerReference() to prevent duplicate elements
 
         return $this;
+    }
+
+    /**
+     * Add the credit note header. A credit note has no due date: the CreditNote schema has no
+     * cbc:DueDate under the root.
+     *
+     * @param  string  $creditNoteNumber  Credit note number (required, at most 35 characters)
+     * @param  string|\DateTime  $issueDate  Issue date (YYYY-MM-DD or DateTime, not in the future)
+     *
+     * @throws \InvalidArgumentException On invalid input
+     * @throws \RuntimeException When the document was not made with createCreditNoteDocument()
+     */
+    public function addCreditNoteHeader(string $creditNoteNumber, $issueDate): self
+    {
+        $this->requireCreditNoteDocument('addCreditNoteHeader()', 'addInvoiceHeader()');
+
+        $errors = [];
+
+        $creditNoteNumber = trim($creditNoteNumber);
+        if ($creditNoteNumber === '') {
+            $errors[] = 'Credit note number is required and cannot be empty';
+        } elseif (strlen($creditNoteNumber) > 35) {
+            $errors[] = 'Credit note number cannot exceed 35 characters';
+        }
+
+        if ($issueDate instanceof \DateTime) {
+            $issueDate = $issueDate->format('Y-m-d');
+        }
+
+        $issueDate = trim($issueDate);
+        $issueDateObj = \DateTime::createFromFormat('Y-m-d', $issueDate);
+
+        if (! $issueDateObj || $issueDateObj->format('Y-m-d') !== $issueDate) {
+            $errors[] = 'Invalid issue date. Please use YYYY-MM-DD format or a DateTime object';
+        } elseif ($issueDateObj > new \DateTime('today')) {
+            $errors[] = 'Issue date cannot be in the future';
+        }
+
+        if (! empty($errors)) {
+            throw new \InvalidArgumentException("Validation error(s) in credit note header:\n".implode("\n- ", array_merge([''], $errors)));
+        }
+
+        $this->addChildElement($this->rootElement, 'cbc', 'CustomizationID', 'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0');
+        $this->addChildElement($this->rootElement, 'cbc', 'ProfileID', 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0');
+        $this->addChildElement($this->rootElement, 'cbc', 'ID', $creditNoteNumber);
+        $this->addChildElement($this->rootElement, 'cbc', 'IssueDate', $issueDate);
+
+        // 381 = credit note. The amounts in the document are positive; this code makes it a credit.
+        $this->addChildElement($this->rootElement, 'cbc', 'CreditNoteTypeCode', '381');
+        $this->addChildElement($this->rootElement, 'cbc', 'DocumentCurrencyCode', 'EUR');
+
+        $this->usedCurrencyCodes[] = 'EUR';
+
+        return $this;
+    }
+
+    /**
+     * Add the reference to the invoice a credit note credits (BG-3). BR-55 requires it on every
+     * credit note and NL-R-001 repeats that for a Dutch supplier.
+     *
+     * @param  string  $originalInvoiceNumber  Number of the credited invoice (BT-25)
+     * @param  string|null  $originalIssueDate  Issue date of that invoice, YYYY-MM-DD (BT-26, optional)
+     *
+     * @throws \InvalidArgumentException When the number is empty or the date is not YYYY-MM-DD
+     * @throws \RuntimeException When the document is not initialized
+     */
+    public function addBillingReference(string $originalInvoiceNumber, ?string $originalIssueDate = null): self
+    {
+        if (! isset($this->rootElement)) {
+            throw new \RuntimeException('Root element is not initialized. Call createCreditNoteDocument() before adding elements.');
+        }
+
+        $originalInvoiceNumber = trim($originalInvoiceNumber);
+        if ($originalInvoiceNumber === '') {
+            throw new \InvalidArgumentException('The number of the credited invoice is required and cannot be empty (BT-25).');
+        }
+
+        if ($originalIssueDate !== null && $originalIssueDate !== '') {
+            $date = \DateTime::createFromFormat('Y-m-d', $originalIssueDate);
+
+            if (! $date || $date->format('Y-m-d') !== $originalIssueDate) {
+                throw new \InvalidArgumentException('Invalid issue date of the credited invoice. Please use YYYY-MM-DD format (BT-26).');
+            }
+        }
+
+        $this->hasBillingReference = true;
+
+        $billingReference = $this->addChildElement($this->rootElement, 'cac', 'BillingReference');
+        $invoiceDocumentReference = $this->addChildElement($billingReference, 'cac', 'InvoiceDocumentReference');
+        $this->addChildElement($invoiceDocumentReference, 'cbc', 'ID', $originalInvoiceNumber);
+
+        if ($originalIssueDate !== null && $originalIssueDate !== '') {
+            $this->addChildElement($invoiceDocumentReference, 'cbc', 'IssueDate', $originalIssueDate);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @throws \RuntimeException When the document is missing or is an invoice
+     */
+    private function requireCreditNoteDocument(string $method, string $invoiceMethod): void
+    {
+        if (! isset($this->rootElement)) {
+            throw new \RuntimeException('Root element is not initialized. Call createCreditNoteDocument() before adding elements.');
+        }
+
+        if (! $this->isCreditNote) {
+            throw new \RuntimeException("This document is an invoice. Call {$invoiceMethod} instead of {$method}, or start with createCreditNoteDocument().");
+        }
     }
 
     /**
@@ -1587,6 +1780,10 @@ class UblNlBis3Service
      */
     public function addInvoiceLine(array $lineData): self
     {
+        if ($this->isCreditNote) {
+            throw new \RuntimeException('This document is a credit note. Call addCreditNoteLine() instead of addInvoiceLine().');
+        }
+
         // PEPPOL BR-27: Item net price (BT-146) shall NOT be negative
         // Validate price_amount before processing
         if (isset($lineData['price_amount']) && (float) $lineData['price_amount'] < 0) {
@@ -1695,6 +1892,80 @@ class UblNlBis3Service
 
         $baseQuantityValue = $lineData['base_quantity'] ?? 1;
         $this->addChildElement($price, 'cbc', 'BaseQuantity', number_format((float) $baseQuantityValue, 2, '.', ''), ['unitCode' => $lineData['unit_code']]);
+
+        return $this;
+    }
+
+    /**
+     * Add a credit note line to the document.
+     *
+     * Takes the same keys as addInvoiceLine(). The amounts and the quantity are written as positive
+     * numbers, as the Belgian builder does: the type code 381 makes the document a credit, BR-27
+     * forbids a negative price, and a host app usually holds a credit note with negative amounts.
+     *
+     * @param  array<string, mixed>  $lineData  id, quantity, unit_code, price_amount, currency, name,
+     *                                          description and optionally line_extension_amount, accounting_cost,
+     *                                          order_line_id, tax_category_id, tax_percent, base_quantity
+     *
+     * @throws \InvalidArgumentException For missing parameters
+     * @throws \RuntimeException When the document was not made with createCreditNoteDocument()
+     */
+    public function addCreditNoteLine(array $lineData): self
+    {
+        $this->requireCreditNoteDocument('addCreditNoteLine()', 'addInvoiceLine()');
+
+        $lineData = array_merge([
+            'currency' => 'EUR',
+            'tax_category_id' => 'S',
+            'tax_percent' => '21.00',
+            'unit_code' => 'C62',
+        ], $lineData);
+
+        $lineExtensionAmount = $lineData['line_extension_amount']
+            ?? ((isset($lineData['price_amount'], $lineData['quantity']))
+                ? (float) $lineData['price_amount'] * (float) $lineData['quantity']
+                : null);
+
+        if ($lineExtensionAmount === null || ! isset($lineData['price_amount'], $lineData['quantity'])) {
+            throw new \InvalidArgumentException('Credit note line requires price_amount and quantity.');
+        }
+
+        $this->usedCurrencyCodes[] = $lineData['currency'];
+        $this->usedUnitCodes[] = $lineData['unit_code'];
+        $this->usedTaxCategoryIds[] = $lineData['tax_category_id'];
+
+        if (! empty($lineData['order_line_id'])) {
+            $this->hasOrderLineReference = true;
+        }
+
+        $creditNoteLine = $this->addChildElement($this->rootElement, 'cac', 'CreditNoteLine');
+
+        $this->addChildElement($creditNoteLine, 'cbc', 'ID', (string) $lineData['id']);
+        $this->addChildElement($creditNoteLine, 'cbc', 'CreditedQuantity', $this->formatAmount(abs((float) $lineData['quantity'])), ['unitCode' => $lineData['unit_code']]);
+        $this->addChildElement($creditNoteLine, 'cbc', 'LineExtensionAmount', $this->formatAmount(abs((float) $lineExtensionAmount)), ['currencyID' => $lineData['currency']]);
+
+        if (! empty($lineData['accounting_cost'])) {
+            $this->addChildElement($creditNoteLine, 'cbc', 'AccountingCost', $lineData['accounting_cost']);
+        }
+
+        if (! empty($lineData['order_line_id'])) {
+            $orderLineReference = $this->addChildElement($creditNoteLine, 'cac', 'OrderLineReference');
+            $this->addChildElement($orderLineReference, 'cbc', 'LineID', $lineData['order_line_id']);
+        }
+
+        $item = $this->addChildElement($creditNoteLine, 'cac', 'Item');
+        $this->addChildElement($item, 'cbc', 'Description', $lineData['description'] ?? '');
+        $this->addChildElement($item, 'cbc', 'Name', $lineData['name'] ?? $lineData['description'] ?? '');
+
+        $classifiedTaxCategory = $this->addChildElement($item, 'cac', 'ClassifiedTaxCategory');
+        $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $lineData['tax_category_id']);
+        $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', $this->formatAmount((float) $lineData['tax_percent']));
+        $taxScheme = $this->addChildElement($classifiedTaxCategory, 'cac', 'TaxScheme');
+        $this->addChildElement($taxScheme, 'cbc', 'ID', 'VAT');
+
+        $price = $this->addChildElement($creditNoteLine, 'cac', 'Price');
+        $this->addChildElement($price, 'cbc', 'PriceAmount', $this->formatAmount(abs((float) $lineData['price_amount'])), ['currencyID' => $lineData['currency']]);
+        $this->addChildElement($price, 'cbc', 'BaseQuantity', number_format((float) ($lineData['base_quantity'] ?? 1), 2, '.', ''), ['unitCode' => $lineData['unit_code']]);
 
         return $this;
     }

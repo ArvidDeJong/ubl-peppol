@@ -95,13 +95,25 @@ function sampleAmounts(array $lines, float $allowance = 0.0, float $charge = 0.0
  */
 function dutchInvoice(array $data, string $number): UblNlBis3Service
 {
+    $ubl = (new UblNlBis3Service)
+        ->createDocument()
+        ->addInvoiceHeader($number, $data['header']['issue_date'], $data['header']['due_date']);
+
+    return dutchReferencesAndParties($ubl, $data);
+}
+
+/**
+ * The references, the parties and the payment of a Dutch document, invoice or credit note.
+ *
+ * @param  array<string, mixed>  $data
+ */
+function dutchReferencesAndParties(UblNlBis3Service $ubl, array $data): UblNlBis3Service
+{
     $supplier = $data['supplier'];
     $customer = $data['customer'];
     $payment = $data['payment'];
 
-    return (new UblNlBis3Service)
-        ->createDocument()
-        ->addInvoiceHeader($number, $data['header']['issue_date'], $data['header']['due_date'])
+    return $ubl
         ->addBuyerReference($data['header']['buyer_reference'])
         ->addOrderReference($data['header']['order_reference'])
         ->addAccountingSupplierParty(
@@ -201,6 +213,22 @@ foreach ($amounts['lines'] as $line) {
     $ubl->addCreditNoteLine($line);
 }
 $cases['be-credit-note.xml'] = $ubl;
+
+// 6. Dutch credit note with a document level discount. NL-R-001 wants the billing reference, and
+//    <CreditNote> has its own element order: the builder sorts it, whatever the order of the calls.
+$amounts = sampleAmounts($nl['lines'], allowance: 25.00);
+$ubl = (new UblNlBis3Service)
+    ->createCreditNoteDocument()
+    ->addCreditNoteHeader('SAMPLE-NL-CN-001', $nl['header']['issue_date'])
+    ->addBillingReference('SAMPLE-NL-002', $nl['header']['issue_date']);
+dutchReferencesAndParties($ubl, $nl)
+    ->addAllowanceCharge(false, 25.00, 'Discount', 'S', 21.0, 'EUR')
+    ->addTaxTotal($amounts['tax'])
+    ->addLegalMonetaryTotal($amounts['totals'], 'EUR');
+foreach ($amounts['lines'] as $line) {
+    $ubl->addCreditNoteLine($line);
+}
+$cases['nl-credit-note.xml'] = $ubl;
 
 // Write and check
 $out = __DIR__.'/out';

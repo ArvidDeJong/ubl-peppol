@@ -195,16 +195,17 @@ Also `BR-CO-11: Sum of document allowances (...) does not match AllowanceTotalAm
 | `[BR-CN-03] LineExtensionAmount in totals is negative.` | Pass positive totals to `addLegalMonetaryTotal()` |
 | `[BR-CN-04] PayableAmount is negative.` | The same |
 
-`validate()` does not report these; only `generateXml()` does. See [Credit notes](credit-notes.md#the-rules-generatexml-enforces).
+The Belgian `validate()` does not report these; only `generateXml()` does. See [Credit notes](credit-notes.md#the-rules-generatexml-enforces).
 
 ### `BuyerReference is not supported on credit notes by this package.`
 
-**Fix:** leave `addBuyerReference()` out on a credit note and call `addOrderReference()` before `addBillingReference()`.
+**Cause:** the Belgian builder cannot place a buyer reference on a credit note. The Dutch builder can.
+**Fix:** leave `addBuyerReference()` out on a Belgian credit note and call `addOrderReference()` before `addBillingReference()`.
 
 ### `Call to undefined method Darvis\UblPeppol\UblNlBis3Service::createCreditNoteDocument()`
 
-**Cause:** the Dutch builder has no credit notes.
-**Fix:** build the credit note with `UblBeBis3Service`.
+**Cause:** the Dutch builder builds credit notes since 1.10.0; an older version is installed.
+**Fix:** `composer update darvis/ubl-peppol`.
 
 ## Sending
 

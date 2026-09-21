@@ -41,7 +41,7 @@ With `validateFirst: true`, a document with errors throws an `InvalidArgumentExc
 | Code formats (currency, scheme ID, payment means, VAT category, unit code) | Yes | Yes |
 | The amounts add up (BR-CO-10, BR-CO-11, BR-CO-12, BR-CO-13, BR-CO-15, BR-CO-16, BR-S-08), document level allowances and charges included | **No** | Yes |
 | Dutch rules NL-R-003, NL-R-005, NL-R-007, NL-R-008, NL-R-009 | Yes | No |
-| Credit note rules (BR-55, positive totals) | No credit notes | **No**: only `generateXml()` checks them, see [Credit notes](credit-notes.md#the-rules-generatexml-enforces) |
+| Credit note rules (BR-55, positive totals) | The billing reference (BR-55, NL-R-001); not the totals | **No**: only `generateXml()` checks them, see [Credit notes](credit-notes.md#the-rules-generatexml-enforces) |
 | Suggested corrections | Never | When the amounts do not add up |
 
 So a Dutch invoice with wrong totals passes `validate()`. Check the arithmetic in your own code, and with an official validator.

@@ -8,7 +8,7 @@ description: "Build a Dutch PEPPOL invoice with UblNlBis3Service: the fields of 
 
 `Darvis\UblPeppol\UblNlBis3Service` builds an invoice for a Dutch receiver. [Your first invoice](getting-started.md) has a complete example; this page explains each call and what the builder checks.
 
-The Dutch builder builds **invoices only**. It has no credit note methods. [Credit notes](credit-notes.md) are built with the Belgian builder.
+The Dutch builder builds invoices and, since 1.10.0, [credit notes](credit-notes.md#a-credit-note-with-the-dutch-builder). This page is about invoices.
 
 ## The order of the calls does not matter
 

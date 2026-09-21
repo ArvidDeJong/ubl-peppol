@@ -28,15 +28,15 @@
   a: >
     Pick the builder by the country of the receiver. `UblNlBis3Service` builds invoices only, sorts the
     elements into schema order itself, and its `validate()` checks code formats and five Dutch NL-R rules.
-    `UblBeBis3Service` also builds credit notes, needs its methods called in schema order, and its
-    `validate()` checks that the amounts add up.
+    `UblBeBis3Service` needs its methods called in schema order, and its `validate()` checks that the
+    amounts add up. Both build credit notes.
 
 - q: Can I create a credit note?
   a: >
-    Yes, with `UblBeBis3Service`; the Dutch builder has no credit notes. Start with
+    Yes, with both builders; the Dutch builder has credit notes since 1.10.0. Start with
     `createCreditNoteDocument()`, add `addBillingReference()` for the invoice you correct, and add lines with
     `addCreditNoteLine()`. All amounts are positive. `generateXml()` throws when the billing reference is
-    missing (BR-55) or a total is negative.
+    missing (BR-55); the Belgian builder also throws when a total is negative.
 
 - q: Does validate() fix my invoice, and is a valid result enough?
   a: >

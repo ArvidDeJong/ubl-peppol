@@ -20,7 +20,7 @@ Developers who already have invoice data (in a database, an ERP or a webshop) an
 ## What it does
 
 - Builds Dutch invoices with `UblNlBis3Service` and Belgian invoices with `UblBeBis3Service`
-- Builds credit notes with `UblBeBis3Service`; the Dutch builder does invoices only
+- Builds credit notes with both builders
 - Checks a document before you send it with `validate()`, and tells you which rule failed
 - Checks a European VAT number against VIES, and the format of a company registration number (KvK, KBO, RCS, SIREN/SIRET, Handelsregister)
 - In Laravel: posts the XML to your access point provider with `PeppolService`, and can log each attempt in a `peppol_logs` table
