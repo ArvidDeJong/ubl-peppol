@@ -213,6 +213,7 @@ A string backed enum with the nine VAT categories PEPPOL allows outside Italy: `
 | `exemptionReasonText(string $language = 'en'): ?string` | The standard text in `en`, `nl` or `fr` |
 | `requiresZeroRate(): bool` | Whether the rate must be 0 |
 | `rules(): array` | The EN 16931 rules of the category, rule code => text |
+| `ruleId(int $number): string` | The code of a numbered rule: `ruleId(10)` is `BR-IC-10` for `K` |
 | `VatCategory::guide(string $language = 'en'): array` | All of the above for every category |
 
 ## `Vat\VatExemptionReason`
@@ -261,7 +262,7 @@ UblValidator::validateInvoiceData(array $data): array
 UblValidator::validateBasicCodes(array $codes): InvoiceValidationResult
 UblValidator::validateStrictCodelists(array $codes, CodelistRegistry $registry): InvoiceValidationResult
 UblValidator::resolveTaxExemption(string $categoryId, ?string $code = null, ?string $text = null): array
-UblValidator::validateVatBreakdown(array $breakdown, bool $hasDeliveryDate, ?string $deliveryCountry): InvoiceValidationResult
+UblValidator::validateVatCategories(DOMDocument $document): InvoiceValidationResult
 UblValidator::validateInvoiceTotals(array $invoiceLines, array $totals, array $taxTotals, float $allowanceTotalAmount = 0.0, float $chargeTotalAmount = 0.0, float $prepaidAmount = 0.0, array $documentAllowances = [], array $documentCharges = []): InvoiceValidationResult
 ```
 

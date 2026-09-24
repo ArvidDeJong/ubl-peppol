@@ -39,6 +39,22 @@ enum VatCategory: string
     }
 
     /**
+     * The code of a numbered EN 16931 rule of this category: ruleId(10) is 'BR-IC-10' for K.
+     * The rules of each category are numbered alike, 01 to 10.
+     */
+    public function ruleId(int $number): string
+    {
+        $prefix = match ($this) {
+            self::IntraCommunitySupply => 'IC',
+            self::CanaryIslands => 'AF',
+            self::CeutaMelilla => 'AG',
+            default => $this->value,
+        };
+
+        return sprintf('BR-%s-%02d', $prefix, $number);
+    }
+
+    /**
      * The name in the UNCL5305 code list.
      */
     public function label(): string

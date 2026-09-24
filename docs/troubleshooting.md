@@ -190,6 +190,21 @@ Also `BR-CO-11: Sum of document allowances (...) does not match AllowanceTotalAm
 **Cause:** an intra-community supply (category `K`) states when and where the goods went: the actual delivery date and the deliver to country.
 **Fix:** call `addDelivery()` with the date and the country code. With the Dutch builder the country alone is enough for the address: `addDelivery('2026-01-14', countryCode: 'BE')`.
 
+### `[BR-IC-05] A line in category K (...) has VAT rate 21.00; it must be 0.`, or `[BR-IC-09] ... has VAT amount ...`
+
+**Cause:** the line or the breakdown says "no VAT because of an intra-community supply" and still charges VAT. The same message exists for `AE`, `E`, `G` and `Z`.
+**Fix:** pass `tax_percent` `0` on the lines and `tax_amount` `0` in the breakdown. If VAT is due after all, the category is `S`.
+
+### `[BR-IC-01] A line uses category K, but the VAT breakdown has no entry for it`
+
+**Cause:** every category of a line, discount or charge needs its own entry in `addTaxTotal()`, and a category other than `S` exactly one.
+**Fix:** add an entry per category, with the sum of the amounts of that category.
+
+### `[BR-IC-02] An intra-community supply (K) needs the buyer's VAT number (BT-48)`
+
+**Cause:** `K` needs the VAT numbers of both parties; `AE` the buyer's VAT number or legal registration.
+**Fix:** pass `$vatNumber` to `addAccountingCustomerParty()`.
+
 ### `[BR-E-10] The VAT breakdown of category E needs an exemption reason`
 
 **Cause:** an exempt breakdown has no reason. The code names the article of the VAT directive, so the builder cannot choose it for you.

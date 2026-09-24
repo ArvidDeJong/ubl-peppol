@@ -5,9 +5,17 @@ namespace Darvis\UblPeppol\Validation;
 use Darvis\UblPeppol\Constants\UnitCodes;
 use Darvis\UblPeppol\Vat\VatCategory;
 use Darvis\UblPeppol\Vat\VatExemptionReason;
+use DOMDocument;
+use DOMElement;
+use DOMNode;
+use DOMXPath;
 
 class UblValidator
 {
+    private const NS_CAC = 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2';
+
+    private const NS_CBC = 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2';
+
     /**
      * Validates if the given unit code is a valid UN/ECE Recommendation 20 with Rec 21 extension unit code.
      *
@@ -142,7 +150,7 @@ class UblValidator
         }
 
         if ($category->forbidsExemptionReason() && ($code !== null || $text !== null)) {
-            $rule = array_key_last($category->rules());
+            $rule = $category->ruleId(10);
 
             throw new \InvalidArgumentException(
                 "[{$rule}] VAT category {$category->value} ({$category->label()}) takes no exemption reason; leave tax_exemption_reason_code and tax_exemption_reason out."
@@ -173,49 +181,178 @@ class UblValidator
     }
 
     /**
-     * Check the rules that follow from the VAT categories of a document as a whole.
+     * Check what the VAT categories demand of a finished document, the way a receiver does.
      *
-     * @param  list<array{category: string, code: ?string, text: ?string}>  $breakdown  The VAT breakdown entries, as resolveTaxExemption() left them
-     * @param  bool  $hasDeliveryDate  Whether the document states an actual delivery date (BT-72) or an invoicing period (BG-14)
-     * @param  string|null  $deliveryCountry  The deliver to country code (BT-80)
+     * The check reads the document itself, not the arguments the builder got, so it judges exactly
+     * what would be sent. It covers the category rules of EN 16931 that the builders cannot enforce
+     * while you build, because they depend on more than one call:
+     *
+     * - every category of a line, discount or charge is in the VAT breakdown (BR-S-01 and the like),
+     *   only once for a category other than S;
+     * - the VAT rate fits the category: above 0 for S, 0 for Z, E, AE, K and G (BR-S-05 to BR-S-07 and
+     *   the like), and the VAT amount of a zero rated breakdown is 0 (BR-Z-09 and the like);
+     * - the VAT numbers the category needs are there (BR-S-02, BR-AE-02, BR-IC-02 and the like), and
+     *   are absent for O (BR-O-02);
+     * - the breakdown has an exemption reason where the category needs one (BR-E-10 and the like);
+     * - an intra-community supply states the delivery date and country (BR-IC-11, BR-IC-12);
+     * - O stands alone (BR-O-11 to BR-O-14).
+     *
+     * Each message starts with the rule code and says what to pass to which method.
      */
-    public static function validateVatBreakdown(array $breakdown, bool $hasDeliveryDate, ?string $deliveryCountry): InvoiceValidationResult
+    public static function validateVatCategories(DOMDocument $document): InvoiceValidationResult
     {
-        $errors = [];
-        $categories = [];
+        $xpath = new DOMXPath($document);
+        $xpath->registerNamespace('cac', self::NS_CAC);
+        $xpath->registerNamespace('cbc', self::NS_CBC);
 
-        foreach ($breakdown as $entry) {
-            $category = VatCategory::fromCode($entry['category']);
+        $text = fn (string $query, ?DOMNode $context = null): string => trim((string) $xpath->evaluate('string('.$query.')', $context));
+
+        /** @return list<DOMElement> */
+        $elements = function (string $query) use ($xpath): array {
+            $found = [];
+            foreach ($xpath->query($query) ?: [] as $node) {
+                if ($node instanceof DOMElement) {
+                    $found[] = $node;
+                }
+            }
+
+            return $found;
+        };
+
+        // Where each category is used: the lines, the document level discounts and charges, and the breakdown
+        $used = [];
+
+        foreach ($elements('/*/cac:InvoiceLine/cac:Item/cac:ClassifiedTaxCategory | /*/cac:CreditNoteLine/cac:Item/cac:ClassifiedTaxCategory') as $node) {
+            $used[] = ['where' => 'line', 'node' => $node];
+        }
+
+        foreach ($elements('/*/cac:AllowanceCharge/cac:TaxCategory') as $node) {
+            $isCharge = $text('../cbc:ChargeIndicator', $node) === 'true';
+            $used[] = ['where' => $isCharge ? 'charge' : 'discount', 'node' => $node];
+        }
+
+        $breakdown = $elements('/*/cac:TaxTotal/cac:TaxSubtotal/cac:TaxCategory');
+
+        $errors = [];
+        $categoriesInDocument = [];
+
+        // The rate of each line, discount and charge (BR-x-05, BR-x-06, BR-x-07)
+        foreach ($used as $entry) {
+            $category = VatCategory::fromCode($text('cbc:ID', $entry['node']));
 
             if ($category === null) {
                 continue;
             }
 
-            $categories[$category->value] = $category;
+            $categoriesInDocument[$category->value] = $category;
+            $rule = $category->ruleId(['line' => 5, 'discount' => 6, 'charge' => 7][$entry['where']]);
+            $rate = $text('cbc:Percent', $entry['node']);
 
-            if ($category->requiresExemptionReason() && $entry['code'] === null && $entry['text'] === null) {
-                $rule = array_key_last(array_filter($category->rules(), fn (string $key) => str_ends_with($key, '-10'), ARRAY_FILTER_USE_KEY));
-                $errors[] = "[{$rule}] The VAT breakdown of category {$category->value} needs an exemption reason: pass tax_exemption_reason_code (for example VATEX-EU-132-1C) or tax_exemption_reason.";
+            if ($category === VatCategory::StandardRate && (float) $rate <= 0) {
+                $errors[] = "[{$rule}] A {$entry['where']} in category S (standard rate) has VAT rate {$rate}; it must be above 0. For 0% choose the category that says why: K, AE, E, G, Z or O (see VatCategory).";
+            } elseif ($category->requiresZeroRate() && $rate !== '' && (float) $rate !== 0.0) {
+                $errors[] = "[{$rule}] A {$entry['where']} in category {$category->value} ({$category->label()}) has VAT rate {$rate}; it must be 0.";
             }
         }
 
-        if (isset($categories['K'])) {
-            if (! $hasDeliveryDate) {
-                $errors[] = '[BR-IC-11] An intra-community supply (category K) needs the actual delivery date: call addDelivery().';
+        // The breakdown: the tax amount of a category without VAT, and the exemption reason
+        $breakdownCount = [];
+
+        foreach ($breakdown as $node) {
+            $category = VatCategory::fromCode($text('cbc:ID', $node));
+
+            if ($category === null) {
+                continue;
             }
 
-            if ($deliveryCountry === null || trim($deliveryCountry) === '') {
-                $errors[] = '[BR-IC-12] An intra-community supply (category K) needs the country the goods are delivered to: pass the country code to addDelivery().';
+            $categoriesInDocument[$category->value] = $category;
+            $breakdownCount[$category->value] = ($breakdownCount[$category->value] ?? 0) + 1;
+            $taxAmount = $text('../cbc:TaxAmount', $node);
+
+            if (($category->requiresZeroRate() || $category === VatCategory::NotSubjectToVat) && (float) $taxAmount !== 0.0) {
+                $errors[] = "[{$category->ruleId(9)}] The VAT breakdown of category {$category->value} ({$category->label()}) has VAT amount {$taxAmount}; it must be 0.";
+            }
+
+            if ($category->requiresExemptionReason() && $text('cbc:TaxExemptionReasonCode', $node) === '' && $text('cbc:TaxExemptionReason', $node) === '') {
+                $errors[] = "[{$category->ruleId(10)}] The VAT breakdown of category {$category->value} needs an exemption reason: pass tax_exemption_reason_code (for example VATEX-EU-132-1C) or tax_exemption_reason to addTaxTotal().";
             }
         }
 
-        if (isset($categories['O']) && count($categories) > 1) {
-            $errors[] = '[BR-O-11] A document with category O (not subject to VAT) may hold no other VAT category.';
+        // Every category of a line, discount or charge is in the breakdown (BR-x-01)
+        foreach ($used as $entry) {
+            $category = VatCategory::fromCode($text('cbc:ID', $entry['node']));
+
+            if ($category !== null && ! isset($breakdownCount[$category->value])) {
+                $errors[] = "[{$category->ruleId(1)}] A {$entry['where']} uses category {$category->value}, but the VAT breakdown has no entry for it: add one to addTaxTotal().";
+                $breakdownCount[$category->value] = 0;
+            }
+        }
+
+        foreach ($breakdownCount as $code => $count) {
+            if ($code !== 'S' && $count > 1) {
+                $errors[] = '['.VatCategory::from($code)->ruleId(1)."] The VAT breakdown has {$count} entries for category {$code}; it may have one. Add up their amounts.";
+            }
+        }
+
+        // The VAT numbers the categories need (BR-x-02), or may not have (BR-O-02)
+        $sellerVat = $text('/*/cac:AccountingSupplierParty/cac:Party/cac:PartyTaxScheme[cac:TaxScheme/cbc:ID="VAT"]/cbc:CompanyID') !== '';
+        $buyerVat = $text('/*/cac:AccountingCustomerParty/cac:Party/cac:PartyTaxScheme[cac:TaxScheme/cbc:ID="VAT"]/cbc:CompanyID') !== '';
+        $buyerRegistration = $text('/*/cac:AccountingCustomerParty/cac:Party/cac:PartyLegalEntity/cbc:CompanyID') !== '';
+        $hasSeller = $elements('/*/cac:AccountingSupplierParty') !== [];
+        $hasBuyer = $elements('/*/cac:AccountingCustomerParty') !== [];
+
+        foreach ($categoriesInDocument as $category) {
+            $rule = $category->ruleId(2);
+
+            if ($category === VatCategory::NotSubjectToVat) {
+                if ($sellerVat || $buyerVat) {
+                    $errors[] = "[{$rule}] A document in category O (not subject to VAT) may carry no VAT number of the seller or the buyer. The builders always write the seller's VAT number, so they cannot build such a document yet.";
+                }
+
+                continue;
+            }
+
+            if (in_array($category, [VatCategory::CanaryIslands, VatCategory::CeutaMelilla], true)) {
+                continue;
+            }
+
+            if ($hasSeller && ! $sellerVat) {
+                $errors[] = "[{$rule}] Category {$category->value} needs the seller's VAT number (BT-31): pass it to addAccountingSupplierParty().";
+            }
+
+            if (! $hasBuyer) {
+                continue;
+            }
+
+            if ($category === VatCategory::IntraCommunitySupply && ! $buyerVat) {
+                $errors[] = "[{$rule}] An intra-community supply (K) needs the buyer's VAT number (BT-48): pass \$vatNumber to addAccountingCustomerParty().";
+            }
+
+            if ($category === VatCategory::ReverseCharge && ! $buyerVat && ! $buyerRegistration) {
+                $errors[] = "[{$rule}] Reverse charge (AE) needs the buyer's VAT number (BT-48) or legal registration (BT-47): pass \$vatNumber or \$companyId to addAccountingCustomerParty().";
+            }
+        }
+
+        // An intra-community supply states when and where the goods went (BR-IC-11, BR-IC-12)
+        if (isset($categoriesInDocument['K'])) {
+            if ($text('/*/cac:Delivery/cbc:ActualDeliveryDate') === '' && $elements('/*/cac:InvoicePeriod') === []) {
+                $errors[] = '[BR-IC-11] An intra-community supply (K) needs the actual delivery date: call addDelivery().';
+            }
+
+            if ($text('/*/cac:Delivery/cac:DeliveryLocation/cac:Address/cac:Country/cbc:IdentificationCode') === '') {
+                $errors[] = '[BR-IC-12] An intra-community supply (K) needs the country the goods are delivered to: pass the country code to addDelivery().';
+            }
+        }
+
+        // O stands alone (BR-O-11 to BR-O-14)
+        if (isset($categoriesInDocument['O']) && count($categoriesInDocument) > 1) {
+            $others = implode(', ', array_diff(array_keys($categoriesInDocument), ['O']));
+            $errors[] = "[BR-O-11] A document with category O (not subject to VAT) may hold no other VAT category; this one also has {$others}. Send two documents.";
         }
 
         return new InvoiceValidationResult(
             isValid: empty($errors),
-            errors: $errors,
+            errors: array_values(array_unique($errors)),
             warnings: [],
             corrections: []
         );

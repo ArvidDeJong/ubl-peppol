@@ -180,7 +180,7 @@ it('reports an exempt breakdown without a reason, because only the seller knows 
     $ubl = vatNl()->addTaxTotal([vatTax('E')]);
 
     expect($ubl->generateXml())->not->toContain('TaxExemptionReason')
-        ->and($ubl->validate()->errors)->toContain('[BR-E-10] The VAT breakdown of category E needs an exemption reason: pass tax_exemption_reason_code (for example VATEX-EU-132-1C) or tax_exemption_reason.')
+        ->and($ubl->validate()->errors)->toContain('[BR-E-10] The VAT breakdown of category E needs an exemption reason: pass tax_exemption_reason_code (for example VATEX-EU-132-1C) or tax_exemption_reason to addTaxTotal().')
         ->and(vatNl()->addTaxTotal([vatTax('E', 0.0, ['tax_exemption_reason_code' => 'VATEX-EU-132-1C'])])->validate()->isValid())->toBeTrue();
 });
 
@@ -236,4 +236,111 @@ it('forgets the old breakdown when the Belgian builder replaces it', function ()
     $ubl = vatBeTotals(vatBe('S')->addTaxTotal([vatTax('E')])->addTaxTotal([vatTax('S', 21.0)]));
 
     expect(implode("\n", $ubl->validate()->errors))->not->toContain('BR-E-10');
+});
+
+// validate() reads the finished document, as a receiver does
+
+function vatNlParties(UblNlBis3Service $ubl, ?string $customerVat = 'BE0999000228', ?string $customerRegistration = null): UblNlBis3Service
+{
+    return $ubl
+        ->addAccountingSupplierParty('12345678', '0106', '12345678', 'My Dutch Company BV', 'Damrak 1', '1012 JS', 'Amsterdam', 'NL', 'NL123456789B01')
+        ->addAccountingCustomerParty(
+            '0999000228', '0208', '0999000228', 'Customer NV', 'Kerkstraat 1', '2000', 'Antwerpen', 'BE',
+            null, $customerRegistration, null, null, null, $customerVat
+        );
+}
+
+function vatNlLine(string $category, float $percent = 0.0): array
+{
+    return [
+        'id' => '1', 'quantity' => 2, 'unit_code' => 'C62', 'price_amount' => 100.00, 'currency' => 'EUR',
+        'line_extension_amount' => 200.00, 'name' => 'Powder coating', 'description' => 'Coating of 2 frames',
+        'tax_category_id' => $category, 'tax_percent' => $percent, 'tax_scheme_id' => 'VAT',
+    ];
+}
+
+function vatErrors(UblNlBis3Service|UblBeBis3Service $ubl): string
+{
+    return implode("\n", $ubl->validate()->errors);
+}
+
+it('accepts a complete Dutch intra-community supply', function () {
+    $ubl = vatNlParties(vatNl())
+        ->addDelivery('2026-01-14', countryCode: 'BE')
+        ->addTaxTotal([vatTax('K')])
+        ->addInvoiceLine(vatNlLine('K'));
+
+    expect($ubl->validate()->errors)->toBe([]);
+});
+
+it('reports a line whose category is missing from the VAT breakdown (BR-S-01, BR-IC-01)', function () {
+    $errors = vatErrors(vatNlParties(vatNl())->addTaxTotal([vatTax('S', 21.0)])->addInvoiceLine(vatNlLine('K')));
+
+    expect($errors)->toContain('[BR-IC-01] A line uses category K, but the VAT breakdown has no entry for it');
+});
+
+it('reports two breakdown entries for a category other than S (BR-AE-01)', function () {
+    $errors = vatErrors(vatNlParties(vatNl())->addTaxTotal([vatTax('AE'), vatTax('AE')]));
+
+    expect($errors)->toContain('[BR-AE-01] The VAT breakdown has 2 entries for category AE');
+});
+
+it('reports a rate that does not fit the category', function (string $category, float $percent, string $rule) {
+    $errors = vatErrors(vatNlParties(vatNl())->addDelivery('2026-01-14', countryCode: 'BE')->addTaxTotal([vatTax($category, $percent === 0.0 ? 21.0 : 0.0)])->addInvoiceLine(vatNlLine($category, $percent)));
+
+    expect($errors)->toContain("[{$rule}] A line in category {$category}");
+})->with([
+    'intra-community supply at 21%' => ['K', 21.0, 'BR-IC-05'],
+    'reverse charge at 21%' => ['AE', 21.0, 'BR-AE-05'],
+    'standard rate at 0%' => ['S', 0.0, 'BR-S-05'],
+]);
+
+it('reports a discount or charge whose rate does not fit (BR-IC-06, BR-IC-07)', function () {
+    $errors = vatErrors(vatNlParties(vatNl())
+        ->addAllowanceCharge(false, 10.00, 'Discount', 'K', 21.0, 'EUR')
+        ->addAllowanceCharge(true, 10.00, 'Freight', 'K', 21.0, 'EUR')
+        ->addTaxTotal([vatTax('K')]));
+
+    expect($errors)->toContain('[BR-IC-06] A discount in category K')->toContain('[BR-IC-07] A charge in category K');
+});
+
+it('reports VAT charged in the breakdown of a category without VAT, the mistake of a 21% export (BR-IC-09)', function () {
+    $errors = vatErrors(vatNlParties(vatNl())->addTaxTotal([vatTax('K', 0.0, ['tax_amount' => 42.00])]));
+
+    expect($errors)->toContain('[BR-IC-09] The VAT breakdown of category K');
+});
+
+it('reports the VAT numbers a category needs', function () {
+    $withoutBuyerVat = vatErrors(vatNlParties(vatNl(), customerVat: null)->addTaxTotal([vatTax('K')]));
+    $reverseChargeWithRegistration = vatErrors(vatNlParties(vatNl(), customerVat: null, customerRegistration: '0999000228')->addTaxTotal([vatTax('AE')]));
+    $reverseChargeWithNothing = vatErrors(vatNlParties(vatNl(), customerVat: null)->addTaxTotal([vatTax('AE')]));
+
+    expect($withoutBuyerVat)->toContain("[BR-IC-02] An intra-community supply (K) needs the buyer's VAT number (BT-48): pass \$vatNumber to addAccountingCustomerParty().")
+        ->and($reverseChargeWithRegistration)->not->toContain('BR-AE-02')
+        ->and($reverseChargeWithNothing)->toContain('[BR-AE-02]');
+});
+
+it('reports category O with a VAT number, which the builders always write for the seller (BR-O-02)', function () {
+    expect(vatErrors(vatNlParties(vatNl())->addTaxTotal([vatTax('O')])))->toContain('[BR-O-02]');
+});
+
+it('writes no VAT rate for category O, on the line, the breakdown, a discount or a charge (BR-O-05, BR-O-06, BR-O-07)', function () {
+    $nl = vatNl()->addAllowanceCharge(false, 10.00, 'Discount', 'O', 0.0, 'EUR')->addTaxTotal([vatTax('O')])->addInvoiceLine(vatNlLine('O'))->generateXml();
+    $be = vatBe('O')->addAllowanceCharge(true, 10.00, 'Freight', 'O', 0.0, 'EUR')->addTaxTotal([vatTax('O')])->generateXml();
+
+    expect(vatChildNames(vatSubtotalCategory($nl)))->toBe(['cbc:ID', 'cbc:TaxExemptionReasonCode', 'cac:TaxScheme'])
+        ->and(vatChildNames(vatSubtotalCategory($be)))->toBe(['cbc:ID', 'cbc:TaxExemptionReasonCode', 'cac:TaxScheme'])
+        ->and($nl)->not->toContain('<cbc:Percent>')
+        ->and($be)->not->toContain('<cbc:Percent>');
+});
+
+it('checks a Belgian credit note the same way (BR-IC-05)', function () {
+    $ubl = (new UblBeBis3Service)
+        ->createCreditNoteDocument()
+        ->addCreditNoteHeader('CN-2026-001', '2026-01-21')
+        ->addBillingReference('INV-2026-001', '2026-01-15')
+        ->addCreditNoteLine(vatNlLine('K', 21.0))
+        ->addTaxTotal([vatTax('K')]);
+
+    expect(vatErrors(vatBeTotals($ubl)))->toContain('[BR-IC-05] A line in category K');
 });

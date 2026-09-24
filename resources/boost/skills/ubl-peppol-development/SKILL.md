@@ -60,7 +60,7 @@ $result->getCorrections();           // suggested totals; nothing is applied to 
 - The Belgian `validate()` includes the `addAllowanceCharge()` calls: `allowance_total_amount` and `charge_total_amount` must equal their sums (BR-CO-11, BR-CO-12) and the taxable amounts include them (BR-S-08).
 - Belgian builder: credit note rules (BR-55, positive totals) are enforced only by `generateXml()`; `validate()` on a credit note without a billing reference returns valid. Dutch builder: both `validate()` and `generateXml()` report the missing billing reference (`[BR-55] [NL-R-001]`); it does not check the totals.
 
-- Both builders report what the VAT categories demand of the document: an exemption reason for `E` (BR-E-10), a delivery date and country for `K` (BR-IC-11, BR-IC-12), and `O` alone (BR-O-11).
+- Both builders' `validate()` read the finished document and report what the VAT categories demand: every category of a line in the breakdown (BR-x-01), the rate that fits (BR-x-05 to 07), no VAT on a category without VAT (BR-x-09), the VAT numbers (BR-x-02), the exemption reason for `E` (BR-E-10), delivery date and country for `K` (BR-IC-11, BR-IC-12), `O` alone (BR-O-11). The message names the method to fix it in.
 
 `UblValidator` is something else: a set of **static** helpers for single values (`isValidUnitCode`, `isValidCurrencyCodeFormat`, `isValidTaxCategory`, `validateIban`, `validateVatNumber`). It does not validate a document.
 
@@ -90,7 +90,7 @@ Every line, discount, charge and VAT breakdown row carries a category (`tax_cate
 
 - The reason goes in the `addTaxTotal()` entry: `tax_exemption_reason_code` (BT-121) and `tax_exemption_reason` (BT-120, free text in any language, e.g. `VatCategory::ReverseCharge->exemptionReasonText('nl')` gives `Btw verlegd`). Never put it on the line.
 - A code of another category throws (PEPPOL-EN16931-P0104 to P0111: `VATEX-EU-IC` only with `K`), and so does a code outside the VATEX list (BR-CL-22). `VatExemptionReason::codes()`, `name()` and `categoryOf()` look them up.
-- Pass the same category to the line and to the breakdown. The builder does not check that the VAT numbers the category needs are there (BR-AE-02, BR-IC-02); the official validator does.
+- Pass the same category to the line and to the breakdown, with `tax_percent` 0 and `tax_amount` 0 for everything but `S`. For `O` the builders leave the rate out themselves. Category `O` cannot be built yet: the builders always write the seller's VAT number, which BR-O-02 forbids.
 
 ## VAT and company numbers
 

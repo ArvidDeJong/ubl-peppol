@@ -40,7 +40,7 @@ With `validateFirst: true`, a document with errors throws an `InvalidArgumentExc
 | No tax total | Not checked | Invalid: `No VAT totals found. Add VAT first using addTaxTotal().` |
 | Code formats (currency, scheme ID, payment means, VAT category, unit code) | Yes | Yes |
 | The amounts add up (BR-CO-10, BR-CO-11, BR-CO-12, BR-CO-13, BR-CO-15, BR-CO-16, BR-S-08), document level allowances and charges included | **No** | Yes |
-| VAT categories: an exemption reason for `E` (BR-E-10), a delivery date and country for `K` (BR-IC-11, BR-IC-12), `O` alone (BR-O-11). See [VAT categories](vat-categories.md#what-validate-checks) | Yes | Yes |
+| VAT categories: the breakdown has every category of the lines, the rates fit, no VAT on a category without VAT, the VAT numbers and delivery a category needs, the exemption reason. See [VAT categories](vat-categories.md#what-validate-checks) | Yes | Yes |
 | Dutch rules NL-R-003, NL-R-005, NL-R-007, NL-R-008, NL-R-009 | Yes | No |
 | Credit note rules (BR-55, positive totals) | The billing reference (BR-55, NL-R-001); not the totals | **No**: only `generateXml()` checks them, see [Credit notes](credit-notes.md#the-rules-generatexml-enforces) |
 | Suggested corrections | Never | When the amounts do not add up |

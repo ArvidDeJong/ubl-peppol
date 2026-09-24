@@ -379,8 +379,8 @@ class UblBeBis3Service
             'tax_category_ids' => $this->usedTaxCategoryIds,
         ]);
 
-        // BR-E-10, BR-IC-11, BR-IC-12, BR-O-11: what the VAT categories demand of the document
-        $vatResult = UblValidator::validateVatBreakdown($this->vatBreakdown, $this->hasActualDeliveryDate, $this->deliveryCountryCode);
+        // What the VAT categories demand of the document: breakdown, rates, VAT numbers, delivery
+        $vatResult = $this->validateVatCategoriesOfDocument();
 
         $errors = array_merge($totalsResult->errors, $codeResult->errors, $vatResult->errors);
         $warnings = array_merge($totalsResult->warnings, $codeResult->warnings);
@@ -981,7 +981,10 @@ class UblBeBis3Service
         $classifiedTaxCategory = $this->addChildElement($item, 'cac', 'ClassifiedTaxCategory');
         $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $lineData['tax_category_id']);
         // Name weggelaten voor PEPPOL compliance (UBL-CR-597)
-        $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', $this->formatAmount((float) $lineData['tax_percent']));
+        // BR-O-05: a line in category O carries no VAT rate
+        if (strtoupper($lineData['tax_category_id']) !== 'O') {
+            $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', $this->formatAmount((float) $lineData['tax_percent']));
+        }
         $taxScheme = $this->addChildElement($classifiedTaxCategory, 'cac', 'TaxScheme');
         $this->addChildElement($taxScheme, 'cbc', 'ID', $lineData['tax_scheme_id']);
 
@@ -1059,8 +1062,11 @@ class UblBeBis3Service
 
         $classifiedTaxCategory = $this->addChildElement($item, 'cac', 'ClassifiedTaxCategory');
         $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $taxCategoryId);
-        $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent',
-            $this->formatAmount((float) ($lineData['tax_percent'] ?? 21)));
+        // BR-O-05: a line in category O carries no VAT rate
+        if (strtoupper($taxCategoryId) !== 'O') {
+            $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent',
+                $this->formatAmount((float) ($lineData['tax_percent'] ?? 21)));
+        }
         $taxScheme = $this->addChildElement($classifiedTaxCategory, 'cac', 'TaxScheme');
         $this->addChildElement($taxScheme, 'cbc', 'ID', $lineData['tax_scheme_id'] ?? 'VAT');
 
@@ -1129,8 +1135,11 @@ class UblBeBis3Service
     public function addTaxTotal(array $taxTotals): self
     {
         // BT-120 and BT-121, settled before anything is written so a refused reason leaves no half document
-        $this->vatBreakdown = [];
-        $exemptions = array_map(fn (array $tax) => $this->trackTaxExemption($tax), $taxTotals);
+        $exemptions = array_map(fn (array $tax) => UblValidator::resolveTaxExemption(
+            (string) ($tax['tax_category_id'] ?? ''),
+            isset($tax['tax_exemption_reason_code']) ? (string) $tax['tax_exemption_reason_code'] : null,
+            isset($tax['tax_exemption_reason']) ? (string) $tax['tax_exemption_reason'] : null
+        ), $taxTotals);
 
         // Track tax totals for validation
         $this->taxTotals = $taxTotals;
@@ -1186,7 +1195,10 @@ class UblBeBis3Service
             $taxCategory = $this->addChildElement($taxSubtotal, 'cac', 'TaxCategory');
             $this->addChildElement($taxCategory, 'cbc', 'ID', $tax['tax_category_id']);
             // Name weggelaten voor PEPPOL compliance (UBL-CR-504)
-            $this->addChildElement($taxCategory, 'cbc', 'Percent', $this->formatAmount((float) $tax['tax_percent']));
+            // Category O carries no rate (BR-48 allows leaving it out, as BR-O-05 demands on the lines)
+            if (strtoupper((string) $tax['tax_category_id']) !== 'O') {
+                $this->addChildElement($taxCategory, 'cbc', 'Percent', $this->formatAmount((float) $tax['tax_percent']));
+            }
 
             // Exemption reason code and text, between Percent and TaxScheme as the UBL schema orders them
             if ($exemptions[$index]['code'] !== null) {
@@ -1231,7 +1243,10 @@ class UblBeBis3Service
 
         $taxCategory = $this->addChildElement($allowanceCharge, 'cac', 'TaxCategory');
         $this->addChildElement($taxCategory, 'cbc', 'ID', $taxCategoryId);
-        $this->addChildElement($taxCategory, 'cbc', 'Percent', $this->formatAmount($taxPercent));
+        // BR-O-06 and BR-O-07: a discount or charge in category O carries no VAT rate
+        if (strtoupper($taxCategoryId) !== 'O') {
+            $this->addChildElement($taxCategory, 'cbc', 'Percent', $this->formatAmount($taxPercent));
+        }
         $taxScheme = $this->addChildElement($taxCategory, 'cac', 'TaxScheme');
         $this->addChildElement($taxScheme, 'cbc', 'ID', 'VAT');
 
@@ -1295,8 +1310,6 @@ class UblBeBis3Service
     ): self {
         $delivery = $this->addChildElement($this->rootElement, 'cac', 'Delivery');
         $this->addChildElement($delivery, 'cbc', 'ActualDeliveryDate', $deliveryDate);
-        $this->hasActualDeliveryDate = true;
-        $this->deliveryCountryCode = $country;
 
         $deliveryLocation = $this->addChildElement($delivery, 'cac', 'DeliveryLocation');
         $this->addChildElement($deliveryLocation, 'cbc', 'ID', $locationId, ['schemeID' => $locationSchemeId]);

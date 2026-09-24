@@ -51,21 +51,6 @@ trait ValidationTrackingTrait
     protected array $usedTaxCategoryIds = [];
 
     /**
-     * @var list<array{category: string, code: ?string, text: ?string}> The VAT breakdown entries and their exemption reasons
-     */
-    protected array $vatBreakdown = [];
-
-    /**
-     * @var bool Whether an actual delivery date (BT-72) was written, which BR-IC-11 asks for category K
-     */
-    protected bool $hasActualDeliveryDate = false;
-
-    /**
-     * @var string|null The deliver to country code (BT-80), which BR-IC-12 asks for category K
-     */
-    protected ?string $deliveryCountryCode = null;
-
-    /**
      * @var bool Enable strict validation against official codelists
      */
     protected bool $strictCodelistValidation = false;
@@ -106,24 +91,19 @@ trait ValidationTrackingTrait
     }
 
     /**
-     * Settle and remember the exemption reason of one VAT breakdown entry.
-     *
-     * @param  array<string, mixed>  $tax  An entry of addTaxTotal(), with the optional keys tax_exemption_reason_code and tax_exemption_reason
-     * @return array{code: ?string, text: ?string}
-     *
-     * @throws \InvalidArgumentException See UblValidator::resolveTaxExemption()
+     * Check what the VAT categories demand of the document as it stands (see
+     * UblValidator::validateVatCategories()).
      */
-    protected function trackTaxExemption(array $tax): array
+    protected function validateVatCategoriesOfDocument(): InvoiceValidationResult
     {
-        $category = (string) ($tax['tax_category_id'] ?? '');
-        $reason = UblValidator::resolveTaxExemption(
-            $category,
-            isset($tax['tax_exemption_reason_code']) ? (string) $tax['tax_exemption_reason_code'] : null,
-            isset($tax['tax_exemption_reason']) ? (string) $tax['tax_exemption_reason'] : null
-        );
+        $xml = $this->dom->saveXML();
+        $document = new \DOMDocument;
 
-        $this->vatBreakdown[] = ['category' => $category, 'code' => $reason['code'], 'text' => $reason['text']];
+        // Reloaded, because an element made with createElement() has no namespace for XPath
+        if ($xml === false || $this->dom->documentElement === null || ! $document->loadXML($xml)) {
+            return InvoiceValidationResult::success();
+        }
 
-        return $reason;
+        return UblValidator::validateVatCategories($document);
     }
 }

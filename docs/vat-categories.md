@@ -65,12 +65,27 @@ The text is free. The rules accept the standard text in any language, so a Dutch
 
 ## What validate() checks
 
-On top of the reason, `validate()` of both builders reports:
+`validate()` of both builders reads the finished document, the way a receiver does, and checks what the categories demand. Every message starts with the rule code and says what to pass to which method.
 
-- `[BR-IC-11]` and `[BR-IC-12]` for category `K` without `addDelivery()`, or without a country in it. The Dutch builder writes a country passed without an address too: `addDelivery('2026-01-14', countryCode: 'BE')`.
-- `[BR-O-11]` for category `O` next to another category.
+| Check | Rules |
+| --- | --- |
+| Every category of a line, discount or charge is in the VAT breakdown; once, except `S` | BR-S-01, BR-IC-01, BR-AE-01, ... |
+| The rate fits: above 0 for `S`, 0 for `Z`, `E`, `AE`, `K` and `G` | BR-S-05 to 07, BR-IC-05 to 07, ... |
+| No VAT is charged in the breakdown of a category without VAT | BR-IC-09, BR-AE-09, ... |
+| The VAT numbers are there: the seller's for every category, the buyer's for `K`, the buyer's or their registration for `AE` | BR-S-02, BR-IC-02, BR-AE-02, ... |
+| An exemption reason for `E` | BR-E-10 |
+| The delivery date and country for `K` | BR-IC-11, BR-IC-12 |
+| `O` stands alone and carries no VAT numbers | BR-O-02, BR-O-11 |
 
-It does not check the VAT numbers the categories ask for (BR-AE-02, BR-IC-02). Pass them to the party methods.
+For `K` call `addDelivery()` with the date and the country. The Dutch builder writes a country passed without an address too: `addDelivery('2026-01-14', countryCode: 'BE')`.
+
+## What the builders do for you
+
+- Write the exemption reason code of `K`, `AE`, `G` and `O` when you pass none.
+- Leave out the VAT rate of category `O` on lines, discounts, charges and the breakdown (BR-O-05 to BR-O-07).
+- Refuse a reason or a code that does not fit the category the moment you call `addTaxTotal()`.
+
+A known limit: both builders always write the seller's VAT number, and category `O` forbids it (BR-O-02). A seller who is not a VAT payer cannot build a document with this package yet; `validate()` says so.
 
 ## The knowledge base in code
 
