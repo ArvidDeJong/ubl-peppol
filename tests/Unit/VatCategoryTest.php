@@ -344,3 +344,19 @@ it('checks a Belgian credit note the same way (BR-IC-05)', function () {
 
     expect(vatErrors(vatBeTotals($ubl)))->toContain('[BR-IC-05] A line in category K');
 });
+
+it('lets the Belgian builder state a delivery without a location ID, which an intra-community supply needs (BT-80, BR-IC-12)', function () {
+    $countryOnly = vatBe()->addDelivery('2026-01-14', country: 'nl')->addTaxTotal([vatTax('K')]);
+    $address = vatBe()->addDelivery('2026-01-14', street: 'Damrak 1', city: 'Amsterdam', postal_code: '1012 JS', country: 'NL')->addTaxTotal([vatTax('K')]);
+
+    $dom = new DOMDocument;
+    $dom->loadXML($address->generateXml());
+    $xpath = new DOMXPath($dom);
+    $xpath->registerNamespace('cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+    $xpath->registerNamespace('cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+
+    expect(vatErrors(vatBeTotals($countryOnly)))->not->toContain('BR-IC-1')
+        ->and($countryOnly->generateXml())->toContain('<cbc:IdentificationCode>NL</cbc:IdentificationCode>')
+        ->and($xpath->evaluate('count(//cac:Delivery/cac:DeliveryLocation/cbc:ID)'))->toBe(0.0)
+        ->and(vatChildNames($xpath->query('//cac:Delivery/cac:DeliveryLocation/cac:Address')->item(0)))->toBe(['cbc:StreetName', 'cbc:CityName', 'cbc:PostalZone', 'cac:Country']);
+});

@@ -1297,32 +1297,58 @@ class UblBeBis3Service
         return $this;
     }
 
+    /**
+     * Add the delivery (BG-13): the actual delivery date (BT-72) and, optionally, where the goods went.
+     *
+     * Only the date is required. The location ID (BT-71) is written only when you pass one, under
+     * its scheme; a GLN under 0088 must carry a valid check digit (PEPPOL-COMMON-R040), so never
+     * make one up. The address is written with the parts you pass. The country (BT-80) is what an
+     * intra-community supply needs (BR-IC-12): addDelivery($date, country: 'NL') is enough.
+     */
     public function addDelivery(
         string $deliveryDate,
-        string $locationId,
-        string $locationSchemeId,
-        string $street,
-        ?string $additional_street,
-        string $city,
-        string $postal_code,
-        string $country,
+        ?string $locationId = null,
+        string $locationSchemeId = '0088',
+        ?string $street = null,
+        ?string $additional_street = null,
+        ?string $city = null,
+        ?string $postal_code = null,
+        ?string $country = null,
         ?string $party_name = null
     ): self {
         $delivery = $this->addChildElement($this->rootElement, 'cac', 'Delivery');
         $this->addChildElement($delivery, 'cbc', 'ActualDeliveryDate', $deliveryDate);
 
-        $deliveryLocation = $this->addChildElement($delivery, 'cac', 'DeliveryLocation');
-        $this->addChildElement($deliveryLocation, 'cbc', 'ID', $locationId, ['schemeID' => $locationSchemeId]);
+        $hasAddress = $street !== null || $city !== null || $postal_code !== null || $country !== null;
 
-        $address = $this->addChildElement($deliveryLocation, 'cac', 'Address');
-        $this->addChildElement($address, 'cbc', 'StreetName', $street);
-        if ($additional_street) {
-            $this->addChildElement($address, 'cbc', 'AdditionalStreetName', $additional_street);
+        if ($locationId !== null || $hasAddress) {
+            $deliveryLocation = $this->addChildElement($delivery, 'cac', 'DeliveryLocation');
+
+            if ($locationId !== null) {
+                $this->addChildElement($deliveryLocation, 'cbc', 'ID', $locationId, ['schemeID' => $locationSchemeId]);
+            }
+
+            if ($hasAddress) {
+                // The order of the UBL schema: street, additional street, city, postal zone, country
+                $address = $this->addChildElement($deliveryLocation, 'cac', 'Address');
+                if ($street !== null) {
+                    $this->addChildElement($address, 'cbc', 'StreetName', $street);
+                }
+                if ($additional_street) {
+                    $this->addChildElement($address, 'cbc', 'AdditionalStreetName', $additional_street);
+                }
+                if ($city !== null) {
+                    $this->addChildElement($address, 'cbc', 'CityName', $city);
+                }
+                if ($postal_code !== null) {
+                    $this->addChildElement($address, 'cbc', 'PostalZone', $postal_code);
+                }
+                if ($country !== null) {
+                    $countryElement = $this->addChildElement($address, 'cac', 'Country');
+                    $this->addChildElement($countryElement, 'cbc', 'IdentificationCode', strtoupper($country));
+                }
+            }
         }
-        $this->addChildElement($address, 'cbc', 'CityName', $city);
-        $this->addChildElement($address, 'cbc', 'PostalZone', $postal_code);
-        $countryElement = $this->addChildElement($address, 'cac', 'Country');
-        $this->addChildElement($countryElement, 'cbc', 'IdentificationCode', $country);
 
         if ($party_name) {
             $deliveryParty = $this->addChildElement($delivery, 'cac', 'DeliveryParty');

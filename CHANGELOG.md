@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Belgian builder: `addDelivery()` required a location ID and a full address.** A seller without a GLN for the delivery place could not state a delivery, and so could not build an intra-community supply, which needs the delivery date and country (BR-IC-11, BR-IC-12). A made up GLN is rejected by PEPPOL-COMMON-R040. Now only the date is required: the location ID, the street, the city, the postal code and the country are written when you pass them, and `addDelivery('2026-01-14', country: 'NL')` is enough for `K`. A call with all arguments gives the same XML as before. What you do: nothing
+
 ## [1.11.0] - 2026-09-24
 
 **The generated XML changes** for a VAT breakdown in category `K`, `AE`, `G` or `O`, so this is a minor release. Such a document was rejected before; see Fixed. Documents with the standard rate (`S`) are byte for byte the same. The eight documents of `php examples/validate/generate_samples.php` pass the official OpenPEPPOL Schematron rules, release 2026.5 (`CEN-EN16931-UBL` and `PEPPOL-EN16931-UBL`), without an error or a warning.

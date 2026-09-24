@@ -129,7 +129,7 @@ The header, the references and the line keys work as in the [Dutch builder](neth
 | `addPaymentMeans()` | The first six arguments are required. The IBAN is not checked. The payment means name and the account name are written to the XML |
 | `addPaymentTerms()` | Accepts four arguments; only `$note` is written |
 | `addAllowanceCharge()` | All six arguments are required. The VAT category is always written |
-| `addDelivery()` | The first eight arguments are required |
+| `addDelivery()` | Only the date is required. The location ID is written only when you pass one: a GLN under `0088` needs a valid check digit, so never make one up. For an intra-community supply pass at least the country: `addDelivery('2026-01-14', country: 'NL')` |
 | `addTaxTotal()` | No check on missing keys. A second call replaces the first |
 | `addLegalMonetaryTotal(array $totals, string $currency)` | `$currency` is required. `charge_total_amount` defaults to `0`. The optional keys `allowance_total_amount` and `prepaid_amount` are written when they are greater than zero |
 | `addInvoiceLine()` | `tax_scheme_id` defaults to `VAT`. `base_quantity` is always written as `1` |

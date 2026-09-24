@@ -188,7 +188,7 @@ Also `BR-CO-11: Sum of document allowances (...) does not match AllowanceTotalAm
 ### `[BR-IC-11]` or `[BR-IC-12]` from `validate()`, or from the receiver
 
 **Cause:** an intra-community supply (category `K`) states when and where the goods went: the actual delivery date and the deliver to country.
-**Fix:** call `addDelivery()` with the date and the country code. With the Dutch builder the country alone is enough for the address: `addDelivery('2026-01-14', countryCode: 'BE')`.
+**Fix:** call `addDelivery()` with the date and the country code. The country alone is enough: `addDelivery('2026-01-14', countryCode: 'BE')` with the Dutch builder, `addDelivery('2026-01-14', country: 'NL')` with the Belgian one (since 1.11.1).
 
 ### `[BR-IC-05] A line in category K (...) has VAT rate 21.00; it must be 0.`, or `[BR-IC-09] ... has VAT amount ...`
 
