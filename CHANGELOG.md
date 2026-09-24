@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-09-24
+
 ### Fixed
 - **Belgian builder: `addDelivery()` required a location ID and a full address.** A seller without a GLN for the delivery place could not state a delivery, and so could not build an intra-community supply, which needs the delivery date and country (BR-IC-11, BR-IC-12). A made up GLN is rejected by PEPPOL-COMMON-R040. Now only the date is required: the location ID, the street, the city, the postal code and the country are written when you pass them, and `addDelivery('2026-01-14', country: 'NL')` is enough for `K`. A call with all arguments gives the same XML as before. What you do: nothing
 
@@ -456,7 +458,8 @@ _Never released on its own; these changes are part of the next release._
 - Laravel Service Provider
 - Example code
 
-[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.11.1...HEAD
+[1.11.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.11.0...v1.11.1
 [1.11.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.1...v1.10.0
