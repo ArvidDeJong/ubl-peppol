@@ -42,8 +42,8 @@ Check a UBL invoice or credit note against the official rules a receiver runs: E
   <div id="pv-result" aria-live="polite"></div>
 </form>
 
-<script src="assets/validator/SaxonJS2.rt.js"></script>
-<script src="assets/js/validator.js"></script>
+<script src="assets/validator/SaxonJS2.rt.js?v=2.7"></script>
+<script src="assets/js/validator.js?v=2"></script>
 
 ## What the result means
 
