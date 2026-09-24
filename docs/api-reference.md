@@ -1,6 +1,6 @@
 ---
 title: "API reference"
-nav_order: 13
+nav_order: 15
 description: "Every public method of both invoice builders, InvoiceValidationResult, UblValidator, ViesService, CompanyRegistrationService, PeppolService and PeppolLog."
 ---
 
@@ -176,7 +176,7 @@ addLegalMonetaryTotal(array $totals, string $currency): self            // Belgi
 addInvoiceLine(array $lineData): self
 ```
 
-The array keys are listed under [Dutch invoices](netherlands.md#the-calls) and [Belgian invoices](belgium.md#the-calls).
+The array keys are listed under [Dutch invoices](netherlands.md#the-calls) and [Belgian invoices](belgium.md#the-calls). An entry of `addTaxTotal()` also takes `tax_exemption_reason_code` (BT-121) and `tax_exemption_reason` (BT-120); see [VAT categories](vat-categories.md#exemption-reasons).
 
 ### Credit notes, in both builders
 
@@ -198,6 +198,34 @@ In the Dutch builder since 1.10.0. There, the invoice methods throw a `RuntimeEx
 | `getInvoiceLines(): array`, `getTotals(): array`, `getTaxTotals(): array` | What you passed in so far |
 
 See [Let the builder add up the lines](belgium.md#let-the-builder-add-up-the-lines).
+
+## `Vat\VatCategory`
+
+A string backed enum with the nine VAT categories PEPPOL allows outside Italy: `StandardRate` (`S`), `ZeroRated` (`Z`), `Exempt` (`E`), `ReverseCharge` (`AE`), `IntraCommunitySupply` (`K`), `ExportOutsideEu` (`G`), `NotSubjectToVat` (`O`), `CanaryIslands` (`L`), `CeutaMelilla` (`M`). See [VAT categories](vat-categories.md).
+
+| Method | Returns |
+| --- | --- |
+| `VatCategory::fromCode(string $code): ?self` | The category, in any case; `null` for an unknown code |
+| `label(): string` | The name in the UNCL5305 code list |
+| `description(): string` | When to use it |
+| `requiresExemptionReason(): bool`, `forbidsExemptionReason(): bool` | Whether the VAT breakdown needs or refuses a reason |
+| `defaultExemptionReasonCode(): ?string` | `VATEX-EU-AE`, `VATEX-EU-IC`, `VATEX-EU-G` or `VATEX-EU-O`; `null` for the others |
+| `exemptionReasonText(string $language = 'en'): ?string` | The standard text in `en`, `nl` or `fr` |
+| `requiresZeroRate(): bool` | Whether the rate must be 0 |
+| `rules(): array` | The EN 16931 rules of the category, rule code => text |
+| `ruleId(int $number): string` | The code of a numbered rule: `ruleId(10)` is `BR-IC-10` for `K` |
+| `VatCategory::guide(string $language = 'en'): array` | All of the above for every category |
+
+## `Vat\VatExemptionReason`
+
+The VATEX code list (BT-121). Constants `REVERSE_CHARGE`, `INTRA_COMMUNITY_SUPPLY`, `EXPORT_OUTSIDE_EU`, `NOT_SUBJECT_TO_VAT`.
+
+```php
+VatExemptionReason::isKnown(string $code): bool
+VatExemptionReason::name(string $code): ?string
+VatExemptionReason::categoryOf(string $code): ?VatCategory
+VatExemptionReason::codes(): array
+```
 
 ## `Validation\InvoiceValidationResult`
 
@@ -233,10 +261,12 @@ UblValidator::getClassificationSchemeDescription(string $schemeId): string
 UblValidator::validateInvoiceData(array $data): array
 UblValidator::validateBasicCodes(array $codes): InvoiceValidationResult
 UblValidator::validateStrictCodelists(array $codes, CodelistRegistry $registry): InvoiceValidationResult
+UblValidator::resolveTaxExemption(string $categoryId, ?string $code = null, ?string $text = null): array
+UblValidator::validateVatCategories(DOMDocument $document): InvoiceValidationResult
 UblValidator::validateInvoiceTotals(array $invoiceLines, array $totals, array $taxTotals, float $allowanceTotalAmount = 0.0, float $chargeTotalAmount = 0.0, float $prepaidAmount = 0.0, array $documentAllowances = [], array $documentCharges = []): InvoiceValidationResult
 ```
 
-The last three are what the builders' `validate()` calls.
+The last five are what the builders call: `addTaxTotal()` settles the exemption reason with `resolveTaxExemption()`, `validate()` calls the others.
 
 ## `Validation\CodelistRegistry`
 

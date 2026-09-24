@@ -1,6 +1,6 @@
 ---
 title: "Troubleshooting"
-nav_order: 14
+nav_order: 16
 description: "Error messages of darvis/ubl-peppol quoted literally, each with cause and fix: building a document, validate(), credit notes, sending, the log table, VIES."
 ---
 
@@ -142,6 +142,16 @@ Also: `PEPPOL BR-27 Validation Error: Line extension amount shall NOT be negativ
 **Cause:** the Belgian `addAccountingCost()` places the element behind the currency, which the header writes.
 **Fix:** call `addInvoiceHeader()` or `addCreditNoteHeader()` first.
 
+### `[BR-S-10] VAT category S (Standard rate) takes no exemption reason`
+
+**Cause:** an entry of `addTaxTotal()` has `tax_exemption_reason_code` or `tax_exemption_reason` on a category that allows none: `S`, `Z`, `L` or `M` (the rule in the message is BR-S-10, BR-Z-10, BR-AF-10 or BR-AG-10).
+**Fix:** leave both keys out for that category. Check first whether the category is right; see [VAT categories](vat-categories.md).
+
+### `[BR-CL-22] Exemption reason code '...' is not in the VATEX code list` or `may only be used with VAT category K, not with AE`
+
+**Cause:** the code is not in the [VATEX list](https://docs.peppol.eu/poacc/billing/3.0/codelist/vatex/), or it belongs to another category (PEPPOL-EN16931-P0104 to P0111).
+**Fix:** use `VatExemptionReason::codes()` for the list and `VatExemptionReason::categoryOf($code)` for its category. For `K`, `AE`, `G` and `O` you can leave the code out: the builder writes the right one.
+
 ### A `&` or `<` in a name
 
 Nothing to fix. The builders escape text for you. Do not call `htmlspecialchars()` on your data first; that would put `&amp;amp;` in the invoice.
@@ -174,6 +184,31 @@ Also `BR-CO-11: Sum of document allowances (...) does not match AllowanceTotalAm
 
 **Cause:** `charge_total_amount` (or `allowance_total_amount`) in `addLegalMonetaryTotal()` is not the sum of the amounts you passed to `addAllowanceCharge()`.
 **Fix:** make them equal. If the first number is `0.00` while you did add a charge, you are on a version before 1.10.0, where the Belgian `validate()` did not see `addAllowanceCharge()`; upgrade.
+
+### `[BR-IC-11]` or `[BR-IC-12]` from `validate()`, or from the receiver
+
+**Cause:** an intra-community supply (category `K`) states when and where the goods went: the actual delivery date and the deliver to country.
+**Fix:** call `addDelivery()` with the date and the country code. With the Dutch builder the country alone is enough for the address: `addDelivery('2026-01-14', countryCode: 'BE')`.
+
+### `[BR-IC-05] A line in category K (...) has VAT rate 21.00; it must be 0.`, or `[BR-IC-09] ... has VAT amount ...`
+
+**Cause:** the line or the breakdown says "no VAT because of an intra-community supply" and still charges VAT. The same message exists for `AE`, `E`, `G` and `Z`.
+**Fix:** pass `tax_percent` `0` on the lines and `tax_amount` `0` in the breakdown. If VAT is due after all, the category is `S`.
+
+### `[BR-IC-01] A line uses category K, but the VAT breakdown has no entry for it`
+
+**Cause:** every category of a line, discount or charge needs its own entry in `addTaxTotal()`, and a category other than `S` exactly one.
+**Fix:** add an entry per category, with the sum of the amounts of that category.
+
+### `[BR-IC-02] An intra-community supply (K) needs the buyer's VAT number (BT-48)`
+
+**Cause:** `K` needs the VAT numbers of both parties; `AE` the buyer's VAT number or legal registration.
+**Fix:** pass `$vatNumber` to `addAccountingCustomerParty()`.
+
+### `[BR-E-10] The VAT breakdown of category E needs an exemption reason`
+
+**Cause:** an exempt breakdown has no reason. The code names the article of the VAT directive, so the builder cannot choose it for you.
+**Fix:** pass `tax_exemption_reason_code`, such as `VATEX-EU-132-1C` for medical care, or a `tax_exemption_reason` text. Ask the bookkeeper which article applies.
 
 ### `validate()` passes and the receiver still rejects the invoice
 

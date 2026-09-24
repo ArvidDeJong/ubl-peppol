@@ -89,4 +89,21 @@ trait ValidationTrackingTrait
 
         return $this;
     }
+
+    /**
+     * Check what the VAT categories demand of the document as it stands (see
+     * UblValidator::validateVatCategories()).
+     */
+    protected function validateVatCategoriesOfDocument(): InvoiceValidationResult
+    {
+        $xml = $this->dom->saveXML();
+        $document = new \DOMDocument;
+
+        // Reloaded, because an element made with createElement() has no namespace for XPath
+        if ($xml === false || $this->dom->documentElement === null || ! $document->loadXML($xml)) {
+            return InvoiceValidationResult::success();
+        }
+
+        return UblValidator::validateVatCategories($document);
+    }
 }

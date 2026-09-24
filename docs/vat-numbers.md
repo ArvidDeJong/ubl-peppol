@@ -1,6 +1,6 @@
 ---
 title: "VAT numbers"
-nav_order: 8
+nav_order: 10
 description: "Check a European VAT number with ViesService: checkVat(), checkFullVatNumber(), the result array, and how to tell an invalid number from a VIES outage."
 ---
 

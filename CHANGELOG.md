@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**The generated XML changes** for a VAT breakdown in category `K`, `AE`, `G` or `O`, so this is a minor release. Such a document was rejected before; see Fixed. Documents with the standard rate (`S`) are byte for byte the same. The eight documents of `php examples/validate/generate_samples.php` pass the official OpenPEPPOL Schematron rules, release 2026.5 (`CEN-EN16931-UBL` and `PEPPOL-EN16931-UBL`), without an error or a warning.
+
+### Added
+- **A knowledge base on VAT categories in code.** `Darvis\UblPeppol\Vat\VatCategory` is an enum of the nine categories PEPPOL allows outside Italy (`S`, `Z`, `E`, `AE`, `K`, `G`, `O`, `L`, `M`), each with `label()`, `description()` (when to use it), `requiresExemptionReason()`, `defaultExemptionReasonCode()`, `exemptionReasonText('en'|'nl'|'fr')`, `requiresZeroRate()` and `rules()` (the EN 16931 rules by code). `VatCategory::guide()` returns it all as arrays, for a select list or a help page. `Darvis\UblPeppol\Vat\VatExemptionReason` holds the VATEX code list with `isKnown()`, `name()`, `categoryOf()` and `codes()`. A new docs page [VAT categories](https://arviddejong.github.io/ubl-peppol/vat-categories.html) explains the choice, reverse charge versus intra-community supply included
+- **Exemption reasons in the VAT breakdown** (BT-120, BT-121), in both builders. An entry of `addTaxTotal()` takes `tax_exemption_reason_code` and `tax_exemption_reason`, written between `cbc:Percent` and `cac:TaxScheme`. What you do: nothing for `K`, `AE`, `G` and `O`; for `E` pass the code or a text
+- **`validate()` of both builders checks what the VAT categories demand**, reading the finished document the way a receiver does: every category of a line, discount or charge is in the VAT breakdown, once except for `S` (BR-S-01 and the like); the rate fits the category (BR-S-05 to 07, BR-IC-05 to 07 and the like); no VAT in the breakdown of a category without VAT (BR-IC-09 and the like); the VAT numbers a category needs (BR-S-02, BR-IC-02, BR-AE-02 and the like, and none for `O`, BR-O-02); an exemption reason for `E` (BR-E-10); the delivery date and country for `K` (BR-IC-11, BR-IC-12); `O` alone (BR-O-11). Each message starts with the rule code and says what to pass to which method. What you do: nothing; a document the receiver would reject now fails `validate()` already. A document that passed before and fails now would have been rejected by the receiver
+- `UblValidator::resolveTaxExemption()` and `UblValidator::validateVatCategories()`, which the builders use
+- **An online [PEPPOL validator](https://arviddejong.github.io/ubl-peppol/validator.html) on the docs site.** Upload or paste any UBL invoice or credit note, choose the seller's country, and it runs the official EN 16931 and PEPPOL BIS Billing 3.0 rules (release 2026.5) in the browser; the file is not uploaded. Every error links to its rule and, where the docs explain it, to the page that does. `examples/validate/build-browser-validator.sh` compiles a new release of the rules for it
+
+### Changed
+- **Category `O` is written without a VAT rate**, on lines, discounts, charges and the VAT breakdown, in both builders (BR-O-05, BR-O-06, BR-O-07; BR-48 allows it in the breakdown). Before: both builders wrote `cbc:Percent` on an `O` line and in its breakdown, and the Belgian builder also on an `O` discount or charge; the receiver rejects the line and the discount or charge (BR-O-05 to BR-O-07). What you do: nothing
+- `UblValidator::isValidTaxCategory()` accepts `L` (Canary Islands) and `M` (Ceuta and Melilla), which PEPPOL allows; its error message lists them
+- `addTaxTotal()` throws an `InvalidArgumentException` for a reason on a category that takes none (`[BR-S-10]`, `[BR-Z-10]`, `[BR-AF-10]`, `[BR-AG-10]`), for a code outside the VATEX list (`[BR-CL-22]`) and for a code of another category, such as `VATEX-EU-IC` with `AE` (PEPPOL-EN16931-P0104 to P0111). These keys did not exist before, so no existing call is affected
+
+### Fixed
+- **An intra-community supply, reverse charge, export or not-subject document was rejected.** The VAT breakdown of category `K`, `AE`, `G` or `O` had no exemption reason, which the receiver refuses with the fatal BR-IC-10, BR-AE-10, BR-G-10 or BR-O-10, and there was no way to pass one. Now the builders write the code that belongs to the category (`VATEX-EU-IC`, `VATEX-EU-AE`, `VATEX-EU-G`, `VATEX-EU-O`) when you pass none. What you do: nothing
+- Dutch builder: `addDelivery()` with a country and no street, city or location dropped the country. It is written now as the delivery address (BT-80), which BR-IC-12 asks for an intra-community supply. With a street or a city nothing changes
+
 ## [1.10.1] - 2026-09-21
 
 ### Fixed

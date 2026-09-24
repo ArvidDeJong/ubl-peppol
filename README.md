@@ -111,6 +111,8 @@ Full documentation at **[arviddejong.github.io/ubl-peppol](https://arviddejong.g
 - [Dutch invoices](https://arviddejong.github.io/ubl-peppol/netherlands.html) and [Belgian invoices](https://arviddejong.github.io/ubl-peppol/belgium.html): the fields of every call and what each builder checks
 - [Credit notes](https://arviddejong.github.io/ubl-peppol/credit-notes.html): with either builder
 - [Validation](https://arviddejong.github.io/ubl-peppol/validation.html): what `validate()` checks and how to read the result
+- [PEPPOL validator](https://arviddejong.github.io/ubl-peppol/validator.html): check any UBL invoice or credit note against the official rules in your browser, nothing is uploaded
+- [VAT categories](https://arviddejong.github.io/ubl-peppol/vat-categories.html): which category a line gets, reverse charge versus intra-community supply
 - [VAT numbers](https://arviddejong.github.io/ubl-peppol/vat-numbers.html) and [company numbers](https://arviddejong.github.io/ubl-peppol/company-numbers.html)
 - [Laravel integration](https://arviddejong.github.io/ubl-peppol/laravel.html) and [sending invoices](https://arviddejong.github.io/ubl-peppol/peppol-service.html)
 - [Testing](https://arviddejong.github.io/ubl-peppol/testing.html): `Http::fake()`, with and without the log table
