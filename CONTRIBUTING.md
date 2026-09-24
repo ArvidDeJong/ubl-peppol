@@ -60,6 +60,8 @@ A changed document is a minor release, never a patch.
 examples/validate/build-browser-validator.sh <dir with CEN-EN16931-UBL.xslt and PEPPOL-EN16931-UBL.xslt> <unpacked SaxonJS 2 browser release> 2026.11
 ```
 
+Raise the `?v=` number on the script tags in `docs/validator.md` whenever `validator.js` or SaxonJS changes: GitHub Pages lets browsers cache scripts for ten minutes, and a new page with an old script does not work.
+
 Then check that `docs/assets/validator/samples/valid-dutch-invoice.xml` is still valid on the page and that `broken-intra-community.xml` still reports BR-IC-10, BR-IC-11 and BR-IC-12.
 
 ## Code of conduct
