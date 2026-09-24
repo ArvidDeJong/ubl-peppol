@@ -1,6 +1,6 @@
 ---
 title: "API reference"
-nav_order: 14
+nav_order: 15
 description: "Every public method of both invoice builders, InvoiceValidationResult, UblValidator, ViesService, CompanyRegistrationService, PeppolService and PeppolLog."
 ---
 

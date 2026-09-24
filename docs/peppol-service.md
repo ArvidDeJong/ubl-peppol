@@ -1,6 +1,6 @@
 ---
 title: "Sending invoices"
-nav_order: 12
+nav_order: 13
 description: "Send UBL XML to your PEPPOL access point provider from Laravel with PeppolService: sendUblXml(), sendInvoice(), testConnection() and the result array."
 ---
 

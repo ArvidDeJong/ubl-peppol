@@ -151,6 +151,8 @@ A code that is not in its list gives `Invalid EAS code: '9999'.` A list that is 
 
 ## Check a document with an official validator
 
+The quickest way: the [PEPPOL validator](validator.md) on this site runs the official rules in your browser, without uploading the file.
+
 Do this before the first real invoice, and again after you change how you build documents.
 
 1. Save the XML to a file.

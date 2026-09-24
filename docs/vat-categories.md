@@ -1,6 +1,6 @@
 ---
 title: "VAT categories"
-nav_order: 8
+nav_order: 9
 description: "Which VAT category a PEPPOL invoice line gets (S, Z, E, AE, K, G, O), what intra-community supply and reverse charge demand, and the VatCategory knowledge base."
 ---
 

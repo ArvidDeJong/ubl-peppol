@@ -1,6 +1,6 @@
 ---
 title: "Company numbers"
-nav_order: 10
+nav_order: 11
 description: "Check the format of a company registration number: Dutch KvK, Belgian KBO with its checksum, Luxembourg RCS, French SIREN and SIRET, German HRA and HRB."
 ---
 

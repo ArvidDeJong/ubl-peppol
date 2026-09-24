@@ -1,6 +1,6 @@
 ---
 title: "Troubleshooting"
-nav_order: 15
+nav_order: 16
 description: "Error messages of darvis/ubl-peppol quoted literally, each with cause and fix: building a document, validate(), credit notes, sending, the log table, VIES."
 ---
 

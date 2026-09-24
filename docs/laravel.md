@@ -1,6 +1,6 @@
 ---
 title: "Laravel integration"
-nav_order: 11
+nav_order: 12
 description: "What darvis/ubl-peppol adds in Laravel: the container bindings, the ubl-peppol config file, the optional peppol_logs table and the peppol:cleanup command."
 ---
 

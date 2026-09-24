@@ -47,6 +47,7 @@ Developers who already have invoice data (in a database, an ERP or a webshop) an
 - [Belgian invoices](belgium.md): a complete Belgian invoice, with a charge or discount
 - [Credit notes](credit-notes.md): a complete credit note and the rules that make it throw
 - [Validation](validation.md): what `validate()` checks per builder and how to read the result
+- [PEPPOL validator](validator.md): check any UBL invoice or credit note against the official rules, in your browser
 - [VAT categories](vat-categories.md): which category a line gets, what reverse charge and intra-community supply demand, and the `VatCategory` knowledge base
 - [VAT numbers](vat-numbers.md): checking a VAT number with VIES and telling "invalid" from "VIES is down"
 - [Company numbers](company-numbers.md): checking the format of a registration number in five countries

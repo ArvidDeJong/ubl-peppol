@@ -52,6 +52,16 @@ CI runs the tests on PHP 8.2-8.4 with Laravel 11, 12 and 13, on the lowest and t
 
 A changed document is a minor release, never a patch.
 
+## The online validator
+
+`docs/validator.md` runs the official rules in the browser from `docs/assets/validator/`: the rules compiled for SaxonJS, the SaxonJS runtime with its licence, and `release.json`. When OpenPEPPOL publishes a new release of the rules, compile it:
+
+```bash
+examples/validate/build-browser-validator.sh <dir with CEN-EN16931-UBL.xslt and PEPPOL-EN16931-UBL.xslt> <unpacked SaxonJS 2 browser release> 2026.11
+```
+
+Then check that `docs/assets/validator/samples/valid-dutch-invoice.xml` is still valid on the page and that `broken-intra-community.xml` still reports BR-IC-10, BR-IC-11 and BR-IC-12.
+
 ## Code of conduct
 
 This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
