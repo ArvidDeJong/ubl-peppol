@@ -10,7 +10,7 @@ Check a UBL invoice or credit note against the official rules a receiver runs: E
 
 **Your file stays on your computer.** The check runs in your browser; nothing is sent anywhere, so a real invoice with customer data is fine.
 
-<form id="peppol-validator" markdown="0">
+<form id="pv-form" markdown="0">
   <p>
     <label for="pv-country"><strong>Country of the seller</strong></label><br>
     <select id="pv-country">

@@ -185,3 +185,23 @@ test('the footer credits ARVID.NL without a personal name', function () {
 
     expect(file_get_contents(docsPath('_includes/head_custom.html')))->not->toContain('"Person"');
 });
+
+test('an element id on a page never equals the anchor the theme gives a heading', function () {
+    // The theme gives every heading an id made from its text. An element with the same id loses:
+    // getElementById() returns the heading, as the validator form found out in 1.11.0.
+    foreach (glob(docsPath('*.md')) as $page) {
+        $content = (string) file_get_contents($page);
+
+        preg_match_all('/^#{1,6}\s+(.+)$/m', $content, $headings);
+        $anchors = array_map(
+            fn (string $heading) => trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower(str_replace('`', '', $heading))), '-'),
+            $headings[1]
+        );
+
+        preg_match_all('/\sid="([^"]+)"/', $content, $ids);
+
+        foreach ($ids[1] as $id) {
+            expect(in_array($id, $anchors, true))->toBeFalse(basename($page).': the id "'.$id.'" is also the anchor of a heading');
+        }
+    }
+});
