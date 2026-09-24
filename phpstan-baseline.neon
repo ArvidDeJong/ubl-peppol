@@ -157,12 +157,6 @@ parameters:
 			path: src/UblBeBis3Service.php
 
 		-
-			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:addTaxTotal\(\) has parameter \$taxTotals with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/UblBeBis3Service.php
-
-		-
 			message: '#^Method Darvis\\UblPeppol\\UblBeBis3Service\:\:calculateTotals\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1

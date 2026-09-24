@@ -51,6 +51,21 @@ trait ValidationTrackingTrait
     protected array $usedTaxCategoryIds = [];
 
     /**
+     * @var list<array{category: string, code: ?string, text: ?string}> The VAT breakdown entries and their exemption reasons
+     */
+    protected array $vatBreakdown = [];
+
+    /**
+     * @var bool Whether an actual delivery date (BT-72) was written, which BR-IC-11 asks for category K
+     */
+    protected bool $hasActualDeliveryDate = false;
+
+    /**
+     * @var string|null The deliver to country code (BT-80), which BR-IC-12 asks for category K
+     */
+    protected ?string $deliveryCountryCode = null;
+
+    /**
      * @var bool Enable strict validation against official codelists
      */
     protected bool $strictCodelistValidation = false;
@@ -88,5 +103,27 @@ trait ValidationTrackingTrait
         $this->strictCodelistValidation = true;
 
         return $this;
+    }
+
+    /**
+     * Settle and remember the exemption reason of one VAT breakdown entry.
+     *
+     * @param  array<string, mixed>  $tax  An entry of addTaxTotal(), with the optional keys tax_exemption_reason_code and tax_exemption_reason
+     * @return array{code: ?string, text: ?string}
+     *
+     * @throws \InvalidArgumentException See UblValidator::resolveTaxExemption()
+     */
+    protected function trackTaxExemption(array $tax): array
+    {
+        $category = (string) ($tax['tax_category_id'] ?? '');
+        $reason = UblValidator::resolveTaxExemption(
+            $category,
+            isset($tax['tax_exemption_reason_code']) ? (string) $tax['tax_exemption_reason_code'] : null,
+            isset($tax['tax_exemption_reason']) ? (string) $tax['tax_exemption_reason'] : null
+        );
+
+        $this->vatBreakdown[] = ['category' => $category, 'code' => $reason['code'], 'text' => $reason['text']];
+
+        return $reason;
     }
 }

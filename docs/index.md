@@ -47,6 +47,7 @@ Developers who already have invoice data (in a database, an ERP or a webshop) an
 - [Belgian invoices](belgium.md): a complete Belgian invoice, with a charge or discount
 - [Credit notes](credit-notes.md): a complete credit note and the rules that make it throw
 - [Validation](validation.md): what `validate()` checks per builder and how to read the result
+- [VAT categories](vat-categories.md): which category a line gets, what reverse charge and intra-community supply demand, and the `VatCategory` knowledge base
 - [VAT numbers](vat-numbers.md): checking a VAT number with VIES and telling "invalid" from "VIES is down"
 - [Company numbers](company-numbers.md): checking the format of a registration number in five countries
 - [Laravel integration](laravel.md): the container bindings, the config file, the log table and the cleanup command

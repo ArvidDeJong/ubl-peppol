@@ -60,6 +60,8 @@ $result->getCorrections();           // suggested totals; nothing is applied to 
 - The Belgian `validate()` includes the `addAllowanceCharge()` calls: `allowance_total_amount` and `charge_total_amount` must equal their sums (BR-CO-11, BR-CO-12) and the taxable amounts include them (BR-S-08).
 - Belgian builder: credit note rules (BR-55, positive totals) are enforced only by `generateXml()`; `validate()` on a credit note without a billing reference returns valid. Dutch builder: both `validate()` and `generateXml()` report the missing billing reference (`[BR-55] [NL-R-001]`); it does not check the totals.
 
+- Both builders report what the VAT categories demand of the document: an exemption reason for `E` (BR-E-10), a delivery date and country for `K` (BR-IC-11, BR-IC-12), and `O` alone (BR-O-11).
+
 `UblValidator` is something else: a set of **static** helpers for single values (`isValidUnitCode`, `isValidCurrencyCodeFormat`, `isValidTaxCategory`, `validateIban`, `validateVatNumber`). It does not validate a document.
 
 This package checks the rules it implements, which is not the receiver's full Schematron. A first integration always goes through an official validator too: [the Dutch validator](https://test.peppolautoriteit.nl/validate) or [Ecosio](https://ecosio.com/en/peppol-and-xml-document-validator/).
@@ -71,6 +73,24 @@ A rejection carries a rule code such as `BR-CO-11` or `PEPPOL-EN16931-R010`. Loo
 ## Credit notes
 
 A credit note is its own document type: root element `<CreditNote>`, type code 381, lines with `<CreditedQuantity>`, and a `BillingReference` to the invoice it corrects, which BR-55 requires. **Amounts are positive.** The document type expresses the credit, not the sign. Both builders build credit notes with the same four methods; `UblNlBis3Service` has them since 1.10.0, and on an older version a Dutch credit note ends in `Call to undefined method ...::createCreditNoteDocument()`. The calls differ from an invoice: start with `createCreditNoteDocument()` (not `createDocument()`, which makes an `<Invoice>`), then `addCreditNoteHeader($number, $issueDate)`, `addBillingReference($invoiceNumber)` (call `addOrderReference()` before it), the parties, the totals, and `addCreditNoteLine()` per line (not `addInvoiceLine()`). In the Belgian builder `addBuyerReference()` throws on a credit note and `addOrderReference()` must come before `addBillingReference()`; the Dutch builder takes both and sorts the elements into the order of the `<CreditNote>` schema, which is not the order of `<Invoice>`. The Dutch builder throws a `RuntimeException` when invoice and credit note calls are mixed (`addInvoiceLine()` on a credit note). `addCreditNoteLine()` makes the price, the quantity and the line amount positive. The tax total and the monetary total are written as you pass them: pass positive numbers, because the Belgian `generateXml()` always validates a credit note and throws an `InvalidArgumentException` on a negative `line_extension_amount` or `payable_amount` (BR-CN-03, BR-CN-04), and both builders throw on a missing `BillingReference` (BR-55). The Belgian `validate()` alone does not check those credit note rules.
+
+## VAT categories and exemption reasons
+
+Every line, discount, charge and VAT breakdown row carries a category (`tax_category_id`, UNCL5305). Choosing it is the bookkeeper's decision; `Darvis\UblPeppol\Vat\VatCategory` explains the options in code, so show `VatCategory::guide()` or `->description()` in a UI instead of hard coding texts.
+
+| Code | Meaning | Rate | Exemption reason in the breakdown |
+| --- | --- | --- | --- |
+| `S` | Standard rate | above 0 | forbidden (BR-S-10), throws |
+| `Z` | Zero rated goods | 0 | forbidden (BR-Z-10), throws |
+| `E` | Exempt | 0 | required (BR-E-10); you pass the article, e.g. `VATEX-EU-132-1C` |
+| `AE` | Reverse charge | 0 | required; `VATEX-EU-AE` written when you pass none |
+| `K` | Intra-community supply | 0 | required; `VATEX-EU-IC` written when you pass none. Also needs `addDelivery()` with date and country (BR-IC-11, BR-IC-12) and both VAT numbers (BR-IC-02) |
+| `G` | Export outside the EU | 0 | required; `VATEX-EU-G` written when you pass none |
+| `O` | Not subject to VAT | none | required; `VATEX-EU-O`. No other category on the document (BR-O-11) |
+
+- The reason goes in the `addTaxTotal()` entry: `tax_exemption_reason_code` (BT-121) and `tax_exemption_reason` (BT-120, free text in any language, e.g. `VatCategory::ReverseCharge->exemptionReasonText('nl')` gives `Btw verlegd`). Never put it on the line.
+- A code of another category throws (PEPPOL-EN16931-P0104 to P0111: `VATEX-EU-IC` only with `K`), and so does a code outside the VATEX list (BR-CL-22). `VatExemptionReason::codes()`, `name()` and `categoryOf()` look them up.
+- Pass the same category to the line and to the breakdown. The builder does not check that the VAT numbers the category needs are there (BR-AE-02, BR-IC-02); the official validator does.
 
 ## VAT and company numbers
 

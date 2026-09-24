@@ -3,6 +3,8 @@
 namespace Darvis\UblPeppol\Validation;
 
 use Darvis\UblPeppol\Constants\UnitCodes;
+use Darvis\UblPeppol\Vat\VatCategory;
+use Darvis\UblPeppol\Vat\VatExemptionReason;
 
 class UblValidator
 {
@@ -110,9 +112,113 @@ class UblValidator
      */
     public static function isValidTaxCategory(string $categoryId): bool
     {
-        $validCategories = ['S', 'Z', 'E', 'AE', 'K', 'G', 'O'];
+        return VatCategory::fromCode($categoryId) !== null;
+    }
 
-        return in_array(strtoupper($categoryId), $validCategories, true);
+    /**
+     * Settle the exemption reason (BT-121 code, BT-120 text) of one VAT breakdown entry.
+     *
+     * A category that needs a reason and got none gets the one code that belongs to it
+     * (VatCategory::defaultExemptionReasonCode()), so a document with K, AE, G or O meets
+     * BR-IC-10, BR-AE-10, BR-G-10 or BR-O-10 without the caller knowing the code. Exempt (E) has no
+     * such code; validate() reports it when neither a code nor a text is given (BR-E-10).
+     *
+     * @return array{code: ?string, text: ?string}
+     *
+     * @throws \InvalidArgumentException When the category allows no reason (BR-S-10, BR-Z-10, BR-AF-10,
+     *                                   BR-AG-10), the code is not in the VATEX list (BR-CL-22) or the
+     *                                   code belongs to another category (PEPPOL-EN16931-P0104 to P0111)
+     */
+    public static function resolveTaxExemption(string $categoryId, ?string $code = null, ?string $text = null): array
+    {
+        $code = $code === null || trim($code) === '' ? null : strtoupper(trim($code));
+        $text = $text === null || trim($text) === '' ? null : trim($text);
+
+        $category = VatCategory::fromCode($categoryId);
+
+        // An unknown category is reported by validateBasicCodes(); the reason is passed on as given.
+        if ($category === null) {
+            return ['code' => $code, 'text' => $text];
+        }
+
+        if ($category->forbidsExemptionReason() && ($code !== null || $text !== null)) {
+            $rule = array_key_last($category->rules());
+
+            throw new \InvalidArgumentException(
+                "[{$rule}] VAT category {$category->value} ({$category->label()}) takes no exemption reason; leave tax_exemption_reason_code and tax_exemption_reason out."
+            );
+        }
+
+        if ($code !== null) {
+            if (! VatExemptionReason::isKnown($code)) {
+                throw new \InvalidArgumentException(
+                    "[BR-CL-22] Exemption reason code '{$code}' is not in the VATEX code list. See VatExemptionReason::codes()."
+                );
+            }
+
+            $codeCategory = VatExemptionReason::categoryOf($code);
+
+            if ($codeCategory !== null && $codeCategory !== $category) {
+                throw new \InvalidArgumentException(
+                    "[PEPPOL-EN16931-P0104 to P0111] Exemption reason code {$code} may only be used with VAT category {$codeCategory->value}, not with {$category->value}."
+                );
+            }
+        }
+
+        if ($category->requiresExemptionReason() && $code === null && $text === null) {
+            $code = $category->defaultExemptionReasonCode();
+        }
+
+        return ['code' => $code, 'text' => $text];
+    }
+
+    /**
+     * Check the rules that follow from the VAT categories of a document as a whole.
+     *
+     * @param  list<array{category: string, code: ?string, text: ?string}>  $breakdown  The VAT breakdown entries, as resolveTaxExemption() left them
+     * @param  bool  $hasDeliveryDate  Whether the document states an actual delivery date (BT-72) or an invoicing period (BG-14)
+     * @param  string|null  $deliveryCountry  The deliver to country code (BT-80)
+     */
+    public static function validateVatBreakdown(array $breakdown, bool $hasDeliveryDate, ?string $deliveryCountry): InvoiceValidationResult
+    {
+        $errors = [];
+        $categories = [];
+
+        foreach ($breakdown as $entry) {
+            $category = VatCategory::fromCode($entry['category']);
+
+            if ($category === null) {
+                continue;
+            }
+
+            $categories[$category->value] = $category;
+
+            if ($category->requiresExemptionReason() && $entry['code'] === null && $entry['text'] === null) {
+                $rule = array_key_last(array_filter($category->rules(), fn (string $key) => str_ends_with($key, '-10'), ARRAY_FILTER_USE_KEY));
+                $errors[] = "[{$rule}] The VAT breakdown of category {$category->value} needs an exemption reason: pass tax_exemption_reason_code (for example VATEX-EU-132-1C) or tax_exemption_reason.";
+            }
+        }
+
+        if (isset($categories['K'])) {
+            if (! $hasDeliveryDate) {
+                $errors[] = '[BR-IC-11] An intra-community supply (category K) needs the actual delivery date: call addDelivery().';
+            }
+
+            if ($deliveryCountry === null || trim($deliveryCountry) === '') {
+                $errors[] = '[BR-IC-12] An intra-community supply (category K) needs the country the goods are delivered to: pass the country code to addDelivery().';
+            }
+        }
+
+        if (isset($categories['O']) && count($categories) > 1) {
+            $errors[] = '[BR-O-11] A document with category O (not subject to VAT) may hold no other VAT category.';
+        }
+
+        return new InvoiceValidationResult(
+            isValid: empty($errors),
+            errors: $errors,
+            warnings: [],
+            corrections: []
+        );
     }
 
     /**
@@ -149,7 +255,7 @@ class UblValidator
         $taxCategoryIds = array_unique(array_filter($codes['tax_category_ids'] ?? []));
         foreach ($taxCategoryIds as $taxCategoryId) {
             if (! self::isValidTaxCategory($taxCategoryId)) {
-                $errors[] = "Invalid tax category ID: '{$taxCategoryId}'. Expected one of S, Z, E, AE, K, G, O.";
+                $errors[] = "Invalid tax category ID: '{$taxCategoryId}'. Expected one of ".implode(', ', array_column(VatCategory::cases(), 'value')).'.';
             }
         }
 

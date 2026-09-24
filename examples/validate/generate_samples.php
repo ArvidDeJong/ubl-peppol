@@ -19,6 +19,8 @@ require_once __DIR__.'/../../vendor/autoload.php';
 use Darvis\UblPeppol\UblBeBis3Service;
 use Darvis\UblPeppol\UblNlBis3Service;
 use Darvis\UblPeppol\Validation\InvoiceValidationResult;
+use Darvis\UblPeppol\Vat\VatCategory;
+use Darvis\UblPeppol\Vat\VatExemptionReason;
 
 /**
  * @return array<string, mixed>
@@ -33,13 +35,17 @@ function sampleData(string $country): array
 
 /**
  * Lines, VAT and totals for the lines of a data file, with an optional document level discount,
- * charge and prepayment. Everything is at the standard rate of 21%.
+ * charge and prepayment. Everything is in one VAT category: the standard rate of 21%, or 0% for any
+ * other category.
  *
  * @param  array<int, array<string, mixed>>  $lines
+ * @param  array<string, string>  $exemption  tax_exemption_reason_code and tax_exemption_reason, when the category takes one
  * @return array{lines: array<int, array<string, mixed>>, tax: array<int, array<string, mixed>>, totals: array<string, float>}
  */
-function sampleAmounts(array $lines, float $allowance = 0.0, float $charge = 0.0, float $prepaid = 0.0): array
+function sampleAmounts(array $lines, float $allowance = 0.0, float $charge = 0.0, float $prepaid = 0.0, string $category = 'S', array $exemption = []): array
 {
+    $percent = $category === 'S' ? 21.0 : 0.0;
+
     $lineData = [];
     $lineTotal = 0.0;
 
@@ -57,23 +63,23 @@ function sampleAmounts(array $lines, float $allowance = 0.0, float $charge = 0.0
             'price_amount' => $line['price_amount'],
             'currency' => 'EUR',
             'order_line_id' => $line['order_line_id'] ?? null,
-            'tax_category_id' => 'S',
-            'tax_percent' => 21.0,
+            'tax_category_id' => $category,
+            'tax_percent' => $percent,
             'tax_scheme_id' => 'VAT',
         ];
     }
 
     $taxable = round($lineTotal - $allowance + $charge, 2);
-    $tax = round($taxable * 0.21, 2);
+    $tax = round($taxable * $percent / 100, 2);
 
     return [
         'lines' => $lineData,
-        'tax' => [[
+        'tax' => [$exemption + [
             'taxable_amount' => $taxable,
             'tax_amount' => $tax,
             'currency' => 'EUR',
-            'tax_category_id' => 'S',
-            'tax_percent' => 21.0,
+            'tax_category_id' => $category,
+            'tax_percent' => $percent,
             'tax_scheme_id' => 'VAT',
         ]],
         'totals' => [
@@ -229,6 +235,46 @@ foreach ($amounts['lines'] as $line) {
     $ubl->addCreditNoteLine($line);
 }
 $cases['nl-credit-note.xml'] = $ubl;
+
+// 7. Intra-community supply from a Dutch supplier to a Belgian customer, built by the Belgian builder
+//    because the builder follows the receiver. Category K gets exemption reason code VATEX-EU-IC
+//    without asking (BR-IC-10); BR-IC-11 and BR-IC-12 want the delivery date and country.
+$amounts = sampleAmounts($be['lines'], category: 'K');
+$supplier = $nl['supplier'];
+$ubl = (new UblBeBis3Service)
+    ->createDocument()
+    ->addInvoiceHeader('SAMPLE-BE-002', $be['header']['issue_date'], $be['header']['due_date'])
+    ->addBuyerReference($be['header']['buyer_reference'])
+    ->addOrderReference($be['header']['order_reference'])
+    ->addAccountingSupplierParty(
+        $supplier['endpoint_id'], $supplier['endpoint_scheme'], $supplier['endpoint_id'], $supplier['name'],
+        $supplier['street'], $supplier['postal_code'], $supplier['city'], 'NL', $supplier['vat_number']
+    )
+    ->addAccountingCustomerParty(
+        '0999000228', '0208', '0999000228', 'Voorbeeld Klant NV', 'Kerkstraat 123', '2000', 'Antwerpen', 'BE',
+        null, '0999000228', null, null, null, 'BE0999000228'
+    )
+    ->addDelivery($be['header']['issue_date'], '5790000435975', '0088', 'Kerkstraat 123', null, 'Antwerpen', '2000', 'BE')
+    ->addPaymentMeans('30', 'Credit transfer', 'SAMPLE-BE-002', $nl['payment']['account_iban'], $supplier['name'], $nl['payment']['bic'])
+    ->addPaymentTerms('Payment within 30 days')
+    ->addTaxTotal($amounts['tax'])
+    ->addLegalMonetaryTotal($amounts['totals'], 'EUR');
+foreach ($amounts['lines'] as $line) {
+    $ubl->addInvoiceLine($line);
+}
+$cases['be-invoice-intra-community.xml'] = $ubl;
+
+// 8. Dutch invoice under a domestic reverse charge (category AE), with the Dutch standard text
+//    next to the code (BT-120, BT-121, BR-AE-10).
+$amounts = sampleAmounts($nl['lines'], category: 'AE', exemption: [
+    'tax_exemption_reason_code' => VatExemptionReason::REVERSE_CHARGE,
+    'tax_exemption_reason' => (string) VatCategory::ReverseCharge->exemptionReasonText('nl'),
+]);
+$ubl = dutchInvoice($nl, 'SAMPLE-NL-004')->addTaxTotal($amounts['tax'])->addLegalMonetaryTotal($amounts['totals'], 'EUR');
+foreach ($amounts['lines'] as $line) {
+    $ubl->addInvoiceLine($line);
+}
+$cases['nl-invoice-reverse-charge.xml'] = $ubl;
 
 // Write and check
 $out = __DIR__.'/out';
