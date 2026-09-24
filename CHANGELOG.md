@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-09-24
+
 **The generated XML changes** for a VAT breakdown in category `K`, `AE`, `G` or `O`, so this is a minor release. Such a document was rejected before; see Fixed. Documents with the standard rate (`S`) are byte for byte the same. The eight documents of `php examples/validate/generate_samples.php` pass the official OpenPEPPOL Schematron rules, release 2026.5 (`CEN-EN16931-UBL` and `PEPPOL-EN16931-UBL`), without an error or a warning.
 
 ### Added
@@ -451,7 +453,8 @@ _Never released on its own; these changes are part of the next release._
 - Laravel Service Provider
 - Example code
 
-[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.1...HEAD
+[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.9.0...v1.9.1
