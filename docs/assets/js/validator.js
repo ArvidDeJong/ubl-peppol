@@ -34,6 +34,7 @@
     };
 
     var stylesheets = {};
+    var latestRun = 0;
     var form = document.getElementById('pv-form');
 
     if (!form) {
@@ -210,6 +211,10 @@
         resultBox.innerHTML = '';
         status('');
 
+        /* A check takes seconds; only the one started last may show its result */
+        var run = ++latestRun;
+        var current = function () { return run === latestRun; };
+
         readInput().then(function (xml) {
             xml = String(xml || '').trim();
 
@@ -246,7 +251,9 @@
 
             RULESETS.forEach(function (ruleset) {
                 chain = chain.then(function () {
-                    status('Checking the ' + ruleset.name + ' rules...');
+                    if (current()) {
+                        status('Checking the ' + ruleset.name + ' rules...');
+                    }
 
                     return loadStylesheet(ruleset.file);
                 }).then(function (stylesheetText) {
@@ -263,11 +270,15 @@
             return chain.then(function () {
                 return fetch(BASE + 'release.json').then(function (r) { return r.json(); }).catch(function () { return { release: 'unknown' }; });
             }).then(function (info) {
-                status('');
-                render(found, countryInput.value, seller, buyer, info.release);
+                if (current()) {
+                    status('');
+                    render(found, countryInput.value, seller, buyer, info.release);
+                }
             });
         }).catch(function (error) {
-            status('The check could not run: ' + error.message);
+            if (current()) {
+                status('The check could not run: ' + error.message);
+            }
         });
     }
 
@@ -290,6 +301,8 @@
         event.preventDefault();
         var file = event.currentTarget.getAttribute('data-sample');
 
+        latestRun++;
+
         fetch(BASE + 'samples/' + file).then(function (r) { return r.text(); }).then(function (xml) {
             fileInput.value = '';
             textInput.value = xml;
@@ -302,6 +315,8 @@
     form.addEventListener('submit', validate);
     fileInput.addEventListener('change', function () {
         if (fileInput.files.length > 0) {
+            latestRun++;
+            resultBox.innerHTML = '';
             textInput.value = '';
             status(fileInput.files[0].name + ' chosen.');
             fileInput.files[0].text().then(chooseSellerCountry);

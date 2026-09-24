@@ -43,7 +43,7 @@ Check a UBL invoice or credit note against the official rules a receiver runs: E
 </form>
 
 <script src="assets/validator/SaxonJS2.rt.js?v=2.7"></script>
-<script src="assets/js/validator.js?v=2"></script>
+<script src="assets/js/validator.js?v=3"></script>
 
 ## What the result means
 
