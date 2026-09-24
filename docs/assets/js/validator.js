@@ -34,7 +34,7 @@
     };
 
     var stylesheets = {};
-    var form = document.getElementById('peppol-validator');
+    var form = document.getElementById('pv-form');
 
     if (!form) {
         return;
