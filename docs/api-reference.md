@@ -129,13 +129,13 @@ addAllowanceCharge(
 ```php
 addDelivery(
     string $deliveryDate,
-    string $locationId,
-    string $locationSchemeId,
-    string $street,
-    ?string $additional_street,
-    string $city,
-    string $postal_code,
-    string $country,
+    ?string $locationId = null,
+    string $locationSchemeId = '0088',
+    ?string $street = null,
+    ?string $additional_street = null,
+    ?string $city = null,
+    ?string $postal_code = null,
+    ?string $country = null,
     ?string $party_name = null
 ): self
 

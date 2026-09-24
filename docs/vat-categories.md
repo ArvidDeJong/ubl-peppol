@@ -77,7 +77,7 @@ The text is free. The rules accept the standard text in any language, so a Dutch
 | The delivery date and country for `K` | BR-IC-11, BR-IC-12 |
 | `O` stands alone and carries no VAT numbers | BR-O-02, BR-O-11 |
 
-For `K` call `addDelivery()` with the date and the country. The Dutch builder writes a country passed without an address too: `addDelivery('2026-01-14', countryCode: 'BE')`.
+For `K` call `addDelivery()` with the date and the country. A country without an address is enough: `addDelivery('2026-01-14', countryCode: 'BE')` with the Dutch builder, `addDelivery('2026-01-14', country: 'NL')` with the Belgian one.
 
 ## What the builders do for you
 
