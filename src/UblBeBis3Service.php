@@ -135,7 +135,7 @@ class UblBeBis3Service
      * Add Credit Note header information
      *
      * @param  string  $creditNoteNumber  The credit note number
-     * @param  string|\DateTime  $issueDate  Issue date (YYYY-MM-DD or DateTime)
+     * @param  string|\DateTimeInterface  $issueDate  Issue date (YYYY-MM-DD or DateTime)
      */
     public function addCreditNoteHeader(string $creditNoteNumber, $issueDate): self
     {
@@ -150,7 +150,7 @@ class UblBeBis3Service
         }
 
         // Validate and convert issue date
-        if ($issueDate instanceof \DateTime) {
+        if ($issueDate instanceof \DateTimeInterface) {
             $issueDate = $issueDate->format('Y-m-d');
         } elseif (is_string($issueDate)) {
             $issueDate = trim($issueDate);
@@ -233,6 +233,11 @@ class UblBeBis3Service
      */
     public function generateXml(bool $validateFirst = false): string
     {
+        // Without createDocument() there is nothing to write but an XML declaration
+        if ($this->dom->documentElement === null) {
+            throw new \RuntimeException('Root element is not initialized. Call createDocument() before adding elements.');
+        }
+
         // Always validate credit note specific rules
         if ($this->isCreditNote) {
             $this->validateCreditNote();
@@ -468,6 +473,38 @@ class UblBeBis3Service
             $taxByCategory[$key]['taxable_amount'] += $lineAmount;
         }
 
+        // Document level discounts lower and charges raise the taxable amount of their category
+        // (BR-S-08 and the like), and they make up the allowance and charge totals (BR-CO-13)
+        $allowanceTotalAmount = 0.0;
+        $chargeTotalAmount = 0.0;
+
+        foreach ([[$this->documentAllowances, -1], [$this->documentCharges, 1]] as [$entries, $sign]) {
+            foreach ($entries as $entry) {
+                $amount = (float) $entry['amount'];
+                $taxCategoryId = (string) $entry['tax_category_id'];
+                $taxPercent = (float) $entry['tax_percent'];
+                $key = $taxCategoryId.'_'.$taxPercent;
+
+                if (! isset($taxByCategory[$key])) {
+                    $taxByCategory[$key] = [
+                        'taxable_amount' => 0.0,
+                        'tax_percent' => $taxPercent,
+                        'tax_category_id' => $taxCategoryId,
+                        'tax_scheme_id' => 'VAT',
+                        'currency' => 'EUR',
+                    ];
+                }
+
+                $taxByCategory[$key]['taxable_amount'] += $sign * $amount;
+
+                if ($sign < 0) {
+                    $allowanceTotalAmount += $amount;
+                } else {
+                    $chargeTotalAmount += $amount;
+                }
+            }
+        }
+
         $totalTaxAmount = 0.0;
         $taxSubtotals = [];
         foreach ($taxByCategory as $category) {
@@ -483,7 +520,7 @@ class UblBeBis3Service
             ];
         }
 
-        $taxExclusiveAmount = $lineExtensionAmount - $this->allowanceTotalAmount + $this->chargeTotalAmount;
+        $taxExclusiveAmount = $lineExtensionAmount - $allowanceTotalAmount + $chargeTotalAmount;
         $taxInclusiveAmount = $taxExclusiveAmount + $totalTaxAmount;
         $payableAmount = $taxInclusiveAmount - $this->prepaidAmount;
 
@@ -492,8 +529,8 @@ class UblBeBis3Service
                 'line_extension_amount' => round($lineExtensionAmount, 2),
                 'tax_exclusive_amount' => round($taxExclusiveAmount, 2),
                 'tax_inclusive_amount' => round($taxInclusiveAmount, 2),
-                'charge_total_amount' => round($this->chargeTotalAmount, 2),
-                'allowance_total_amount' => round($this->allowanceTotalAmount, 2),
+                'charge_total_amount' => round($chargeTotalAmount, 2),
+                'allowance_total_amount' => round($allowanceTotalAmount, 2),
                 'payable_amount' => round($payableAmount, 2),
             ],
             'tax_totals' => $taxSubtotals,
@@ -563,8 +600,8 @@ class UblBeBis3Service
      * Add the invoice header
      *
      * @param  string  $invoiceNumber  Invoice number (required, cannot be empty)
-     * @param  string|\DateTime  $issueDate  Invoice date (required, format: YYYY-MM-DD)
-     * @param  string|\DateTime  $dueDate  Due date (required, must be after invoice date)
+     * @param  string|\DateTimeInterface  $issueDate  Invoice date (required, format: YYYY-MM-DD)
+     * @param  string|\DateTimeInterface  $dueDate  Due date (required, must be after invoice date)
      *
      * @throws \InvalidArgumentException On invalid input
      */
@@ -580,9 +617,9 @@ class UblBeBis3Service
             $errors[] = 'Invoice number cannot exceed 35 characters';
         }
 
-        // Valideer en converteer factuurdatum
+        // Validate and convert the invoice date
         $issueDateObj = null;
-        if ($issueDate instanceof \DateTime) {
+        if ($issueDate instanceof \DateTimeInterface) {
             $issueDateObj = $issueDate;
             $issueDate = $issueDate->format('Y-m-d');
         } elseif (is_string($issueDate)) {
@@ -602,9 +639,9 @@ class UblBeBis3Service
             $errors[] = 'Invoice date must be a string (YYYY-MM-DD) or DateTime object';
         }
 
-        // Valideer en converteer vervaldatum
+        // Validate and convert the due date
         $dueDateObj = null;
-        if ($dueDate instanceof \DateTime) {
+        if ($dueDate instanceof \DateTimeInterface) {
             $dueDateObj = $dueDate;
             $dueDate = $dueDate->format('Y-m-d');
         } elseif (is_string($dueDate)) {
@@ -705,8 +742,8 @@ class UblBeBis3Service
     /**
      * Format an amount for use in UBL
      *
-     * @param  float  $amount  Bedrag
-     * @return string Geformatteerd bedrag (2 decimalen)
+     * @param  float  $amount  The amount
+     * @return string The amount with 2 decimals
      */
     protected function formatAmount(float $amount): string
     {
@@ -756,7 +793,7 @@ class UblBeBis3Service
     }
 
     /**
-     * Voeg BuyerReference toe (verplicht voor PEPPOL)
+     * Add the buyer reference (BT-10); PEPPOL requires it or an order reference (PEPPOL-EN16931-R003)
      *
      * @param  string|null  $buyerRef  The buyer's own reference (for example their debtor number)
      */
@@ -776,9 +813,9 @@ class UblBeBis3Service
     }
 
     /**
-     * Voeg OrderReference toe aan UBL document
+     * Add the order reference (BT-13)
      *
-     * @param  string  $orderNumber  Ordernummer referentie
+     * @param  string  $orderNumber  The buyer's order number
      */
     public function addOrderReference(string $orderNumber = 'PO-001'): self
     {
@@ -909,8 +946,7 @@ class UblBeBis3Service
                 "PEPPOL BR-27 Validation Error: Item net price (BT-146) shall NOT be negative.\n".
                 "Item: \"{$description}\"\n".
                 "Price: {$lineData['price_amount']}\n\n".
-                'Oplossing: Negatieve bedragen (kortingen) moeten als AllowanceCharge worden toegevoegd, '.
-                'niet als factuurregels. Gebruik addAllowanceCharge() met isCharge=false voor kortingen.'
+                'Fix: add a negative amount, a discount, with addAllowanceCharge(false, ...), not as an invoice line.'
             );
         }
 
@@ -949,8 +985,7 @@ class UblBeBis3Service
                 "PEPPOL BR-27 Validation Error: Line extension amount shall NOT be negative.\n".
                 "Item: \"{$description}\"\n".
                 "Line Extension Amount: {$lineExtensionAmount}\n\n".
-                'Oplossing: Negatieve bedragen (kortingen) moeten als AllowanceCharge worden toegevoegd, '.
-                'niet als factuurregels. Gebruik addAllowanceCharge() met isCharge=false voor kortingen.'
+                'Fix: add a negative amount, a discount, with addAllowanceCharge(false, ...), not as an invoice line.'
             );
         }
 
@@ -972,7 +1007,7 @@ class UblBeBis3Service
             $this->addChildElement($orderLineReference, 'cbc', 'LineID', $lineData['order_line_id']);
         }
 
-        // TaxTotal weggelaten voor algemene PEPPOL compliance (UBL-CR-561)
+        // No TaxTotal on a line: UBL-CR-561 forbids it
 
         $item = $this->addChildElement($invoiceLine, 'cac', 'Item');
         $this->addChildElement($item, 'cbc', 'Description', $lineData['description']);
@@ -980,7 +1015,7 @@ class UblBeBis3Service
 
         $classifiedTaxCategory = $this->addChildElement($item, 'cac', 'ClassifiedTaxCategory');
         $this->addChildElement($classifiedTaxCategory, 'cbc', 'ID', $lineData['tax_category_id']);
-        // Name weggelaten voor PEPPOL compliance (UBL-CR-597)
+        // No Name: UBL-CR-597 forbids it
         // BR-O-05: a line in category O carries no VAT rate
         if (strtoupper($lineData['tax_category_id']) !== 'O') {
             $this->addChildElement($classifiedTaxCategory, 'cbc', 'Percent', $this->formatAmount((float) $lineData['tax_percent']));
@@ -1105,7 +1140,7 @@ class UblBeBis3Service
             $this->addChildElement($monetaryTotal, 'cbc', 'AllowanceTotalAmount', $this->formatAmount($this->allowanceTotalAmount), ['currencyID' => $currency]);
         }
 
-        // ChargeTotalAmount - altijd outputten (kan 0.00 zijn)
+        // ChargeTotalAmount is always written, also as 0.00
         $this->addChildElement($monetaryTotal, 'cbc', 'ChargeTotalAmount', $this->formatAmount($this->chargeTotalAmount), ['currencyID' => $currency]);
 
         // PrepaidAmount: optional, only when something was paid up front
@@ -1194,7 +1229,7 @@ class UblBeBis3Service
 
             $taxCategory = $this->addChildElement($taxSubtotal, 'cac', 'TaxCategory');
             $this->addChildElement($taxCategory, 'cbc', 'ID', $tax['tax_category_id']);
-            // Name weggelaten voor PEPPOL compliance (UBL-CR-504)
+            // No Name: UBL-CR-504 forbids it
             // Category O carries no rate (BR-48 allows leaving it out, as BR-O-05 demands on the lines)
             if (strtoupper((string) $tax['tax_category_id']) !== 'O') {
                 $this->addChildElement($taxCategory, 'cbc', 'Percent', $this->formatAmount((float) $tax['tax_percent']));
@@ -1284,7 +1319,7 @@ class UblBeBis3Service
         $this->addChildElement($paymentMeans, 'cbc', 'PaymentID', $paymentId);
 
         $payeeFinancialAccount = $this->addChildElement($paymentMeans, 'cac', 'PayeeFinancialAccount');
-        // IBAN zonder schemeID per UBL-CR-654
+        // The IBAN without a schemeID (UBL-CR-654)
         $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $account_iban);
         if ($account_name) {
             $this->addChildElement($payeeFinancialAccount, 'cbc', 'Name', $account_name);
@@ -1419,11 +1454,22 @@ class UblBeBis3Service
         $partyLegalEntity = $this->addChildElement($party, 'cac', 'PartyLegalEntity');
         $this->addChildElement($partyLegalEntity, 'cbc', 'RegistrationName', $name);
         if ($registrationNumber) {
-            // For Dutch customers: use correct schemeID (0106 for KVK, 0190 for OIN)
-            $schemeID = (strtoupper($country) === 'NL') ? '0106' : '0208';
-            $this->addChildElement($partyLegalEntity, 'cbc', 'CompanyID', $registrationNumber, ['schemeID' => $schemeID]);
-            $this->usedSchemeIds[] = $schemeID;
-            $this->usedRegistrationSchemeIds[] = $schemeID;
+            // BT-47: the scheme of the register the number comes from, known for a Dutch (KvK, 0106)
+            // or a Belgian (KBO, 0208) customer. For another country the optional schemeID is left
+            // out: a German number under 0208 would claim to be Belgian.
+            $schemeID = match (strtoupper($country)) {
+                'NL' => '0106',
+                'BE' => '0208',
+                default => null,
+            };
+
+            if ($schemeID === null) {
+                $this->addChildElement($partyLegalEntity, 'cbc', 'CompanyID', $registrationNumber);
+            } else {
+                $this->addChildElement($partyLegalEntity, 'cbc', 'CompanyID', $registrationNumber, ['schemeID' => $schemeID]);
+                $this->usedSchemeIds[] = $schemeID;
+                $this->usedRegistrationSchemeIds[] = $schemeID;
+            }
         }
 
         if ($contactName || $contactPhone || $contactEmail) {

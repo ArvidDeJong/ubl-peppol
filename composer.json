@@ -57,6 +57,8 @@
         "phpunit/phpunit": "^11.0|^12.0|^13.0"
     },
     "suggest": {
+        "ext-bcmath": "For the IBAN check (UblValidator::validateIban()).",
+        "ext-soap": "For the VAT number check against VIES (ViesService).",
         "illuminate/support": "Only for the Laravel layer (service provider, PeppolService, the PeppolLog model and the cleanup command). The invoice builders and the validator run without it."
     },
     "scripts": {

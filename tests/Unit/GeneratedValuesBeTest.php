@@ -159,3 +159,53 @@ it('accepts a VAT number of the customer in lower case and writes it in upper ca
 
     expect($xml)->toContain('<cbc:CompanyID>BE0999000228</cbc:CompanyID>');
 });
+
+it('throws the documented error when generateXml() runs before createDocument(), as the Dutch builder does', function () {
+    expect(fn () => (new UblBeBis3Service)->generateXml())
+        ->toThrow(RuntimeException::class, 'Root element is not initialized. Call createDocument() before adding elements.');
+});
+
+it('counts document level discounts and charges in calculateTotals(), so the calculated totals pass validate() (BR-CO-13, BR-S-08)', function () {
+    $ubl = beInvoice()
+        ->addAllowanceCharge(false, 20.00, 'Discount', 'S', 21.0, 'EUR')
+        ->addAllowanceCharge(true, 10.00, 'Freight', 'S', 21.0, 'EUR')
+        ->addInvoiceLine(beLine());
+
+    $calculated = $ubl->calculateTotals();
+
+    expect($calculated['totals'])->toMatchArray([
+        'line_extension_amount' => 200.00,
+        'allowance_total_amount' => 20.00,
+        'charge_total_amount' => 10.00,
+        'tax_exclusive_amount' => 190.00,
+        'tax_inclusive_amount' => 229.90,
+        'payable_amount' => 229.90,
+    ])->and($calculated['tax_totals'][0]['taxable_amount'])->toBe(190.00);
+
+    $ubl->addTaxTotal($calculated['tax_totals'])->addLegalMonetaryTotal($calculated['totals'], 'EUR');
+
+    expect($ubl->validate()->errors)->toBe([]);
+});
+
+it('gives the registration of a customer outside the Netherlands and Belgium no scheme, instead of the Belgian 0208 (BT-47)', function (string $country, ?string $scheme) {
+    $xml = beInvoice()->addAccountingCustomerParty(
+        '0999000228', '0208', '0999000228', 'Customer', 'Street 1', '1000', 'City', $country, null, 'REG-123'
+    )->generateXml();
+
+    $dom = new DOMDocument;
+    $dom->loadXML($xml);
+    $companyId = $dom->getElementsByTagNameNS('urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2', 'CompanyID');
+    $registration = null;
+    foreach ($companyId as $node) {
+        if ($node->parentNode?->localName === 'PartyLegalEntity') {
+            $registration = $node;
+        }
+    }
+
+    expect($registration?->textContent)->toBe('REG-123')
+        ->and($registration?->hasAttribute('schemeID') ? $registration->getAttribute('schemeID') : null)->toBe($scheme);
+})->with([
+    'Belgium, as before' => ['BE', '0208'],
+    'the Netherlands, as before' => ['NL', '0106'],
+    'Germany' => ['DE', null],
+]);

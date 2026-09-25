@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use Darvis\UblPeppol\Models\PeppolLog;
 use Darvis\UblPeppol\PeppolService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -97,4 +99,39 @@ it('cleans up nothing, and says why, without the log table', function () {
     $this->artisan('peppol:cleanup')
         ->expectsOutputToContain('peppol_logs')
         ->assertSuccessful();
+});
+
+it('reports a successful send as a success when the invoice model has no peppol_sent_at column', function () {
+    Schema::create('host_invoices', function ($table) {
+        $table->id();
+        $table->string('invoice_nr');
+    });
+
+    $invoice = new class extends Model
+    {
+        protected $table = 'host_invoices';
+
+        public $timestamps = false;
+
+        protected $guarded = [];
+    };
+    $invoice = $invoice->create(['invoice_nr' => 'INV-8']);
+
+    Http::fake(['access-point.test/*' => Http::response(['id' => 'abc'], 200)]);
+
+    $result = (new PeppolService)->sendInvoice($invoice, '<Invoice/>');
+
+    expect($result['success'])->toBeTrue()
+        ->and($result['status_code'])->toBe(200)
+        ->and($result['warning'])->toStartWith('The invoice was sent, but peppol_sent_at could not be set on the model');
+});
+
+it('keeps the response body out of the application log, because it can hold invoice data', function () {
+    Http::fake(['access-point.test/*' => Http::response(['customer' => 'Secret Customer BV'], 200)]);
+    Log::spy();
+
+    (new PeppolService)->sendUblXml('<Invoice/>', 'INV-1');
+
+    Log::shouldHaveReceived('info')
+        ->withArgs(fn (string $message, array $context = []) => $message === 'Peppol: Response received' && ! array_key_exists('response', $context));
 });

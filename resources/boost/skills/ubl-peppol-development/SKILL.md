@@ -15,7 +15,7 @@ Pick by the **receiver's** country, never the sender's.
 
 | Receiver | Class | Builds | `validate()` checks |
 | --- | --- | --- | --- |
-| Netherlands | `UblNlBis3Service` | Invoices and, since 1.10.0, credit notes | Code formats, the Dutch rules NL-R-003, 005, 007 (a warning), 008 and 009, and the billing reference of a credit note. Not the amounts |
+| Netherlands | `UblNlBis3Service` | Invoices and, since 1.10.0, credit notes | Code formats, the Dutch rules NL-R-002 to 005 (addresses and the scheme of the legal registration, not of the endpoint), 007 (a warning), 008 and 009, the VAT categories and the billing reference of a credit note. Not the amounts |
 | Belgium | `UblBeBis3Service` | Invoices and credit notes | Code formats and the totals: BR-CO-10, 13, 15, 16 and BR-S-08 |
 
 Both write the PEPPOL BIS Billing 3.0 customization ID.

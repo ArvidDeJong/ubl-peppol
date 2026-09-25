@@ -10,6 +10,12 @@ class ViesService
     private const WSDL_URL = 'https://ec.europa.eu/taxation_customs/vies/services/checkVatService.wsdl';
 
     /**
+     * Seconds to wait for VIES to connect and to answer. VIES is slow at times; without a limit a
+     * request hangs until PHP gives up.
+     */
+    private const TIMEOUT = 15;
+
+    /**
      * Check VAT number via VIES (EU VAT Information Exchange System)
      *
      * @param  string  $countryCode  ISO 2-letter country code (e.g., NL, BE, DE)
@@ -17,15 +23,11 @@ class ViesService
      */
     public function checkVat(string $countryCode, string $vatNumber): array
     {
+        // SoapClient reads its answer under default_socket_timeout; limit it for this call only
+        $previousTimeout = ini_set('default_socket_timeout', (string) self::TIMEOUT);
+
         try {
-            $client = new SoapClient(
-                self::WSDL_URL,
-                [
-                    'exceptions' => true,
-                    'connection_timeout' => 10,
-                    'cache_wsdl' => WSDL_CACHE_MEMORY,
-                ]
-            );
+            $client = $this->createClient();
 
             // Clean up the VAT number - remove spaces and country prefix if present
             // preg_replace returns null on a regex failure; '' keeps the string functions below safe.
@@ -53,17 +55,52 @@ class ViesService
                 'error' => null,
             ];
         } catch (SoapFault $e) {
-            return [
-                'valid' => false,
-                'name' => null,
-                'address' => null,
-                'countryCode' => $countryCode,
-                'vatNumber' => $vatNumber,
-                'fullVatNumber' => null,
-                'checked_at' => date('Y-m-d H:i:s'),
-                'error' => $this->translateError($e->getMessage()),
-            ];
+            return $this->unknown($countryCode, $vatNumber, $this->translateError($e->getMessage()));
+        } catch (\Throwable $e) {
+            // Anything else, such as a missing soap extension or a network error, is also "unknown",
+            // never "invalid": error is not null, so the caller can tell the two apart
+            return $this->unknown($countryCode, $vatNumber, 'VIES check failed: '.$e->getMessage());
+        } finally {
+            if ($previousTimeout !== false) {
+                ini_set('default_socket_timeout', $previousTimeout);
+            }
         }
+    }
+
+    /**
+     * The SOAP client for VIES. The WSDL is cached in memory and on disk, so it is not fetched
+     * again for every check.
+     */
+    protected function createClient(): SoapClient
+    {
+        if (! class_exists(SoapClient::class)) {
+            throw new \RuntimeException('the soap PHP extension is not installed');
+        }
+
+        return new SoapClient(self::WSDL_URL, [
+            'exceptions' => true,
+            'connection_timeout' => self::TIMEOUT,
+            'cache_wsdl' => WSDL_CACHE_BOTH,
+        ]);
+    }
+
+    /**
+     * The result when VIES gave no answer: valid is false and error says why.
+     *
+     * @return array<string, mixed>
+     */
+    private function unknown(string $countryCode, string $vatNumber, string $error): array
+    {
+        return [
+            'valid' => false,
+            'name' => null,
+            'address' => null,
+            'countryCode' => $countryCode,
+            'vatNumber' => $vatNumber,
+            'fullVatNumber' => null,
+            'checked_at' => date('Y-m-d H:i:s'),
+            'error' => $error,
+        ];
     }
 
     /**

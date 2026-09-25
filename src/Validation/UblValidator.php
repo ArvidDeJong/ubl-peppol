@@ -181,6 +181,66 @@ class UblValidator
     }
 
     /**
+     * Check the Dutch rules on the parties of a finished document, as the PEPPOL Schematron does.
+     * They apply when the supplier's postal address is in the Netherlands:
+     *
+     * - NL-R-002: the supplier's address has a street, a city and a postal code;
+     * - NL-R-003: the supplier's legal registration (BT-30), when present, is a KvK number (scheme
+     *   0106) or an OIN (0190);
+     * - NL-R-004 and NL-R-005: the same for a customer in the Netherlands (BT-47).
+     *
+     * The endpoint scheme plays no part: a Dutch party may receive under 0088 or 9944.
+     */
+    public static function validateDutchRules(DOMDocument $document): InvoiceValidationResult
+    {
+        $xpath = new DOMXPath($document);
+        $xpath->registerNamespace('cac', self::NS_CAC);
+        $xpath->registerNamespace('cbc', self::NS_CBC);
+
+        $text = fn (string $query): string => trim((string) $xpath->evaluate('string('.$query.')'));
+        $count = fn (string $query): int => (int) $xpath->evaluate('count('.$query.')');
+
+        $errors = [];
+
+        if (strtoupper($text('/*/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cac:Country/cbc:IdentificationCode')) !== 'NL') {
+            return InvoiceValidationResult::success();
+        }
+
+        $parties = [
+            'supplier' => ['path' => '/*/cac:AccountingSupplierParty/cac:Party', 'address' => 'NL-R-002', 'registration' => 'NL-R-003', 'method' => 'addSupplierLegalRegistration()'],
+        ];
+
+        if (strtoupper($text('/*/cac:AccountingCustomerParty/cac:Party/cac:PostalAddress/cac:Country/cbc:IdentificationCode')) === 'NL') {
+            $parties['customer'] = ['path' => '/*/cac:AccountingCustomerParty/cac:Party', 'address' => 'NL-R-004', 'registration' => 'NL-R-005', 'method' => 'addCustomerLegalRegistration()'];
+        }
+
+        foreach ($parties as $party => $rules) {
+            $address = $rules['path'].'/cac:PostalAddress';
+
+            if ($count($address) > 0 && ($text($address.'/cbc:StreetName') === '' || $text($address.'/cbc:CityName') === '' || $text($address.'/cbc:PostalZone') === '')) {
+                $errors[] = "[{$rules['address']}] The {$party}'s address in the Netherlands needs a street, a city and a postal code.";
+            }
+
+            $registration = $rules['path'].'/cac:PartyLegalEntity/cbc:CompanyID';
+
+            if ($count($registration) > 0) {
+                $scheme = $text($registration.'/@schemeID');
+
+                if (! in_array($scheme, ['0106', '0190'], true) || $text($registration) === '') {
+                    $errors[] = "[{$rules['registration']}] The legal registration of a {$party} in the Netherlands (".($party === 'supplier' ? 'BT-30' : 'BT-47').") must be a KvK number (scheme 0106) or an OIN (scheme 0190), not scheme '".($scheme === '' ? 'none' : $scheme)."': use {$rules['method']}.";
+                }
+            }
+        }
+
+        return new InvoiceValidationResult(
+            isValid: empty($errors),
+            errors: $errors,
+            warnings: [],
+            corrections: []
+        );
+    }
+
+    /**
      * Check what the VAT categories demand of a finished document, the way a receiver does.
      *
      * The check reads the document itself, not the arguments the builder got, so it judges exactly

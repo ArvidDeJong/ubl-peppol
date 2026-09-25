@@ -112,14 +112,15 @@ The VAT scheme of a line is always written as `VAT`.
 
 ## What `validate()` checks
 
-The Dutch `validate()` checks codes and five Dutch rules. It does **not** check that your amounts add up, and it reports an empty document as valid.
+The Dutch `validate()` checks codes, the Dutch rules NL-R-002 to NL-R-009 and what the [VAT categories](vat-categories.md#what-validate-checks) demand. It does **not** check that your amounts add up, and it reports an empty document as valid.
 
 | Check | Result |
 | --- | --- |
-| Currency codes are three letters, scheme IDs four digits, payment means codes one to three digits, VAT categories one of `S`, `Z`, `E`, `AE`, `K`, `G`, `O` | Error |
+| Currency codes are three letters, scheme IDs four digits, payment means codes one to three digits, VAT categories one of `S`, `Z`, `E`, `AE`, `K`, `G`, `O`, `L`, `M` | Error |
 | A unit code that is not in the package's list | Warning |
-| NL-R-003: Dutch supplier, endpoint scheme is not `0106` or `0190` | Error |
-| NL-R-005: Dutch customer, endpoint scheme is not `0106` or `0190` | Error |
+| NL-R-002, NL-R-004: the address of a Dutch supplier, or of a Dutch customer of a Dutch supplier, lacks a street, city or postal code | Error |
+| NL-R-003: the legal registration of a Dutch supplier (BT-30) is under a scheme other than `0106` or `0190` | Error |
+| NL-R-005: the same for a Dutch customer of a Dutch supplier (BT-47) | Error |
 | NL-R-007: Dutch supplier and no `addPaymentMeans()` | Warning |
 | NL-R-008: both parties Dutch and a payment means code other than `30`, `48`, `49`, `57`, `58`, `59` | Error |
 | NL-R-009: a line has `order_line_id` and there is no `addOrderReference()` | Error |
