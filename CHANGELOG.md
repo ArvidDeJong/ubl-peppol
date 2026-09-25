@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-09-25
+
 **`validate()` gives different answers for Dutch documents, and the Belgian builder writes different XML for a customer outside the Netherlands and Belgium**, so this is a minor release. Both follow the official rules; the eight sample documents and a production invoice pass the official OpenPEPPOL Schematron, release 2026.5, without an error.
 
 ### Fixed
@@ -474,7 +476,8 @@ _Never released on its own; these changes are part of the next release._
 - Laravel Service Provider
 - Example code
 
-[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.11.1...HEAD
+[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.11.1...v1.12.0
 [1.11.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.11.0...v1.11.1
 [1.11.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.0...v1.10.1
