@@ -96,14 +96,24 @@ trait ValidationTrackingTrait
      */
     protected function validateVatCategoriesOfDocument(): InvoiceValidationResult
     {
+        $document = $this->namespacedDocument();
+
+        return $document === null ? InvoiceValidationResult::success() : UblValidator::validateVatCategories($document);
+    }
+
+    /**
+     * The document as it stands, reloaded so XPath sees the UBL namespaces: an element made with
+     * createElement() has none until it is serialised. Null before createDocument().
+     */
+    protected function namespacedDocument(): ?\DOMDocument
+    {
         $xml = $this->dom->saveXML();
         $document = new \DOMDocument;
 
-        // Reloaded, because an element made with createElement() has no namespace for XPath
         if ($xml === false || $this->dom->documentElement === null || ! $document->loadXML($xml)) {
-            return InvoiceValidationResult::success();
+            return null;
         }
 
-        return UblValidator::validateVatCategories($document);
+        return $document;
     }
 }

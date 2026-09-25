@@ -51,10 +51,6 @@ class UblNlBis3Service
 
     protected ?string $customerCountryCode = null;
 
-    protected ?string $supplierEndpointSchemeId = null;
-
-    protected ?string $customerEndpointSchemeId = null;
-
     protected bool $hasPaymentMeans = false;
 
     protected bool $hasOrderReference = false;
@@ -287,17 +283,11 @@ class UblNlBis3Service
         $errors = $basicResult->errors;
         $warnings = $basicResult->warnings;
 
-        // NL-R-003 / NL-R-005: Endpoint scheme must be KVK or OIN (0106 or 0190)
-        if ($this->supplierCountryCode === 'NL' && $this->supplierEndpointSchemeId !== null) {
-            if (! in_array($this->supplierEndpointSchemeId, ['0106', '0190'], true)) {
-                $errors[] = 'NL-R-003: Supplier endpoint schemeID must be 0106 (KVK) or 0190 (OIN).';
-            }
-        }
-
-        if ($this->customerCountryCode === 'NL' && $this->customerEndpointSchemeId !== null) {
-            if (! in_array($this->customerEndpointSchemeId, ['0106', '0190'], true)) {
-                $errors[] = 'NL-R-005: Customer endpoint schemeID must be 0106 (KVK) or 0190 (OIN).';
-            }
+        // NL-R-002 to NL-R-005: the addresses and the legal registrations of the parties. They test
+        // PartyLegalEntity/CompanyID, not the endpoint: an endpoint under 0088 or 9944 is fine.
+        $document = $this->namespacedDocument();
+        if ($document !== null) {
+            $errors = array_merge($errors, UblValidator::validateDutchRules($document)->errors);
         }
 
         // BR-55, and NL-R-001 for a Dutch supplier: a credit note references the credited invoice
@@ -419,8 +409,8 @@ class UblNlBis3Service
      * Add the invoice header
      *
      * @param  string  $invoiceNumber  Invoice number (required, cannot be empty)
-     * @param  string|\DateTime  $issueDate  Invoice date (required, format: YYYY-MM-DD)
-     * @param  string|\DateTime  $dueDate  Due date (required, must be after invoice date)
+     * @param  string|\DateTimeInterface  $issueDate  Invoice date (required, format: YYYY-MM-DD)
+     * @param  string|\DateTimeInterface  $dueDate  Due date (required, must be after invoice date)
      *
      * @throws \InvalidArgumentException On invalid input
      */
@@ -442,7 +432,7 @@ class UblNlBis3Service
 
         // Validate and convert invoice date
         $issueDateObj = null;
-        if ($issueDate instanceof \DateTime) {
+        if ($issueDate instanceof \DateTimeInterface) {
             $issueDateObj = $issueDate;
             $issueDate = $issueDate->format('Y-m-d');
         } elseif (is_string($issueDate)) {
@@ -464,7 +454,7 @@ class UblNlBis3Service
 
         // Validate and convert due date
         $dueDateObj = null;
-        if ($dueDate instanceof \DateTime) {
+        if ($dueDate instanceof \DateTimeInterface) {
             $dueDateObj = $dueDate;
             $dueDate = $dueDate->format('Y-m-d');
         } elseif (is_string($dueDate)) {
@@ -567,7 +557,7 @@ class UblNlBis3Service
      * cbc:DueDate under the root.
      *
      * @param  string  $creditNoteNumber  Credit note number (required, at most 35 characters)
-     * @param  string|\DateTime  $issueDate  Issue date (YYYY-MM-DD or DateTime, not in the future)
+     * @param  string|\DateTimeInterface  $issueDate  Issue date (YYYY-MM-DD or DateTime, not in the future)
      *
      * @throws \InvalidArgumentException On invalid input
      * @throws \RuntimeException When the document was not made with createCreditNoteDocument()
@@ -585,7 +575,7 @@ class UblNlBis3Service
             $errors[] = 'Credit note number cannot exceed 35 characters';
         }
 
-        if ($issueDate instanceof \DateTime) {
+        if ($issueDate instanceof \DateTimeInterface) {
             $issueDate = $issueDate->format('Y-m-d');
         }
 
@@ -895,7 +885,6 @@ class UblNlBis3Service
         ?string $additionalStreet = null
     ): self {
         $this->supplierCountryCode = strtoupper($countryCode);
-        $this->supplierEndpointSchemeId = $endpointSchemeID;
         $this->usedEndpointSchemeIds[] = $endpointSchemeID;
         $this->usedSchemeIds[] = $endpointSchemeID;
 
@@ -1060,7 +1049,6 @@ class UblNlBis3Service
         string $taxSchemeId = 'VAT'
     ): self {
         $this->customerCountryCode = strtoupper($countryCode);
-        $this->customerEndpointSchemeId = $endpointSchemeID;
         $this->usedEndpointSchemeIds[] = $endpointSchemeID;
         $this->usedSchemeIds[] = $endpointSchemeID;
 
@@ -1428,7 +1416,7 @@ class UblNlBis3Service
         if ($accountId !== null) {
             $payeeFinancialAccount = $this->createElement('cac', 'PayeeFinancialAccount');
 
-            // Add account ID (IBAN) - zonder schemeID per UBL-CR-654
+            // Add account ID (IBAN) without a schemeID (UBL-CR-654)
             $this->addChildElement($payeeFinancialAccount, 'cbc', 'ID', $accountId);
 
             // Add financial institution branch (BIC/SWIFT) if provided
@@ -1853,8 +1841,7 @@ class UblNlBis3Service
                 "PEPPOL BR-27 Validation Error: Item net price (BT-146) shall NOT be negative.\n".
                 "Item: \"{$description}\"\n".
                 "Price: {$lineData['price_amount']}\n\n".
-                'Oplossing: Negatieve bedragen (kortingen) moeten als AllowanceCharge worden toegevoegd, '.
-                'niet als factuurregels. Gebruik addAllowanceCharge() met isCharge=false voor kortingen.'
+                'Fix: add a negative amount, a discount, with addAllowanceCharge(false, ...), not as an invoice line.'
             );
         }
 
@@ -1911,8 +1898,7 @@ class UblNlBis3Service
                 "PEPPOL BR-27 Validation Error: Line extension amount shall NOT be negative.\n".
                 "Item: \"{$description}\"\n".
                 "Line Extension Amount: {$lineExtensionAmount}\n\n".
-                'Oplossing: Negatieve bedragen (kortingen) moeten als AllowanceCharge worden toegevoegd, '.
-                'niet als factuurregels. Gebruik addAllowanceCharge() met isCharge=false voor kortingen.'
+                'Fix: add a negative amount, a discount, with addAllowanceCharge(false, ...), not as an invoice line.'
             );
         }
 

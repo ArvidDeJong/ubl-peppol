@@ -173,7 +173,7 @@ Nothing to fix. The builders escape text for you. Do not call `htmlspecialchars(
 | `BR-CO-15` | `tax_inclusive_amount` is not `tax_exclusive_amount` plus VAT |
 | `BR-CO-16` | `payable_amount` is not `tax_inclusive_amount` minus `prepaid_amount` |
 | `BR-CO-11`, `BR-CO-12` | The allowance or charge total is not the sum of your `addAllowanceCharge()` calls; see the next entry |
-| `NL-R-003`, `NL-R-005` | A Dutch party has an endpoint scheme other than `0106` or `0190` |
+| `NL-R-003`, `NL-R-005` | The legal registration of a Dutch party is under a scheme other than `0106` or `0190`. The endpoint scheme plays no part: `0088` or `9944` is fine |
 | `NL-R-008` | Both parties are Dutch and the payment means code is not `30`, `48`, `49`, `57`, `58` or `59` |
 | `NL-R-009` | A line has `order_line_id` and `addOrderReference()` was not called |
 | `Invalid currency code format`, `Invalid schemeID format`, `Invalid payment means code format`, `Invalid tax category ID` | A code has the wrong shape |

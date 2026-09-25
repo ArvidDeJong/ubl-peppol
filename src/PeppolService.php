@@ -61,10 +61,10 @@ class PeppolService
             $statusCode = $response->status();
             $responseBody = $response->body();
 
+            // The body can hold invoice data; it is kept on the log row, not in the application log
             Log::info('Peppol: Response received', [
                 'invoice_id' => $invoice->id,
                 'status_code' => $statusCode,
-                'response' => $responseBody,
             ]);
 
             if ($response->successful()) {
@@ -76,18 +76,19 @@ class PeppolService
                     'response' => $response->json(),
                 ]);
 
-                // Mark invoice as sent to Peppol (if model supports this)
-                if (method_exists($invoice, 'update')) {
-                    $invoice->update(['peppol_sent_at' => now()]);
-                }
+                // The document is sent now, whatever follows. Marking the host model is a courtesy:
+                // a model without the column must not turn this send into a failure, which would
+                // invite sending the invoice twice.
+                $warning = $this->markSent($invoice);
 
-                return [
+                return array_filter([
                     'success' => true,
                     'status_code' => $statusCode,
                     'message' => 'Invoice successfully sent to Peppol network',
                     'response' => $response->json() ?? $responseBody,
                     'log_id' => $peppolLog?->id,
-                ];
+                    'warning' => $warning,
+                ], fn ($value, $key) => $key !== 'warning' || $value !== null, ARRAY_FILTER_USE_BOTH);
             }
 
             // Update log with error
@@ -127,6 +128,31 @@ class PeppolService
                 'error' => $e->getMessage(),
                 'log_id' => $peppolLog?->id,
             ];
+        }
+    }
+
+    /**
+     * Set peppol_sent_at on the host model after a successful send, when the model can be updated.
+     *
+     * @return string|null A warning when the model could not be marked, null otherwise
+     */
+    private function markSent(object $invoice): ?string
+    {
+        if (! method_exists($invoice, 'update')) {
+            return null;
+        }
+
+        try {
+            $invoice->update(['peppol_sent_at' => now()]);
+
+            return null;
+        } catch (\Throwable $e) {
+            Log::warning('Peppol: Invoice sent, but peppol_sent_at could not be set', [
+                'invoice_id' => $invoice->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'The invoice was sent, but peppol_sent_at could not be set on the model: '.$e->getMessage();
         }
     }
 
@@ -178,10 +204,10 @@ class PeppolService
             $statusCode = $response->status();
             $responseBody = $response->body();
 
+            // The body can hold invoice data; it is kept on the log row, not in the application log
             Log::info('Peppol: Response received', [
                 'invoice_nr' => $invoiceNumber,
                 'status_code' => $statusCode,
-                'response' => $responseBody,
             ]);
 
             if ($response->successful()) {

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**`validate()` gives different answers for Dutch documents, and the Belgian builder writes different XML for a customer outside the Netherlands and Belgium**, so this is a minor release. Both follow the official rules; the six sample documents and a production document pass the official OpenPEPPOL Schematron, release 2026.5, without an error.
+
+### Fixed
+- **Dutch `validate()` tested NL-R-003 and NL-R-005 on the wrong element.** It checked the scheme of the endpoint (BT-34, BT-49), so a Dutch party receiving under a GLN (`0088`) or another legitimate scheme got a false error, while a legal registration (BT-30, BT-47) under a wrong scheme passed. The rules test `PartyLegalEntity/CompanyID`; so does `validate()` now. It also checks NL-R-002 and NL-R-004, the addresses. Messages start with the rule, as `[NL-R-003] ...`. What you do: nothing; if you worked around the false error by changing your endpoint scheme, you can change it back
+- **A successful send could come back as a failure.** `PeppolService::sendInvoice()` sets `peppol_sent_at` on your model after the provider accepted the document; a model without that column turned the send into `'success' => false`, which invites sending the invoice twice. Now the result stays `'success' => true`, with a `warning` that says the column could not be set. What you do: nothing, or add the column
+- **Belgian `calculateTotals()` ignored document level discounts and charges.** The documented order calls it before `addLegalMonetaryTotal()`, where the allowance and charge totals were read from, so a document with a discount got totals that `validate()` then refused (BR-CO-13, BR-S-08). It now counts every `addAllowanceCharge()` in the totals and in the taxable amount of its VAT category
+- **Belgian builder: the registration of a customer outside the Netherlands and Belgium (BT-47) no longer claims scheme `0208`**, the Belgian enterprise number. A German register number went out as `<cbc:CompanyID schemeID="0208">`. Now the optional `schemeID` is left out for such a customer; Belgian (`0208`) and Dutch (`0106`) customers get the same XML as before
+- Belgian `generateXml()` before `createDocument()` returned a bare XML declaration; it throws the `RuntimeException` the Dutch builder throws: `Root element is not initialized. Call createDocument() before adding elements.`
+
+### Changed
+- **Dates may be any `DateTimeInterface`**: `DateTimeImmutable` and `CarbonImmutable` are accepted wherever a `DateTime` was, in the headers of both builders
+- **The response body of the provider is no longer written to the application log**: it can hold invoice data. The log line keeps the status code; the body stays on the `peppol_logs` row when you use that table
+- **`ViesService` reports every failure to reach VIES as unknown** (`'valid' => false` with an `error`), not only a `SoapFault`: a network error or a missing soap extension no longer throws. It caches the WSDL on disk as well as in memory, and waits at most 15 seconds for an answer
+- `composer.json` suggests `ext-soap` (VIES) and `ext-bcmath` (IBAN check)
+- The fix hint of the BR-27 error and the remaining comments are in English
+
 ## [1.11.1] - 2026-09-24
 
 ### Fixed

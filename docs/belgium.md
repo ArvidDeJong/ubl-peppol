@@ -140,7 +140,7 @@ The header, the references and the line keys work as in the [Dutch builder](neth
 
 ## Let the builder add up the lines
 
-`calculateTotals()` adds up the lines you added so far and returns three keys:
+`calculateTotals()` adds up the lines and the document level discounts and charges you added so far, and returns three keys:
 
 | Key | Holds |
 | --- | --- |
@@ -148,7 +148,7 @@ The header, the references and the line keys work as in the [Dutch builder](neth
 | `tax_totals` | One entry per VAT category and rate: ready for `addTaxTotal()` |
 | `total_tax_amount` | The VAT of all categories together |
 
-It groups lines by `tax_category_id` and `tax_percent`, and rounds the VAT per group to two decimals. It knows nothing about `addAllowanceCharge()`: with a charge or a discount, calculate the totals yourself.
+It groups the lines, discounts and charges by `tax_category_id` and `tax_percent`, and rounds the VAT per group to two decimals. Since 1.12.0 it counts `addAllowanceCharge()`: call that before `calculateTotals()`. A prepayment is only known after `addLegalMonetaryTotal()`, so add `prepaid_amount` to the totals yourself.
 
 `getInvoiceLines()`, `getTotals()` and `getTaxTotals()` return what you passed in so far.
 

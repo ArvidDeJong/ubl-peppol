@@ -67,4 +67,4 @@ To check documents in your own tests or CI, run the same rules offline; see [Val
 
 ## Sources
 
-The rules are the official validation artefacts of OpenPEPPOL and CEN (EN 16931, licensed under the EUPL 1.2), compiled for the browser without changes. They run on SaxonJS, copyright Saxonica Ltd, distributed under its [licence](assets/validator/SaxonJS-LICENSE.txt).
+The rules are the official validation artefacts, compiled for the browser without changes: the EN 16931 rules of CEN, licensed under the EUPL 1.2, from [ConnectingEurope/eInvoicing-EN16931](https://github.com/ConnectingEurope/eInvoicing-EN16931), and the PEPPOL BIS Billing 3.0 rules of OpenPEPPOL AISBL, from [OpenPEPPOL/peppol-bis-invoice-3](https://github.com/OpenPEPPOL/peppol-bis-invoice-3). They belong to their authors; this page only runs them. They run on SaxonJS, copyright Saxonica Ltd, distributed under its [licence](assets/validator/SaxonJS-LICENSE.txt).
