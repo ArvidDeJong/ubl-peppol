@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-**`validate()` gives different answers for Dutch documents, and the Belgian builder writes different XML for a customer outside the Netherlands and Belgium**, so this is a minor release. Both follow the official rules; the six sample documents and a production document pass the official OpenPEPPOL Schematron, release 2026.5, without an error.
+**`validate()` gives different answers for Dutch documents, and the Belgian builder writes different XML for a customer outside the Netherlands and Belgium**, so this is a minor release. Both follow the official rules; the eight sample documents and a production invoice pass the official OpenPEPPOL Schematron, release 2026.5, without an error.
 
 ### Fixed
 - **Dutch `validate()` tested NL-R-003 and NL-R-005 on the wrong element.** It checked the scheme of the endpoint (BT-34, BT-49), so a Dutch party receiving under a GLN (`0088`) or another legitimate scheme got a false error, while a legal registration (BT-30, BT-47) under a wrong scheme passed. The rules test `PartyLegalEntity/CompanyID`; so does `validate()` now. It also checks NL-R-002 and NL-R-004, the addresses. Messages start with the rule, as `[NL-R-003] ...`. What you do: nothing; if you worked around the false error by changing your endpoint scheme, you can change it back
