@@ -60,4 +60,6 @@ Developers who already have invoice data (in a database, an ERP or a webshop) an
 
 ## Support
 
+In Dutch: [peppol-koppeling.nl](https://peppol-koppeling.nl/) explains the package, the Dutch and Belgian rules and the deadlines, and has a contact form for help with an integration.
+
 Bugs and questions go to [GitHub issues](https://github.com/ArvidDeJong/ubl-peppol/issues). A vulnerability goes to the [security advisories](https://github.com/ArvidDeJong/ubl-peppol/security/advisories/new) instead.

@@ -32,6 +32,7 @@ heading_anchors: true
 aux_links:
   GitHub: https://github.com/ArvidDeJong/ubl-peppol
   Packagist: https://packagist.org/packages/darvis/ubl-peppol
+  "In Dutch": https://peppol-koppeling.nl/
 aux_links_new_tab: true
 
 gh_edit_link: true
