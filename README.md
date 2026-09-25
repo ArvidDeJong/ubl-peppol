@@ -136,6 +136,10 @@ composer analyse   # Larastan
 
 See [CHANGELOG.md](CHANGELOG.md).
 
+## In Dutch
+
+[peppol-koppeling.nl](https://peppol-koppeling.nl/) explains the package in Dutch: Dutch and Belgian invoices, the Laravel integration, and why e-invoicing matters now. Its contact form is the place to ask for help with an integration.
+
 ## Support the package
 
 If darvis/ubl-peppol saves you time, a star on [GitHub](https://github.com/ArvidDeJong/ubl-peppol) or a favourite on [Packagist](https://packagist.org/packages/darvis/ubl-peppol) helps other developers find it.
