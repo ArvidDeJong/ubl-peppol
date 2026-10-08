@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **An MCP server with the `explain-rule` tool.** With `laravel/mcp` installed (Laravel Boost requires it), `php artisan mcp:start ubl-peppol` starts a local server that lets an AI assistant look up any rule by id or by words from an error message: the official text of OpenPEPPOL release 2026.5, fatal or warning, the XPath test, the element it is tested on, what this package does about it, and a link. It reads nothing from your application. `UBL_PEPPOL_MCP_ENABLED=false` leaves it out, `UBL_PEPPOL_MCP_HANDLE` renames it. What you do: add it to `.mcp.json` if you want it, see the MCP server page in the docs.
+- **`Rules\RuleCatalog`**, the same rules in plain PHP: `find($id)`, `search($words)` and `release()`, returning `Rules\Rule` objects. The 1144 official rules are generated from the Schematron the online validator runs, never written by hand.
 - **`CreditNoteValidationException`** (`Darvis\UblPeppol\Validation`), thrown by `generateXml()` when a credit note breaks a rule. Its first line names every failing rule, `Credit note validation failed: UBL-PEPPOL-CN-04`, so an error tracker that only shows that line still says what went wrong; before, it only said `Credit Note Validation Failed (PEPPOL BIS Billing 3.0 / EN 16931):`. `getRuleIds()` and `getErrors()` give the rules as data. It extends `InvalidArgumentException`, so existing `catch` blocks keep working.
 - **`hasBillingReference()`** on both builders, to check a credit note before you queue it, and **`UblValidator::missingBillingReference()`**, which says whether a missing reference is error `NL-R-001` or warning `UBL-PEPPOL-CN-05` for a given supplier country.
 

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Darvis\UblPeppol;
 
 use Darvis\UblPeppol\Console\CleanupPeppolLogsCommand;
+use Darvis\UblPeppol\Mcp\UblPeppolServer;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Mcp\Server\Registrar;
 
 /**
  * The Laravel layer of the package. The invoice builders and the validator work without it;
@@ -25,6 +27,8 @@ final class UblPeppolServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->registerMcpServer();
+
         if (! $this->app->runningInConsole()) {
             return;
         }
@@ -42,5 +46,20 @@ final class UblPeppolServiceProvider extends ServiceProvider
         $this->commands([
             CleanupPeppolLogsCommand::class,
         ]);
+    }
+
+    /**
+     * Register the local MCP server when laravel/mcp is installed. It stays optional: the
+     * package installs without it, and nothing here loads a class of laravel/mcp otherwise.
+     */
+    private function registerMcpServer(): void
+    {
+        if (! UblPeppolConfig::mcpEnabled() || ! class_exists(Registrar::class)) {
+            return;
+        }
+
+        $this->callAfterResolving(Registrar::class, function (Registrar $registrar): void {
+            $registrar->local(UblPeppolConfig::mcpHandle(), UblPeppolServer::class);
+        });
     }
 }

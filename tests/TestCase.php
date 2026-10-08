@@ -7,6 +7,7 @@ namespace Darvis\UblPeppol\Tests;
 use Darvis\UblPeppol\UblPeppolServiceProvider;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Mcp\Server\McpServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 /**
@@ -23,6 +24,7 @@ abstract class TestCase extends Orchestra
     protected function getPackageProviders($app): array
     {
         return [
+            McpServiceProvider::class,
             UblPeppolServiceProvider::class,
         ];
     }

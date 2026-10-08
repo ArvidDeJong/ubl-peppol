@@ -11,6 +11,9 @@ use Darvis\UblPeppol\UblNlBis3Service;
  */
 const LARAVEL_LAYER = [
     'Console/CleanupPeppolLogsCommand.php',
+    // The MCP server and its tools: laravel/mcp builds on Illuminate, and they only load when it is installed
+    'Mcp/Tools/ExplainRule.php',
+    'Mcp/UblPeppolServer.php',
     'Models/PeppolLog.php',
     'PeppolService.php',
     'UblPeppolConfig.php',

@@ -1,12 +1,12 @@
 ---
 title: "Laravel integration"
 nav_order: 12
-description: "What darvis/ubl-peppol adds in Laravel: the container bindings, the ubl-peppol config file, the optional peppol_logs table and the peppol:cleanup command."
+description: "What darvis/ubl-peppol adds in Laravel: the container bindings, the ubl-peppol config file, the optional peppol_logs table, the peppol:cleanup command and the optional MCP server."
 ---
 
 # Laravel integration
 
-Laravel is optional. The builders, `UblValidator`, `ViesService` and `CompanyRegistrationService` are plain PHP. The Laravel layer is four classes:
+Laravel is optional. The builders, `UblValidator`, `RuleCatalog`, `ViesService` and `CompanyRegistrationService` are plain PHP. The Laravel layer is four classes, plus an MCP server when `laravel/mcp` is installed:
 
 | Class | What it does |
 | --- | --- |
@@ -14,6 +14,7 @@ Laravel is optional. The builders, `UblValidator`, `ViesService` and `CompanyReg
 | `Darvis\UblPeppol\PeppolService` | Posts the XML to your access point provider. See [Sending invoices](peppol-service.md) |
 | `Darvis\UblPeppol\Models\PeppolLog` | The Eloquent model for the optional `peppol_logs` table |
 | `Darvis\UblPeppol\Console\CleanupPeppolLogsCommand` | The `peppol:cleanup` command |
+| `Darvis\UblPeppol\Mcp\UblPeppolServer` | The local MCP server with the `explain-rule` tool, only with `laravel/mcp`. See [MCP server](mcp-server.md) |
 
 The package has no routes, views, middleware, events or translations.
 
@@ -76,8 +77,10 @@ php artisan vendor:publish --tag=ubl-peppol-config
 | `password` | `PEPPOL_PASSWORD` | none | Password for your access point provider |
 | `url` | `PEPPOL_URL` | none | The address `PeppolService` posts the XML to |
 | `username` | `PEPPOL_USERNAME` | none | Username for your access point provider |
+| `mcp.enabled` | `UBL_PEPPOL_MCP_ENABLED` | `true` | Registers the [MCP server](mcp-server.md) when `laravel/mcp` is installed |
+| `mcp.handle` | `UBL_PEPPOL_MCP_HANDLE` | `ubl-peppol` | The handle for `php artisan mcp:start` |
 
-Only `PeppolService` and `peppol:cleanup` read these values. The builders read no configuration.
+Only `PeppolService`, `peppol:cleanup` and the service provider read these values. The builders read no configuration.
 
 `PeppolService` is a singleton as well, and it reads the three credentials when it is created. When you change the config at runtime, for example per tenant, create the service with `new PeppolService()` after the change.
 

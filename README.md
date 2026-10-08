@@ -15,6 +15,7 @@ A PHP library that builds **UBL 2.1** e-invoices for **PEPPOL BIS Billing 3.0**,
 - `ViesService` checks a European VAT number against VIES and tells "invalid" apart from "VIES did not answer"
 - `CompanyRegistrationService` checks the format of a KvK, KBO, RCS, SIREN/SIRET or Handelsregister number
 - In Laravel: `PeppolService` posts the XML to your provider, with an optional `peppol_logs` table and a `peppol:cleanup` command
+- An MCP server whose `explain-rule` tool lets an AI assistant quote any PEPPOL BIS Billing 3.0 or EN 16931 rule instead of guessing it, and `RuleCatalog` for the same in PHP
 
 It is not an access point, and `validate()` is not the full Schematron a receiver runs: check a document with an [official validator](https://arviddejong.github.io/ubl-peppol/validation.html) before you go live.
 
@@ -116,6 +117,7 @@ Full documentation at **[arviddejong.github.io/ubl-peppol](https://arviddejong.g
 - [VAT numbers](https://arviddejong.github.io/ubl-peppol/vat-numbers.html) and [company numbers](https://arviddejong.github.io/ubl-peppol/company-numbers.html)
 - [Laravel integration](https://arviddejong.github.io/ubl-peppol/laravel.html) and [sending invoices](https://arviddejong.github.io/ubl-peppol/peppol-service.html)
 - [Testing](https://arviddejong.github.io/ubl-peppol/testing.html): `Http::fake()`, with and without the log table
+- [MCP server](https://arviddejong.github.io/ubl-peppol/mcp-server.html): let an AI assistant look up what a PEPPOL rule demands
 - [API reference](https://arviddejong.github.io/ubl-peppol/api-reference.html), [troubleshooting](https://arviddejong.github.io/ubl-peppol/troubleshooting.html) and the [FAQ](https://arviddejong.github.io/ubl-peppol/faq.html)
 
 Runnable examples for both countries are in `examples/`.

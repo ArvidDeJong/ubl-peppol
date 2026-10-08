@@ -68,7 +68,7 @@ This package checks the rules it implements, which is not the receiver's full Sc
 
 ## Reading a rejection
 
-A rejection carries a rule code such as `BR-CO-11` or `PEPPOL-EN16931-R010`. Look it up in the [PEPPOL BIS Billing 3.0 specification](https://docs.peppol.eu/poacc/billing/3.0/bis/); that document is the authority, not this skill. `BR-` rules come from EN 16931 itself, `PEPPOL-EN16931-` rules from the PEPPOL profile on top of it, and `NL-R-` rules from the Dutch additions.
+A rejection carries a rule code such as `BR-CO-11` or `PEPPOL-EN16931-R010`. Look it up in the [PEPPOL BIS Billing 3.0 specification](https://docs.peppol.eu/poacc/billing/3.0/bis/); that document is the authority, not this skill. Never explain a rule from memory: when the `ubl-peppol` MCP server is available, call its `explain-rule` tool, which quotes the official text of the current OpenPEPPOL release, the flag and the XPath test, and says how the package handles the rule. In PHP, `Darvis\UblPeppol\Rules\RuleCatalog::find('BR-CO-11')` gives the same. Rule ids starting with `UBL-PEPPOL-` are checks of this package, not of the specification. `BR-` rules come from EN 16931 itself, `PEPPOL-EN16931-` rules from the PEPPOL profile on top of it, and `NL-R-` rules from the Dutch additions.
 
 ## Credit notes
 
@@ -106,6 +106,7 @@ Optional, and limited to four files: `UblPeppolServiceProvider`, `PeppolService`
 - Sending needs `PEPPOL_URL`, `PEPPOL_USERNAME` and `PEPPOL_PASSWORD`. `PeppolService::testConnection()` checks them without sending an invoice.
 - The `peppol_logs` table is **opt-in**: `php artisan vendor:publish --tag=ubl-peppol-migrations`, then migrate. Never write code that assumes the table exists. `sendInvoice()` and `sendUblXml()` work without it and then return `'log_id' => null`, and `peppol:cleanup` reports that there is nothing to clean. Before you query `PeppolLog` yourself, ask `PeppolLog::tableExists()`.
 - `php artisan peppol:cleanup` deletes logs older than `log_retention_days` (default 60).
+- With `laravel/mcp` installed (Laravel Boost requires it) the provider registers a local MCP server, `php artisan mcp:start ubl-peppol`, with the read-only tool `explain-rule`. `UBL_PEPPOL_MCP_ENABLED=false` leaves it out, `UBL_PEPPOL_MCP_HANDLE` renames it.
 
 ## Testing
 

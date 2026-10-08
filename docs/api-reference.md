@@ -243,6 +243,27 @@ Returned by `validate()`. Public read-only properties: `bool $isValid`, `array $
 | `InvoiceValidationResult::success(): self` | A valid result |
 | `InvoiceValidationResult::fromException(\Throwable $e): self` | An invalid result with the exception message as its only error |
 
+## `Validation\CreditNoteValidationException`
+
+Thrown by `generateXml()` when a credit note breaks a rule; extends `InvalidArgumentException`. The first line of the message names every failing rule.
+
+| Method | Returns |
+| --- | --- |
+| `getErrors(): array` | A list of `['rule' => string, 'message' => string]`, in the order they were checked |
+| `getRuleIds(): array` | The failing rule ids, each once |
+
+## `Rules\RuleCatalog` and `Rules\Rule`
+
+The official rules of the OpenPEPPOL release the validator runs and the `UBL-PEPPOL-` rules of this package. See [MCP server](mcp-server.md#the-same-rules-in-php).
+
+| Method | Returns |
+| --- | --- |
+| `RuleCatalog::find(string $id): ?Rule` | The rule; brackets and case do not matter |
+| `RuleCatalog::search(string $query, int $limit = 10): array` | Rules whose id starts with the query, then rules holding every word of it |
+| `RuleCatalog::release(): string` | The OpenPEPPOL release, such as `2026.5` |
+
+`Rule` has the read-only properties `id`, `flag` (`fatal` or `warning`), `text`, `test` and `context` (both `null` when unknown), `source` (`CEN`, `PEPPOL` or `package`) and `advice`, and the methods `isFatal()`, `isOfficial()` and `url()`.
+
 ## `Validation\UblValidator`
 
 Static helpers for single values. The full table is under [Validation](validation.md#check-single-values-with-ublvalidator).
@@ -332,7 +353,7 @@ See [The log table is optional](laravel.md#the-log-table-is-optional).
 
 ## `UblPeppolConfig` (Laravel)
 
-The one class that reads the config: `UblPeppolConfig::url()`, `username()`, `password()` (each a string, empty when not set) and `logRetentionDays()` (an integer, default 60).
+The one class that reads the config: `UblPeppolConfig::url()`, `username()`, `password()` (each a string, empty when not set), `logRetentionDays()` (an integer, default 60), `mcpEnabled()` (default `true`) and `mcpHandle()` (default `ubl-peppol`).
 
 ## Artisan
 
