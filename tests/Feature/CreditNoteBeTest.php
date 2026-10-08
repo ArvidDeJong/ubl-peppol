@@ -142,13 +142,13 @@ describe('Credit Note Tests - PEPPOL BIS Billing 3.0 / EN 16931', function () {
         expect($service->generateXml())->not->toContain('<cac:BillingReference>');
     });
 
-    it('rejects an empty billing reference (BR-55)', function () {
+    it('rejects an empty billing reference (PEPPOL-EN16931-R008, an empty element)', function () {
         $service = new UblBeBis3Service;
         $service->createCreditNoteDocument();
         $service->addCreditNoteHeader('C2026-001', '2026-01-21');
 
         expect(fn () => $service->addBillingReference('  '))
-            ->toThrow(InvalidArgumentException::class, '[BR-55]');
+            ->toThrow(InvalidArgumentException::class, '[PEPPOL-EN16931-R008]');
         expect($service->hasBillingReference())->toBeFalse();
     });
 

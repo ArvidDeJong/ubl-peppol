@@ -199,7 +199,8 @@ class UblBeBis3Service
      *
      * NL-R-001 requires it when the supplier is in the Netherlands, also in this builder; for any
      * other supplier PEPPOL does not, and validate() warns. BR-55 only demands that a reference,
-     * once present, holds the invoice number (BT-25).
+     * once present, holds the invoice number element (BT-25); an empty number falls under
+     * PEPPOL-EN16931-R008, because an empty cbc:ID is an empty element.
      *
      * Take the number from a stored link between the credit note and the credited invoice, not
      * from a line description: a number parsed from free text is missing as soon as someone
@@ -208,12 +209,12 @@ class UblBeBis3Service
      * @param  string  $originalInvoiceNumber  Number of the credited invoice (BT-25)
      * @param  string|null  $originalIssueDate  Issue date of that invoice, YYYY-MM-DD (BT-26, optional)
      *
-     * @throws \InvalidArgumentException When the number is empty (BR-55)
+     * @throws \InvalidArgumentException When the number is empty (PEPPOL-EN16931-R008)
      */
     public function addBillingReference(string $originalInvoiceNumber, ?string $originalIssueDate = null): self
     {
         if (trim($originalInvoiceNumber) === '') {
-            throw new \InvalidArgumentException('[BR-55] The number of the credited invoice is required and cannot be empty (BT-25).');
+            throw new \InvalidArgumentException('[PEPPOL-EN16931-R008] The number of the credited invoice cannot be empty (BT-25): an empty cbc:ID is an empty element, which the receiver refuses.');
         }
 
         $this->hasBillingReference = true;

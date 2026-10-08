@@ -18,6 +18,7 @@ it('quotes BR-55 as the specification words it: about the number, not about the 
         ->and($rule->source)->toBe(Rule::SOURCE_CEN)
         ->and($rule->context)->toBe('BillingReference')
         ->and($rule->advice)->toContain('NL-R-001')
+        ->and($rule->advice)->toContain('PEPPOL-EN16931-R008')
         ->and($rule->url())->toBe('https://docs.peppol.eu/poacc/billing/3.0/rules/ubl-tc434/BR-55/');
 });
 

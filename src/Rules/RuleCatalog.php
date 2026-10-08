@@ -53,7 +53,8 @@ final class RuleCatalog
      * @var array<string, string>
      */
     private const ADVICE = [
-        'BR-55' => 'This rule does not require a billing reference; it only demands that one, once present, holds the invoice number. addBillingReference() throws on an empty number. The requirement to reference the credited invoice is NL-R-001, for a supplier in the Netherlands.',
+        'BR-55' => 'This rule does not require a billing reference; it only demands that one, once present, holds the invoice number element. It does not fire on an empty number: that is PEPPOL-EN16931-R008, an empty element, and addBillingReference() refuses an empty number for that reason. The requirement to reference the credited invoice is NL-R-001, for a supplier in the Netherlands.',
+        'PEPPOL-EN16931-R008' => 'An empty cbc:ID in a billing reference falls under this rule, not under BR-55. addBillingReference() on both builders refuses an empty invoice number, so a document written by this package does not get here through the reference.',
         'NL-R-001' => 'Depends on the supplier country passed to addAccountingSupplierParty(), not on the builder: both builders throw it from generateXml() for a supplier in the Netherlands. Pass the number and issue date of the credited invoice to addBillingReference(), taken from a link stored on the credit note, not parsed from a line description.',
         'BR-27' => 'Thrown by the Belgian generateXml() for a negative price on a credit note line. addCreditNoteLine() already makes the price positive.',
     ];

@@ -176,10 +176,10 @@ it('reports the missing billing reference from validate() too', function () {
         ->and(implode("\n", $result->errors))->not->toContain('BR-55');
 });
 
-it('rejects an empty billing reference', function () {
+it('rejects an empty billing reference (PEPPOL-EN16931-R008, an empty element)', function () {
     $ubl = nlCreditNote(['header']);
 
-    expect(fn () => $ubl->addBillingReference('  '))->toThrow(InvalidArgumentException::class);
+    expect(fn () => $ubl->addBillingReference('  '))->toThrow(InvalidArgumentException::class, '[PEPPOL-EN16931-R008]');
 });
 
 it('writes a credit note line with a credited quantity', function () {

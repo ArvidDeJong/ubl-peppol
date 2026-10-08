@@ -154,7 +154,7 @@ What differs from the Belgian builder:
 - `addBuyerReference()` is allowed.
 - There is no `calculateTotals()`: you pass the totals yourself, as on a Dutch invoice.
 - `addCreditNoteHeader()` refuses an issue date in the future, as the Dutch `addInvoiceHeader()` does.
-- `addBillingReference()` throws an `InvalidArgumentException` on an empty invoice number (BR-55) or a date that is not `YYYY-MM-DD`. The Belgian builder also refuses an empty number, but does not check the date.
+- `addBillingReference()` throws an `InvalidArgumentException` on an empty invoice number (`PEPPOL-EN16931-R008`: an empty `cbc:ID` is an empty element; BR-55 itself only fires when the `cbc:ID` element is missing) or a date that is not `YYYY-MM-DD`. The Belgian builder also refuses an empty number, but does not check the date.
 - Mixing the two document types throws a `RuntimeException`: `addInvoiceHeader()` or `addInvoiceLine()` on a credit note, `addCreditNoteHeader()` or `addCreditNoteLine()` on an invoice.
 - Without a billing reference and with a supplier in the Netherlands, `generateXml()` throws a `CreditNoteValidationException` whose message starts with `Credit note validation failed: NL-R-001`, and `validate()` reports the same rule as an error. With a supplier elsewhere it is warning `UBL-PEPPOL-CN-05`, as in the Belgian builder.
 - A line needs `id`, `quantity` and `price_amount`; without the last two `addCreditNoteLine()` throws `Credit note line requires price_amount and quantity.` The other keys default as described below, and `base_quantity` (default 1) is written as well.
