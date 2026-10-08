@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`CreditNoteValidationException`** (`Darvis\UblPeppol\Validation`), thrown by `generateXml()` when a credit note breaks a rule. Its first line names every failing rule, `Credit note validation failed: UBL-PEPPOL-CN-04`, so an error tracker that only shows that line still says what went wrong; before, it only said `Credit Note Validation Failed (PEPPOL BIS Billing 3.0 / EN 16931):`. `getRuleIds()` and `getErrors()` give the rules as data. It extends `InvalidArgumentException`, so existing `catch` blocks keep working.
+- **`hasBillingReference()`** on both builders, to check a credit note before you queue it.
+
+### Changed
+- **The Belgian builder writes a credit note without a billing reference.** PEPPOL does not require one from a Belgian supplier: only NL-R-001 does, for a Dutch supplier, and BR-55 only demands that a reference, once present, holds the invoice number. Before, `generateXml()` threw `[BR-55] PEPPOL Credit Note MUST have a BillingReference.` and blocked credit notes PEPPOL accepts. `validate()` now reports it as warning `UBL-PEPPOL-CN-05`, because the receiver cannot match the credit to an invoice. What you do: nothing to keep sending; still pass the number and issue date of the credited invoice whenever you know it, from a link you store on the credit note rather than from a line description. If you blocked Belgian credit notes yourself because of the old exception, you can relax that to a warning.
+- **The credit note rules have honest ids.** `BR-CN-01` to `BR-CN-04` were never PEPPOL rules; they are now `UBL-PEPPOL-CN-01` to `UBL-PEPPOL-CN-04`, and the messages say they are rules of this package. `BR-27` is a real rule and keeps its id. The Dutch builder reports a missing billing reference as `NL-R-001` instead of `[BR-55] [NL-R-001]`. What you do: if you match on `BR-CN-` or `BR-55` in a message, match on the new ids, or better, on `getRuleIds()`.
+- `addBillingReference()` on the Belgian builder throws an `InvalidArgumentException` on an empty invoice number (BR-55), as the Dutch builder already did. Before, it wrote an empty `cbc:ID` that the receiver rejected.
+
 ## [1.12.0] - 2026-09-25
 
 **`validate()` gives different answers for Dutch documents, and the Belgian builder writes different XML for a customer outside the Netherlands and Belgium**, so this is a minor release. Both follow the official rules; the eight sample documents and a production invoice pass the official OpenPEPPOL Schematron, release 2026.5, without an error.

@@ -142,6 +142,16 @@ class UblNlBis3Service
     }
 
     /**
+     * Whether addBillingReference() wrote a reference to the credited invoice (BG-3).
+     *
+     * Lets a host app check a credit note before it queues it for sending.
+     */
+    public function hasBillingReference(): bool
+    {
+        return $this->hasBillingReference;
+    }
+
+    /**
      * Generate the XML string
      *
      * @return string The generated XML as a string
@@ -164,10 +174,10 @@ class UblNlBis3Service
             throw new \RuntimeException('Root element is not initialized. Call createDocument() before adding elements.');
         }
 
-        // Checked on every credit note, as the Belgian builder does: without the reference every
-        // receiver rejects the document, and the rejection arrives after it was sent.
+        // NL-R-001: every receiver rejects a Dutch credit note without the reference, and the
+        // rejection only arrives after it was sent, so it is checked on every credit note
         if ($this->isCreditNote && ! $this->hasBillingReference) {
-            throw new \InvalidArgumentException(self::MISSING_BILLING_REFERENCE);
+            throw new Validation\CreditNoteValidationException([['rule' => 'NL-R-001', 'message' => self::MISSING_BILLING_REFERENCE]]);
         }
 
         $this->arrangeInSchemaOrder();
@@ -225,8 +235,9 @@ class UblNlBis3Service
         'LegalMonetaryTotal', 'CreditNoteLine',
     ];
 
-    protected const MISSING_BILLING_REFERENCE = '[BR-55] [NL-R-001] A credit note must reference the invoice it credits (BG-3). '
-        .'Call addBillingReference($originalInvoiceNumber, $originalIssueDate) before generateXml().';
+    protected const MISSING_BILLING_REFERENCE = 'A credit note from a Dutch supplier must reference the invoice it credits (BG-3). '
+        .'Store the credited invoice on the credit note when you create it and pass its number and issue date to '
+        .'addBillingReference($originalInvoiceNumber, $originalIssueDate) before generateXml(); do not parse the number from a line description.';
 
     /**
      * Put the children of <Invoice> in schema order, whatever the order of the add...() calls was.
@@ -290,9 +301,9 @@ class UblNlBis3Service
             $errors = array_merge($errors, UblValidator::validateDutchRules($document)->errors);
         }
 
-        // BR-55, and NL-R-001 for a Dutch supplier: a credit note references the credited invoice
+        // NL-R-001: a credit note from a Dutch supplier references the credited invoice
         if ($this->isCreditNote && ! $this->hasBillingReference) {
-            $errors[] = self::MISSING_BILLING_REFERENCE;
+            $errors[] = '[NL-R-001] '.self::MISSING_BILLING_REFERENCE;
         }
 
         // What the VAT categories demand of the document: breakdown, rates, VAT numbers, delivery
@@ -609,8 +620,12 @@ class UblNlBis3Service
     }
 
     /**
-     * Add the reference to the invoice a credit note credits (BG-3). BR-55 requires it on every
-     * credit note and NL-R-001 repeats that for a Dutch supplier.
+     * Add the reference to the invoice a credit note credits (BG-3). NL-R-001 requires it on
+     * every credit note from a Dutch supplier; BR-55 demands that it holds the number (BT-25).
+     *
+     * Take the number from a stored link between the credit note and the credited invoice, not
+     * from a line description: a number parsed from free text is missing as soon as someone
+     * types the description differently.
      *
      * @param  string  $originalInvoiceNumber  Number of the credited invoice (BT-25)
      * @param  string|null  $originalIssueDate  Issue date of that invoice, YYYY-MM-DD (BT-26, optional)
@@ -626,7 +641,7 @@ class UblNlBis3Service
 
         $originalInvoiceNumber = trim($originalInvoiceNumber);
         if ($originalInvoiceNumber === '') {
-            throw new \InvalidArgumentException('The number of the credited invoice is required and cannot be empty (BT-25).');
+            throw new \InvalidArgumentException('[BR-55] The number of the credited invoice is required and cannot be empty (BT-25).');
         }
 
         if ($originalIssueDate !== null && $originalIssueDate !== '') {
