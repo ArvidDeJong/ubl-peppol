@@ -1,7 +1,7 @@
 ---
 title: "Credit notes"
 nav_order: 6
-description: "Build a PEPPOL credit note with the Belgian or the Dutch builder: createCreditNoteDocument(), the billing reference BR-55 requires, positive amounts, what throws."
+description: "Build a PEPPOL credit note with the Belgian or the Dutch builder: createCreditNoteDocument(), the billing reference to the credited invoice, positive amounts, what throws."
 ---
 
 # Credit notes
@@ -17,7 +17,7 @@ Both builders build credit notes, with the same four methods: `createCreditNoteD
 | Start with | `createDocument()` | `createCreditNoteDocument()` |
 | Header | `addInvoiceHeader($number, $issueDate, $dueDate)` | `addCreditNoteHeader($number, $issueDate)`, no due date |
 | Lines | `addInvoiceLine()` | `addCreditNoteLine()` |
-| Reference to the invoice | Not needed | `addBillingReference()` is required (rule BR-55) |
+| Reference to the invoice | Not needed | `addBillingReference()`. Required when the supplier is in the Netherlands (NL-R-001), in both builders; otherwise `validate()` warns without it |
 | `addBuyerReference()` | Allowed | Belgian builder: throws, use `addOrderReference()`. Dutch builder: allowed |
 | Root element and type code | `<Invoice>`, 380 | `<CreditNote>`, 381 |
 | Amounts | Positive | Positive as well. The document type says it is a credit |
@@ -154,9 +154,9 @@ What differs from the Belgian builder:
 - `addBuyerReference()` is allowed.
 - There is no `calculateTotals()`: you pass the totals yourself, as on a Dutch invoice.
 - `addCreditNoteHeader()` refuses an issue date in the future, as the Dutch `addInvoiceHeader()` does.
-- `addBillingReference()` throws an `InvalidArgumentException` on an empty invoice number or a date that is not `YYYY-MM-DD`.
+- `addBillingReference()` throws an `InvalidArgumentException` on an empty invoice number (`PEPPOL-EN16931-R008`: an empty `cbc:ID` is an empty element; BR-55 itself only fires when the `cbc:ID` element is missing) or a date that is not `YYYY-MM-DD`. The Belgian builder also refuses an empty number, but does not check the date.
 - Mixing the two document types throws a `RuntimeException`: `addInvoiceHeader()` or `addInvoiceLine()` on a credit note, `addCreditNoteHeader()` or `addCreditNoteLine()` on an invoice.
-- Without a billing reference `generateXml()` throws an `InvalidArgumentException` that starts with `[BR-55] [NL-R-001]`, and `validate()` reports the same message as an error. NL-R-001 is the Dutch rule that repeats BR-55 for a supplier in the Netherlands.
+- Without a billing reference and with a supplier in the Netherlands, `generateXml()` throws a `CreditNoteValidationException` whose message starts with `Credit note validation failed: NL-R-001`, and `validate()` reports the same rule as an error. With a supplier elsewhere it is warning `UBL-PEPPOL-CN-05`, as in the Belgian builder.
 - A line needs `id`, `quantity` and `price_amount`; without the last two `addCreditNoteLine()` throws `Credit note line requires price_amount and quantity.` The other keys default as described below, and `base_quantity` (default 1) is written as well.
 
 ## Amounts are positive
@@ -171,17 +171,41 @@ For the Belgian builder: only `id` is required. `quantity` and `price_amount` de
 
 ## The rules `generateXml()` enforces
 
-This section describes the Belgian builder; the Dutch builder only checks the billing reference, see above. On a credit note, `generateXml()` always checks the rules below, with or without `validateFirst`. When one fails it throws an `InvalidArgumentException` that starts with `Credit Note Validation Failed (PEPPOL BIS Billing 3.0 / EN 16931):`.
+This section describes the Belgian builder; the Dutch builder only checks the billing reference, see above and [the billing reference](#the-billing-reference-follows-the-supplier). On a credit note, `generateXml()` always checks the rules below, with or without `validateFirst`. When one fails it throws a `CreditNoteValidationException`. Its message starts with every failing rule on one line, `Credit note validation failed: UBL-PEPPOL-CN-03, UBL-PEPPOL-CN-04`, followed by an explanation and a solution per rule, so a log that only keeps the first line still says what went wrong.
 
-| Code in the message | Cause |
+| Rule | Cause |
 | --- | --- |
-| `[BR-55] PEPPOL Credit Note MUST have a BillingReference.` | You did not call `addBillingReference()` |
-| `[BR-CN-03] LineExtensionAmount in totals is negative.` | `line_extension_amount` in `addLegalMonetaryTotal()` is below zero |
-| `[BR-CN-04] PayableAmount is negative.` | `payable_amount` in `addLegalMonetaryTotal()` is below zero |
+| `NL-R-001` | The supplier is in the Netherlands and you did not call `addBillingReference()` |
+| `UBL-PEPPOL-CN-03` | `line_extension_amount` in `addLegalMonetaryTotal()` is below zero |
+| `UBL-PEPPOL-CN-04` | `payable_amount` in `addLegalMonetaryTotal()` is below zero |
 
-The messages `[BR-CN-01]`, `[BR-27]` and `[BR-CN-02]` exist for a negative line amount, price or quantity. `addCreditNoteLine()` already makes those positive, so you will not see them. The `BR-CN` codes are this package's own labels, not codes from the PEPPOL specification.
+`UBL-PEPPOL-CN-01`, `BR-27` and `UBL-PEPPOL-CN-02` exist for a negative line amount, price or quantity. `addCreditNoteLine()` already makes those positive, so you will not see them. Rules starting with `UBL-PEPPOL-` are this package's own rules, not rules of the PEPPOL specification; `BR-27` is a PEPPOL rule.
 
-**The Belgian `validate()` does not check these rules.** On a credit note without a billing reference, it returns valid and `generateXml()` throws. Wrap `generateXml()` in a `try` block when you build credit notes from user input.
+The exception extends `InvalidArgumentException`, so an existing `catch` keeps working. Read the rules as data instead of parsing the message:
+
+```php
+use Darvis\UblPeppol\Validation\CreditNoteValidationException;
+
+try {
+    $xml = $ubl->generateXml();
+} catch (CreditNoteValidationException $e) {
+    $e->getRuleIds(); // ['UBL-PEPPOL-CN-04']
+    $e->getErrors();  // [['rule' => 'UBL-PEPPOL-CN-04', 'message' => 'The PayableAmount is negative. ...']]
+}
+```
+
+**The Belgian `validate()` does not check these rules**; only `generateXml()` does. Wrap `generateXml()` in a `try` block when you build credit notes from user input.
+
+### The billing reference follows the supplier
+
+PEPPOL requires a reference to the credited invoice only when the supplier is in the Netherlands (NL-R-001). That depends on the country you pass to `addAccountingSupplierParty()`, not on the builder: a Dutch company that credits a Belgian customer uses the Belgian builder and is still bound by NL-R-001. BR-55 only demands that a reference, once present, holds the invoice number.
+
+| Supplier | Without `addBillingReference()` |
+| --- | --- |
+| In the Netherlands | `generateXml()` throws `NL-R-001`, `validate()` reports it as an error |
+| Anywhere else | The credit note is written; `validate()` reports warning `UBL-PEPPOL-CN-05`, because the receiver cannot match the credit to an invoice |
+
+Add the reference whenever you know the invoice. Take the number from a link you stored between the credit note and the invoice when you created the credit note, and pass the issue date too. Do not parse the number from a line description: it goes missing as soon as someone types the description differently. `hasBillingReference()` tells you before you send whether the reference is there.
 
 ## `addBuyerReference()` throws on a Belgian credit note
 

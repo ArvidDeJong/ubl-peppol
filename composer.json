@@ -50,6 +50,7 @@
     },
     "require-dev": {
         "larastan/larastan": "^3.0",
+        "laravel/mcp": "^1.0",
         "laravel/pint": "^1.0",
         "orchestra/testbench": "^9.0|^10.0|^11.0",
         "pestphp/pest": "^3.0|^4.0",
@@ -59,6 +60,7 @@
     "suggest": {
         "ext-bcmath": "For the IBAN check (UblValidator::validateIban()).",
         "ext-soap": "For the VAT number check against VIES (ViesService).",
+        "laravel/mcp": "For the local MCP server that lets an AI assistant look up PEPPOL rules (^1.0).",
         "illuminate/support": "Only for the Laravel layer (service provider, PeppolService, the PeppolLog model and the cleanup command). The invoice builders and the validator run without it."
     },
     "scripts": {

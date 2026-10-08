@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Darvis\UblPeppol\UblNlBis3Service;
+use Darvis\UblPeppol\Validation\CreditNoteValidationException;
 
 /**
  * The Dutch builder builds a credit note (type 381) with the same calls the Belgian builder has,
@@ -137,7 +138,7 @@ it('gives the same credit note whatever the order of the calls', function (array
     ]],
 ]);
 
-it('writes the billing reference to the credited invoice (BG-3, BR-55, NL-R-001)', function () {
+it('writes the billing reference to the credited invoice (BG-3, NL-R-001)', function () {
     $xpath = creditNoteXPath(nlCreditNote(NL_CREDIT_NOTE_SCHEMA_ORDER)->generateXml());
 
     expect($xpath->evaluate('string(/cn:CreditNote/cac:BillingReference/cac:InvoiceDocumentReference/cbc:ID)'))->toBe('NL-INV-2026-001')
@@ -158,19 +159,27 @@ it('refuses to generate a credit note without a billing reference', function () 
     $ubl = nlCreditNote(['header', 'supplier', 'customer', 'taxTotal', 'monetaryTotal', 'line1']);
 
     expect(fn () => $ubl->generateXml())->toThrow(InvalidArgumentException::class, 'NL-R-001');
+
+    try {
+        $ubl->generateXml();
+    } catch (CreditNoteValidationException $e) {
+        expect(strtok($e->getMessage(), "\n"))->toBe('Credit note validation failed: NL-R-001')
+            ->and($e->getRuleIds())->toBe(['NL-R-001']);
+    }
 });
 
 it('reports the missing billing reference from validate() too', function () {
     $result = nlCreditNote(['header', 'supplier', 'customer', 'paymentMeans', 'taxTotal', 'monetaryTotal', 'line1'])->validate();
 
     expect($result->isValid())->toBeFalse()
-        ->and(implode("\n", $result->errors))->toContain('BR-55');
+        ->and(implode("\n", $result->errors))->toContain('[NL-R-001]')
+        ->and(implode("\n", $result->errors))->not->toContain('BR-55');
 });
 
-it('rejects an empty billing reference', function () {
+it('rejects an empty billing reference (PEPPOL-EN16931-R008, an empty element)', function () {
     $ubl = nlCreditNote(['header']);
 
-    expect(fn () => $ubl->addBillingReference('  '))->toThrow(InvalidArgumentException::class);
+    expect(fn () => $ubl->addBillingReference('  '))->toThrow(InvalidArgumentException::class, '[PEPPOL-EN16931-R008]');
 });
 
 it('writes a credit note line with a credited quantity', function () {
@@ -232,3 +241,14 @@ it('rejects a credit note header with a bad number or date', function (string $n
     'a date in another format' => ['NL-CN-1', '15-01-2026'],
     'a date in the future' => ['NL-CN-1', '2999-01-01'],
 ]);
+
+it('only warns when the supplier in the Dutch builder is not in the Netherlands, because NL-R-001 follows the supplier', function () {
+    $ubl = nlCreditNote(['header', 'customer', 'paymentMeans', 'taxTotal', 'monetaryTotal', 'line1']);
+    $ubl->addAccountingSupplierParty(
+        '0999000197', '0208', '0999000197', 'Belgian Supplier NV', 'Kerkstraat 1', '2300', 'Turnhout', 'BE', 'BE0999000197'
+    );
+
+    expect($ubl->generateXml())->toContain('<CreditNote')
+        ->and(implode("\n", $ubl->validate()->errors))->not->toContain('NL-R-001')
+        ->and(implode("\n", $ubl->validate()->warnings))->toContain('[UBL-PEPPOL-CN-05]');
+});

@@ -35,3 +35,6 @@ cp "$saxon/LICENSE.txt" "$out/SaxonJS-LICENSE.txt"
 printf '{"release": "%s"}\n' "$release" > "$out/release.json"
 
 echo "Written to $out"
+
+# RuleCatalog and the explain-rule MCP tool read the rules from the same release
+php "$(dirname "$0")/build_rule_catalog.php"

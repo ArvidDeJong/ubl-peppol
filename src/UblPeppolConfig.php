@@ -38,4 +38,20 @@ final class UblPeppolConfig
     {
         return (string) config('ubl-peppol.password');
     }
+
+    /**
+     * Whether the local MCP server is registered when laravel/mcp is installed.
+     */
+    public static function mcpEnabled(): bool
+    {
+        return (bool) config('ubl-peppol.mcp.enabled', true);
+    }
+
+    /**
+     * The handle the MCP server is started under: php artisan mcp:start <handle>.
+     */
+    public static function mcpHandle(): string
+    {
+        return (string) config('ubl-peppol.mcp.handle', 'ubl-peppol');
+    }
 }

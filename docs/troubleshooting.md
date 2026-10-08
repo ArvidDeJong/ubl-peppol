@@ -222,15 +222,22 @@ Also `BR-CO-11: Sum of document allowances (...) does not match AllowanceTotalAm
 
 ## Credit notes
 
-### `Credit Note Validation Failed (PEPPOL BIS Billing 3.0 / EN 16931):`
+### `Credit note validation failed: ...`
 
-| Code in the message | Fix |
+The first line names the failing rules; `getRuleIds()` on the `CreditNoteValidationException` gives them as an array.
+
+| Rule | Fix |
 | --- | --- |
-| `[BR-55] PEPPOL Credit Note MUST have a BillingReference.` | Call `addBillingReference($invoiceNumber, $invoiceDate)` |
-| `[BR-CN-03] LineExtensionAmount in totals is negative.` | Pass positive totals to `addLegalMonetaryTotal()` |
-| `[BR-CN-04] PayableAmount is negative.` | The same |
+| `NL-R-001` (supplier in the Netherlands, either builder) | Call `addBillingReference($invoiceNumber, $invoiceDate)`, with the number of the invoice you stored on the credit note |
+| `UBL-PEPPOL-CN-03` | Pass positive totals to `addLegalMonetaryTotal()` |
+| `UBL-PEPPOL-CN-04` | The same |
 
-The Belgian `validate()` does not report these; only `generateXml()` does. See [Credit notes](credit-notes.md#the-rules-generatexml-enforces).
+Before 1.13.0 this message started with `Credit Note Validation Failed (PEPPOL BIS Billing 3.0 / EN 16931):` and used the codes `BR-CN-01` to `BR-CN-04`; the Belgian builder also refused a credit note without a billing reference under `[BR-55]`. See [Credit notes](credit-notes.md#the-rules-generatexml-enforces).
+
+### `[UBL-PEPPOL-CN-05]` warning from `validate()`
+
+**Cause:** a credit note from a supplier outside the Netherlands without a reference to the credited invoice. PEPPOL accepts it, but the receiver cannot match the credit to an invoice.
+**Fix:** call `addBillingReference()` with the number and issue date of the credited invoice. See [The billing reference follows the supplier](credit-notes.md#the-billing-reference-follows-the-supplier).
 
 ### `BuyerReference is not supported on credit notes by this package.`
 

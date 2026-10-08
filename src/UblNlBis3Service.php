@@ -142,11 +142,22 @@ class UblNlBis3Service
     }
 
     /**
+     * Whether addBillingReference() wrote a reference to the credited invoice (BG-3).
+     *
+     * Lets a host app check a credit note before it queues it for sending.
+     */
+    public function hasBillingReference(): bool
+    {
+        return $this->hasBillingReference;
+    }
+
+    /**
      * Generate the XML string
      *
      * @return string The generated XML as a string
      *
      * @throws \RuntimeException If the document is not initialized
+     * @throws Validation\CreditNoteValidationException If a credit note from a Dutch supplier has no billing reference (NL-R-001)
      */
     public function generateXml(bool $validateFirst = false): string
     {
@@ -164,10 +175,11 @@ class UblNlBis3Service
             throw new \RuntimeException('Root element is not initialized. Call createDocument() before adding elements.');
         }
 
-        // Checked on every credit note, as the Belgian builder does: without the reference every
-        // receiver rejects the document, and the rejection arrives after it was sent.
-        if ($this->isCreditNote && ! $this->hasBillingReference) {
-            throw new \InvalidArgumentException(self::MISSING_BILLING_REFERENCE);
+        // NL-R-001: a receiver rejects a credit note from a Dutch supplier without the reference,
+        // and the rejection only arrives after it was sent, so generateXml() refuses it
+        $missingReference = UblValidator::missingBillingReference($this->isCreditNote, $this->hasBillingReference, $this->supplierCountryCode);
+        if ($missingReference !== null && $missingReference['isError']) {
+            throw new Validation\CreditNoteValidationException([['rule' => $missingReference['rule'], 'message' => $missingReference['message']]]);
         }
 
         $this->arrangeInSchemaOrder();
@@ -225,8 +237,8 @@ class UblNlBis3Service
         'LegalMonetaryTotal', 'CreditNoteLine',
     ];
 
-    protected const MISSING_BILLING_REFERENCE = '[BR-55] [NL-R-001] A credit note must reference the invoice it credits (BG-3). '
-        .'Call addBillingReference($originalInvoiceNumber, $originalIssueDate) before generateXml().';
+    /** @deprecated The message now comes from UblValidator::missingBillingReference(), which depends on the supplier country */
+    protected const MISSING_BILLING_REFERENCE = 'The supplier is in the Netherlands, so the credit note must reference the invoice it credits (BG-3).';
 
     /**
      * Put the children of <Invoice> in schema order, whatever the order of the add...() calls was.
@@ -290,9 +302,15 @@ class UblNlBis3Service
             $errors = array_merge($errors, UblValidator::validateDutchRules($document)->errors);
         }
 
-        // BR-55, and NL-R-001 for a Dutch supplier: a credit note references the credited invoice
-        if ($this->isCreditNote && ! $this->hasBillingReference) {
-            $errors[] = self::MISSING_BILLING_REFERENCE;
+        // NL-R-001 for a Dutch supplier, otherwise warning UBL-PEPPOL-CN-05
+        $missingReference = UblValidator::missingBillingReference($this->isCreditNote, $this->hasBillingReference, $this->supplierCountryCode);
+        if ($missingReference !== null) {
+            $finding = "[{$missingReference['rule']}] {$missingReference['message']}";
+            if ($missingReference['isError']) {
+                $errors[] = $finding;
+            } else {
+                $warnings[] = $finding;
+            }
         }
 
         // What the VAT categories demand of the document: breakdown, rates, VAT numbers, delivery
@@ -609,13 +627,18 @@ class UblNlBis3Service
     }
 
     /**
-     * Add the reference to the invoice a credit note credits (BG-3). BR-55 requires it on every
-     * credit note and NL-R-001 repeats that for a Dutch supplier.
+     * Add the reference to the invoice a credit note credits (BG-3). NL-R-001 requires it on
+     * every credit note from a Dutch supplier; BR-55 demands that it holds the number element
+     * (BT-25), and an empty number is an empty element, PEPPOL-EN16931-R008.
+     *
+     * Take the number from a stored link between the credit note and the credited invoice, not
+     * from a line description: a number parsed from free text is missing as soon as someone
+     * types the description differently.
      *
      * @param  string  $originalInvoiceNumber  Number of the credited invoice (BT-25)
      * @param  string|null  $originalIssueDate  Issue date of that invoice, YYYY-MM-DD (BT-26, optional)
      *
-     * @throws \InvalidArgumentException When the number is empty or the date is not YYYY-MM-DD
+     * @throws \InvalidArgumentException When the number is empty (PEPPOL-EN16931-R008) or the date is not YYYY-MM-DD
      * @throws \RuntimeException When the document is not initialized
      */
     public function addBillingReference(string $originalInvoiceNumber, ?string $originalIssueDate = null): self
@@ -626,7 +649,7 @@ class UblNlBis3Service
 
         $originalInvoiceNumber = trim($originalInvoiceNumber);
         if ($originalInvoiceNumber === '') {
-            throw new \InvalidArgumentException('The number of the credited invoice is required and cannot be empty (BT-25).');
+            throw new \InvalidArgumentException('[PEPPOL-EN16931-R008] The number of the credited invoice cannot be empty (BT-25): an empty cbc:ID is an empty element, which the receiver refuses.');
         }
 
         if ($originalIssueDate !== null && $originalIssueDate !== '') {

@@ -28,7 +28,7 @@ CI runs the tests on PHP 8.2-8.4 with Laravel 11, 12 and 13, on the lowest and t
 - Add or update tests for every change in behaviour.
 - **Laravel stays optional.** Only `UblPeppolServiceProvider`, `PeppolService`, `Models\PeppolLog` and `Console\CleanupPeppolLogsCommand` may import `Illuminate\...`. `tests/Unit/StandaloneCoreTest.php` fails on an import anywhere else, because that breaks every user who installed the package without a framework. Tests that need an application go in `tests/Laravel`; the rest runs without one.
 - **Keep the country rules apart.** `UblNlBis3Service` and `UblBeBis3Service` are separate classes because their checks and their method signatures differ. Don't merge them behind a flag, and don't copy a fix across without checking that country's rules.
-- Keep the public API compatible within 1.x: the method names of both builders, `InvoiceValidationResult`, the static helpers on `UblValidator`, the cases and methods of `Vat\VatCategory` and `Vat\VatExemptionReason`, the keys of an `addTaxTotal()` entry, `ViesService`, `CompanyRegistrationService`, `PeppolService`, the config keys, the publish tags and the `peppol:cleanup` command.
+- Keep the public API compatible within 1.x: the method names of both builders, `InvoiceValidationResult`, `CreditNoteValidationException` with `getErrors()` and `getRuleIds()`, the `UBL-PEPPOL-` rule ids, `Rules\RuleCatalog` and `Rules\Rule`, the MCP server handle and the `explain-rule` tool with its `rule` argument, the static helpers on `UblValidator`, the cases and methods of `Vat\VatCategory` and `Vat\VatExemptionReason`, the keys of an `addTaxTotal()` entry, `ViesService`, `CompanyRegistrationService`, `PeppolService`, the config keys, the publish tags and the `peppol:cleanup` command.
 - A change a user notices (a different element in the output, a new validation rule that fires, another default) is a minor release, not a patch. Output that a receiver accepted before and rejects now is breaking, whatever the specification says.
 - Write code, comments and messages in English.
 - Update `docs/`, `CHANGELOG.md` (under `Unreleased`) and `resources/boost/` when users will notice the change.
@@ -62,8 +62,10 @@ examples/validate/build-browser-validator.sh <dir with CEN-EN16931-UBL.xslt and 
 
 Raise the `?v=` number on the script tags in `docs/validator.md` whenever `validator.js` or SaxonJS changes: GitHub Pages lets browsers cache scripts for ten minutes, and a new page with an old script does not work.
 
+The script also regenerates `resources/rules/peppol-rules.php`, the rule catalogue behind `RuleCatalog` and the `explain-rule` MCP tool, from the same files. Commit it with them; `tests/Unit/RuleCatalogTest.php` fails when the two releases differ.
+
 Then check that `docs/assets/validator/samples/valid-dutch-invoice.xml` is still valid on the page and that `broken-intra-community.xml` still reports BR-IC-10, BR-IC-11 and BR-IC-12.
 
 ## Code of conduct
 
-This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
+This project follows the [Contributor Covenant](https://github.com/ArvidDeJong/.github/blob/main/CODE_OF_CONDUCT.md).

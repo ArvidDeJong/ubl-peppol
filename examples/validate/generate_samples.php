@@ -220,6 +220,21 @@ foreach ($amounts['lines'] as $line) {
 }
 $cases['be-credit-note.xml'] = $ubl;
 
+// 5b. Belgian credit note without a billing reference. PEPPOL only requires one from a supplier in
+//     the Netherlands (NL-R-001); for this Belgian supplier validate() warns (UBL-PEPPOL-CN-05).
+$amounts = sampleAmounts($be['lines']);
+$ubl = (new UblBeBis3Service)
+    ->createCreditNoteDocument()
+    ->addCreditNoteHeader('SAMPLE-BE-CN-002', $be['header']['issue_date'])
+    ->addOrderReference($be['header']['order_reference']);
+belgianParties($ubl)
+    ->addTaxTotal($amounts['tax'])
+    ->addLegalMonetaryTotal($amounts['totals'], 'EUR');
+foreach ($amounts['lines'] as $line) {
+    $ubl->addCreditNoteLine($line);
+}
+$cases['be-credit-note-without-reference.xml'] = $ubl;
+
 // 6. Dutch credit note with a document level discount. NL-R-001 wants the billing reference, and
 //    <CreditNote> has its own element order: the builder sorts it, whatever the order of the calls.
 $amounts = sampleAmounts($nl['lines'], allowance: 25.00);

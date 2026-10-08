@@ -57,6 +57,7 @@ Developers who already have invoice data (in a database, an ERP or a webshop) an
 - [API reference](api-reference.md): every public method with its arguments
 - [Troubleshooting](troubleshooting.md): error messages, quoted literally, with cause and fix
 - [FAQ](faq.md): short answers to common questions
+- [MCP server](mcp-server.md): let an AI assistant look up what a PEPPOL rule demands, and `RuleCatalog` in PHP
 
 ## Support
 

@@ -38,8 +38,11 @@ class UblBeBis3Service
     // Document type tracking
     protected bool $isCreditNote = false;
 
-    // Track if billing reference was added (required for credit notes - BR-55)
+    // Track if a reference to the credited invoice was added (BG-3), see UblValidator::missingBillingReference()
     protected bool $hasBillingReference = false;
+
+    // Country of AccountingSupplierParty: NL-R-001 requires the billing reference from a Dutch supplier
+    protected ?string $supplierCountryCode = null;
 
     // Namespace prefixes
     protected string $ns_prefix_cac = 'cac';
@@ -192,15 +195,28 @@ class UblBeBis3Service
     }
 
     /**
-     * Add Billing Reference - REQUIRED for credit notes (BR-55)
-     * References the original invoice being credited
+     * Add the reference to the invoice a credit note credits (BG-3).
      *
-     * @param  string  $originalInvoiceNumber  The original invoice number
-     * @param  string|null  $originalIssueDate  Original invoice issue date (YYYY-MM-DD)
+     * NL-R-001 requires it when the supplier is in the Netherlands, also in this builder; for any
+     * other supplier PEPPOL does not, and validate() warns. BR-55 only demands that a reference,
+     * once present, holds the invoice number element (BT-25); an empty number falls under
+     * PEPPOL-EN16931-R008, because an empty cbc:ID is an empty element.
+     *
+     * Take the number from a stored link between the credit note and the credited invoice, not
+     * from a line description: a number parsed from free text is missing as soon as someone
+     * types the description differently.
+     *
+     * @param  string  $originalInvoiceNumber  Number of the credited invoice (BT-25)
+     * @param  string|null  $originalIssueDate  Issue date of that invoice, YYYY-MM-DD (BT-26, optional)
+     *
+     * @throws \InvalidArgumentException When the number is empty (PEPPOL-EN16931-R008)
      */
     public function addBillingReference(string $originalInvoiceNumber, ?string $originalIssueDate = null): self
     {
-        // Track that billing reference was added
+        if (trim($originalInvoiceNumber) === '') {
+            throw new \InvalidArgumentException('[PEPPOL-EN16931-R008] The number of the credited invoice cannot be empty (BT-25): an empty cbc:ID is an empty element, which the receiver refuses.');
+        }
+
         $this->hasBillingReference = true;
 
         $billingReference = $this->addChildElement($this->rootElement, 'cac', 'BillingReference');
@@ -223,12 +239,23 @@ class UblBeBis3Service
     }
 
     /**
+     * Whether addBillingReference() wrote a reference to the credited invoice (BG-3).
+     *
+     * Lets a host app check a credit note before it queues it for sending.
+     */
+    public function hasBillingReference(): bool
+    {
+        return $this->hasBillingReference;
+    }
+
+    /**
      * Generate the XML string
      *
      * @param  bool  $validateFirst  If true, validates the invoice before generating XML
      * @return string The generated XML as a string
      *
      * @throws \RuntimeException If the document is not initialized
+     * @throws Validation\CreditNoteValidationException If a credit note breaks a rule checked on every credit note
      * @throws \InvalidArgumentException If validation fails and $validateFirst is true
      */
     public function generateXml(bool $validateFirst = false): string
@@ -263,66 +290,64 @@ class UblBeBis3Service
     }
 
     /**
-     * Validate Credit Note specific PEPPOL/EN16931 rules
+     * Check the amounts of a credit note; generateXml() runs this on every credit note.
      *
-     * @throws \InvalidArgumentException If validation fails
+     * BR-27 is a PEPPOL rule. The UBL-PEPPOL-CN rules are rules of this package: the credit is
+     * expressed by type code 381, so it expects every amount positive. They were called BR-CN-01
+     * to BR-CN-04 before 1.13.0, codes that do not exist in the specification.
+     *
+     * A missing billing reference is an error only for a supplier in the Netherlands (NL-R-001);
+     * otherwise validate() reports it as warning UBL-PEPPOL-CN-05.
+     *
+     * @throws Validation\CreditNoteValidationException When a rule fails
      */
     protected function validateCreditNote(): void
     {
         $errors = [];
 
-        // BR-55: A Credit Note SHALL have a preceding invoice reference
-        if (! $this->hasBillingReference) {
-            $errors[] = "[BR-55] PEPPOL Credit Note MUST have a BillingReference.\n".
-                "A Credit Note SHALL have a preceding invoice reference (BG-3).\n".
-                'Solution: Call addBillingReference($originalInvoiceNumber, $originalIssueDate) before generateXml().';
+        $missingReference = UblValidator::missingBillingReference($this->isCreditNote, $this->hasBillingReference, $this->supplierCountryCode);
+        if ($missingReference !== null && $missingReference['isError']) {
+            $errors[] = ['rule' => $missingReference['rule'], 'message' => $missingReference['message']];
         }
 
-        // Check for negative amounts in lines (they should be positive in credit notes)
         foreach ($this->invoiceLines as $index => $line) {
+            $lineNumber = $index + 1;
             $lineAmount = (float) ($line['line_extension_amount'] ?? 0);
             $priceAmount = (float) ($line['price_amount'] ?? 0);
             $quantity = (float) ($line['quantity'] ?? 0);
 
             if ($lineAmount < 0) {
-                $errors[] = '[BR-CN-01] Credit Note line '.($index + 1)." has negative LineExtensionAmount ({$lineAmount}).\n".
-                    "In PEPPOL Credit Notes, ALL amounts must be POSITIVE.\n".
-                    "The credit nature is indicated by document type 381, not by negative amounts.\n".
-                    'Solution: Use abs() on the amount before adding the line.';
+                $errors[] = ['rule' => 'UBL-PEPPOL-CN-01', 'message' => "Credit note line {$lineNumber} has a negative LineExtensionAmount ({$lineAmount}).\n".
+                    "This package expects every amount on a credit note positive: type code 381 says it is a credit, not a minus sign.\n".
+                    'Solution: pass abs() of the amount to addCreditNoteLine().'];
             }
 
             if ($priceAmount < 0) {
-                $errors[] = '[BR-27] Credit Note line '.($index + 1)." has negative PriceAmount ({$priceAmount}).\n".
-                    "Item net price (BT-146) shall NOT be negative.\n".
-                    'Solution: Use abs() on the price before adding the line.';
+                $errors[] = ['rule' => 'BR-27', 'message' => "Credit note line {$lineNumber} has a negative PriceAmount ({$priceAmount}).\n".
+                    "The item net price (BT-146) shall not be negative.\n".
+                    'Solution: pass abs() of the price to addCreditNoteLine().'];
             }
 
             if ($quantity < 0) {
-                $errors[] = '[BR-CN-02] Credit Note line '.($index + 1)." has negative CreditedQuantity ({$quantity}).\n".
-                    "Credited quantity must be positive.\n".
-                    'Solution: Use abs() on the quantity before adding the line.';
+                $errors[] = ['rule' => 'UBL-PEPPOL-CN-02', 'message' => "Credit note line {$lineNumber} has a negative CreditedQuantity ({$quantity}).\n".
+                    "This package expects the credited quantity positive.\n".
+                    'Solution: pass abs() of the quantity to addCreditNoteLine().'];
             }
         }
 
-        // Check totals are positive
         if (! empty($this->totals)) {
             if (($this->totals['line_extension_amount'] ?? 0) < 0) {
-                $errors[] = "[BR-CN-03] LineExtensionAmount in totals is negative.\n".
-                    'All monetary totals in a Credit Note must be positive.';
+                $errors[] = ['rule' => 'UBL-PEPPOL-CN-03', 'message' => "The LineExtensionAmount in the totals is negative.\n".
+                    'Solution: pass the totals to addLegalMonetaryTotal() as positive numbers.'];
             }
             if (($this->totals['payable_amount'] ?? 0) < 0) {
-                $errors[] = "[BR-CN-04] PayableAmount is negative.\n".
-                    'The amount to be credited must be positive.';
+                $errors[] = ['rule' => 'UBL-PEPPOL-CN-04', 'message' => "The PayableAmount is negative.\n".
+                    'Solution: pass the amount to be credited to addLegalMonetaryTotal() as a positive number.'];
             }
         }
 
         if (! empty($errors)) {
-            throw new \InvalidArgumentException(
-                "Credit Note Validation Failed (PEPPOL BIS Billing 3.0 / EN 16931):\n\n".
-                implode("\n\n", $errors).
-                "\n\n".
-                'Documentation: https://docs.peppol.eu/poacc/billing/3.0/bis/#creditnote'
-            );
+            throw new Validation\CreditNoteValidationException($errors);
         }
     }
 
@@ -389,6 +414,16 @@ class UblBeBis3Service
 
         $errors = array_merge($totalsResult->errors, $codeResult->errors, $vatResult->errors);
         $warnings = array_merge($totalsResult->warnings, $codeResult->warnings);
+
+        $missingReference = UblValidator::missingBillingReference($this->isCreditNote, $this->hasBillingReference, $this->supplierCountryCode);
+        if ($missingReference !== null) {
+            $finding = "[{$missingReference['rule']}] {$missingReference['message']}";
+            if ($missingReference['isError']) {
+                $errors[] = $finding;
+            } else {
+                $warnings[] = $finding;
+            }
+        }
 
         if ($this->strictCodelistValidation) {
             if (! $this->codelistRegistry) {
@@ -1503,6 +1538,8 @@ class UblBeBis3Service
         $this->usedEndpointSchemeIds[] = $endpointSchemeID;
 
         $this->usedSchemeIds[] = $endpointSchemeID;
+
+        $this->supplierCountryCode = strtoupper($country);
 
         $supplierParty = $this->addChildElement($this->rootElement, 'cac', 'AccountingSupplierParty');
         $party = $this->addChildElement($supplierParty, 'cac', 'Party');

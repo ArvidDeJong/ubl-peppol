@@ -29,4 +29,21 @@ return [
     'url' => env('PEPPOL_URL'),
 
     'username' => env('PEPPOL_USERNAME'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | MCP Server
+    |--------------------------------------------------------------------------
+    |
+    | Registers a local (stdio) MCP server when laravel/mcp is installed, so an
+    | AI assistant can look up what a PEPPOL rule demands. It reads nothing from
+    | your application and sends nothing anywhere.
+    | Start it with: php artisan mcp:start <handle>
+    |
+    */
+
+    'mcp' => [
+        'enabled' => (bool) env('UBL_PEPPOL_MCP_ENABLED', true),
+        'handle' => env('UBL_PEPPOL_MCP_HANDLE', 'ubl-peppol'),
+    ],
 ];
