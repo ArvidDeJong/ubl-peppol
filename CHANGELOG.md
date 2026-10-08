@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-10-08
+
+**A credit note without a reference to the credited invoice is now decided by the supplier country, and the credit note rules of this package have new ids**, so this is a minor release. A Belgian supplier can send such a credit note, which PEPPOL accepts; a Dutch supplier still cannot (NL-R-001). The sample credit notes pass the official OpenPEPPOL rules, release 2026.5, offline and at Ecosio.
+
 ### Added
 - **An MCP server with the `explain-rule` tool.** With `laravel/mcp` installed (Laravel Boost requires it), `php artisan mcp:start ubl-peppol` starts a local server that lets an AI assistant look up any rule by id or by words from an error message: the official text of OpenPEPPOL release 2026.5, fatal or warning, the XPath test, the element it is tested on, what this package does about it, and a link. It reads nothing from your application. `UBL_PEPPOL_MCP_ENABLED=false` leaves it out, `UBL_PEPPOL_MCP_HANDLE` renames it. What you do: add it to `.mcp.json` if you want it, see the MCP server page in the docs.
 - **`Rules\RuleCatalog`**, the same rules in plain PHP: `find($id)`, `search($words)` and `release()`, returning `Rules\Rule` objects. The 1144 official rules are generated from the Schematron the online validator runs, never written by hand.
@@ -488,7 +492,8 @@ _Never released on its own; these changes are part of the next release._
 - Laravel Service Provider
 - Example code
 
-[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.13.0...HEAD
+[1.13.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.11.1...v1.12.0
 [1.11.1]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.11.0...v1.11.1
 [1.11.0]: https://github.com/ArvidDeJong/ubl-peppol/compare/v1.10.1...v1.11.0
