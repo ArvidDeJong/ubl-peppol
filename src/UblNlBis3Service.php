@@ -157,6 +157,7 @@ class UblNlBis3Service
      * @return string The generated XML as a string
      *
      * @throws \RuntimeException If the document is not initialized
+     * @throws Validation\CreditNoteValidationException If a credit note from a Dutch supplier has no billing reference (NL-R-001)
      */
     public function generateXml(bool $validateFirst = false): string
     {
@@ -174,10 +175,11 @@ class UblNlBis3Service
             throw new \RuntimeException('Root element is not initialized. Call createDocument() before adding elements.');
         }
 
-        // NL-R-001: every receiver rejects a Dutch credit note without the reference, and the
-        // rejection only arrives after it was sent, so it is checked on every credit note
-        if ($this->isCreditNote && ! $this->hasBillingReference) {
-            throw new Validation\CreditNoteValidationException([['rule' => 'NL-R-001', 'message' => self::MISSING_BILLING_REFERENCE]]);
+        // NL-R-001: a receiver rejects a credit note from a Dutch supplier without the reference,
+        // and the rejection only arrives after it was sent, so generateXml() refuses it
+        $missingReference = UblValidator::missingBillingReference($this->isCreditNote, $this->hasBillingReference, $this->supplierCountryCode);
+        if ($missingReference !== null && $missingReference['isError']) {
+            throw new Validation\CreditNoteValidationException([['rule' => $missingReference['rule'], 'message' => $missingReference['message']]]);
         }
 
         $this->arrangeInSchemaOrder();
@@ -235,9 +237,8 @@ class UblNlBis3Service
         'LegalMonetaryTotal', 'CreditNoteLine',
     ];
 
-    protected const MISSING_BILLING_REFERENCE = 'A credit note from a Dutch supplier must reference the invoice it credits (BG-3). '
-        .'Store the credited invoice on the credit note when you create it and pass its number and issue date to '
-        .'addBillingReference($originalInvoiceNumber, $originalIssueDate) before generateXml(); do not parse the number from a line description.';
+    /** @deprecated The message now comes from UblValidator::missingBillingReference(), which depends on the supplier country */
+    protected const MISSING_BILLING_REFERENCE = 'The supplier is in the Netherlands, so the credit note must reference the invoice it credits (BG-3).';
 
     /**
      * Put the children of <Invoice> in schema order, whatever the order of the add...() calls was.
@@ -301,9 +302,15 @@ class UblNlBis3Service
             $errors = array_merge($errors, UblValidator::validateDutchRules($document)->errors);
         }
 
-        // NL-R-001: a credit note from a Dutch supplier references the credited invoice
-        if ($this->isCreditNote && ! $this->hasBillingReference) {
-            $errors[] = '[NL-R-001] '.self::MISSING_BILLING_REFERENCE;
+        // NL-R-001 for a Dutch supplier, otherwise warning UBL-PEPPOL-CN-05
+        $missingReference = UblValidator::missingBillingReference($this->isCreditNote, $this->hasBillingReference, $this->supplierCountryCode);
+        if ($missingReference !== null) {
+            $finding = "[{$missingReference['rule']}] {$missingReference['message']}";
+            if ($missingReference['isError']) {
+                $errors[] = $finding;
+            } else {
+                $warnings[] = $finding;
+            }
         }
 
         // What the VAT categories demand of the document: breakdown, rates, VAT numbers, delivery

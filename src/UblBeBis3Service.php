@@ -38,17 +38,11 @@ class UblBeBis3Service
     // Document type tracking
     protected bool $isCreditNote = false;
 
-    // Track if a reference to the credited invoice was added (BG-3); validate() warns without one
+    // Track if a reference to the credited invoice was added (BG-3), see UblValidator::missingBillingReference()
     protected bool $hasBillingReference = false;
 
-    /**
-     * Warning from validate() on a credit note without a reference to the credited invoice.
-     * A package rule: PEPPOL only requires the reference from a Dutch supplier (NL-R-001).
-     */
-    protected const MISSING_BILLING_REFERENCE_WARNING = '[UBL-PEPPOL-CN-05] The credit note does not reference the invoice it credits (BG-3). '
-        .'PEPPOL does not require it from a Belgian supplier, but the receiver cannot match the credit to an invoice. '
-        .'Store the credited invoice on the credit note when you create it and pass its number and issue date to addBillingReference(); '
-        .'do not parse the number from a line description.';
+    // Country of AccountingSupplierParty: NL-R-001 requires the billing reference from a Dutch supplier
+    protected ?string $supplierCountryCode = null;
 
     // Namespace prefixes
     protected string $ns_prefix_cac = 'cac';
@@ -203,9 +197,9 @@ class UblBeBis3Service
     /**
      * Add the reference to the invoice a credit note credits (BG-3).
      *
-     * PEPPOL does not require it from a Belgian supplier: only NL-R-001 does, for a Dutch one.
-     * BR-55 only demands that a reference, once present, holds the invoice number (BT-25).
-     * Without it the receiver cannot match the credit to an invoice, so validate() warns.
+     * NL-R-001 requires it when the supplier is in the Netherlands, also in this builder; for any
+     * other supplier PEPPOL does not, and validate() warns. BR-55 only demands that a reference,
+     * once present, holds the invoice number (BT-25).
      *
      * Take the number from a stored link between the credit note and the credited invoice, not
      * from a line description: a number parsed from free text is missing as soon as someone
@@ -260,6 +254,7 @@ class UblBeBis3Service
      * @return string The generated XML as a string
      *
      * @throws \RuntimeException If the document is not initialized
+     * @throws Validation\CreditNoteValidationException If a credit note breaks a rule checked on every credit note
      * @throws \InvalidArgumentException If validation fails and $validateFirst is true
      */
     public function generateXml(bool $validateFirst = false): string
@@ -300,14 +295,19 @@ class UblBeBis3Service
      * expressed by type code 381, so it expects every amount positive. They were called BR-CN-01
      * to BR-CN-04 before 1.13.0, codes that do not exist in the specification.
      *
-     * A missing billing reference is not checked here: PEPPOL does not require one from a
-     * Belgian supplier, so validate() reports it as a warning (UBL-PEPPOL-CN-05).
+     * A missing billing reference is an error only for a supplier in the Netherlands (NL-R-001);
+     * otherwise validate() reports it as warning UBL-PEPPOL-CN-05.
      *
      * @throws Validation\CreditNoteValidationException When a rule fails
      */
     protected function validateCreditNote(): void
     {
         $errors = [];
+
+        $missingReference = UblValidator::missingBillingReference($this->isCreditNote, $this->hasBillingReference, $this->supplierCountryCode);
+        if ($missingReference !== null && $missingReference['isError']) {
+            $errors[] = ['rule' => $missingReference['rule'], 'message' => $missingReference['message']];
+        }
 
         foreach ($this->invoiceLines as $index => $line) {
             $lineNumber = $index + 1;
@@ -414,8 +414,14 @@ class UblBeBis3Service
         $errors = array_merge($totalsResult->errors, $codeResult->errors, $vatResult->errors);
         $warnings = array_merge($totalsResult->warnings, $codeResult->warnings);
 
-        if ($this->isCreditNote && ! $this->hasBillingReference) {
-            $warnings[] = self::MISSING_BILLING_REFERENCE_WARNING;
+        $missingReference = UblValidator::missingBillingReference($this->isCreditNote, $this->hasBillingReference, $this->supplierCountryCode);
+        if ($missingReference !== null) {
+            $finding = "[{$missingReference['rule']}] {$missingReference['message']}";
+            if ($missingReference['isError']) {
+                $errors[] = $finding;
+            } else {
+                $warnings[] = $finding;
+            }
         }
 
         if ($this->strictCodelistValidation) {
@@ -1531,6 +1537,8 @@ class UblBeBis3Service
         $this->usedEndpointSchemeIds[] = $endpointSchemeID;
 
         $this->usedSchemeIds[] = $endpointSchemeID;
+
+        $this->supplierCountryCode = strtoupper($country);
 
         $supplierParty = $this->addChildElement($this->rootElement, 'cac', 'AccountingSupplierParty');
         $party = $this->addChildElement($supplierParty, 'cac', 'Party');

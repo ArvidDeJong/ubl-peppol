@@ -241,3 +241,14 @@ it('rejects a credit note header with a bad number or date', function (string $n
     'a date in another format' => ['NL-CN-1', '15-01-2026'],
     'a date in the future' => ['NL-CN-1', '2999-01-01'],
 ]);
+
+it('only warns when the supplier in the Dutch builder is not in the Netherlands, because NL-R-001 follows the supplier', function () {
+    $ubl = nlCreditNote(['header', 'customer', 'paymentMeans', 'taxTotal', 'monetaryTotal', 'line1']);
+    $ubl->addAccountingSupplierParty(
+        '0999000197', '0208', '0999000197', 'Belgian Supplier NV', 'Kerkstraat 1', '2300', 'Turnhout', 'BE', 'BE0999000197'
+    );
+
+    expect($ubl->generateXml())->toContain('<CreditNote')
+        ->and(implode("\n", $ubl->validate()->errors))->not->toContain('NL-R-001')
+        ->and(implode("\n", $ubl->validate()->warnings))->toContain('[UBL-PEPPOL-CN-05]');
+});

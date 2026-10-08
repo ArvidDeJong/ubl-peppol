@@ -228,7 +228,7 @@ The first line names the failing rules; `getRuleIds()` on the `CreditNoteValidat
 
 | Rule | Fix |
 | --- | --- |
-| `NL-R-001` (Dutch builder) | Call `addBillingReference($invoiceNumber, $invoiceDate)`, with the number of the invoice you stored on the credit note |
+| `NL-R-001` (supplier in the Netherlands, either builder) | Call `addBillingReference($invoiceNumber, $invoiceDate)`, with the number of the invoice you stored on the credit note |
 | `UBL-PEPPOL-CN-03` | Pass positive totals to `addLegalMonetaryTotal()` |
 | `UBL-PEPPOL-CN-04` | The same |
 
@@ -236,8 +236,8 @@ Before 1.13.0 this message started with `Credit Note Validation Failed (PEPPOL B
 
 ### `[UBL-PEPPOL-CN-05]` warning from `validate()`
 
-**Cause:** a Belgian credit note without a reference to the credited invoice. PEPPOL accepts it, but the receiver cannot match the credit to an invoice.
-**Fix:** call `addBillingReference()` with the number and issue date of the credited invoice. See [The billing reference on a Belgian credit note](credit-notes.md#the-billing-reference-on-a-belgian-credit-note).
+**Cause:** a credit note from a supplier outside the Netherlands without a reference to the credited invoice. PEPPOL accepts it, but the receiver cannot match the credit to an invoice.
+**Fix:** call `addBillingReference()` with the number and issue date of the credited invoice. See [The billing reference follows the supplier](credit-notes.md#the-billing-reference-follows-the-supplier).
 
 ### `BuyerReference is not supported on credit notes by this package.`
 

@@ -359,7 +359,7 @@ describe('Credit Note Tests - PEPPOL BIS Billing 3.0 / EN 16931', function () {
         expect($result->isValid())->toBeTrue();
         expect($result->getWarningsAsString())
             ->toContain('[UBL-PEPPOL-CN-05]')
-            ->toContain('addBillingReference()')
+            ->toContain('addBillingReference(')
             ->toContain('do not parse the number from a line description');
     });
 
@@ -395,7 +395,7 @@ describe('Credit Note Tests - PEPPOL BIS Billing 3.0 / EN 16931', function () {
 /**
  * A complete Belgian credit note with one line, VAT and totals.
  */
-function beCreditNoteWithTotals(bool $withBillingReference, float $lineExtensionAmount = 500, float $payableAmount = 605): UblBeBis3Service
+function beCreditNoteWithTotals(bool $withBillingReference, float $lineExtensionAmount = 500, float $payableAmount = 605, string $supplierCountry = 'BE'): UblBeBis3Service
 {
     $service = new UblBeBis3Service;
     $service->createCreditNoteDocument();
@@ -407,7 +407,7 @@ function beCreditNoteWithTotals(bool $withBillingReference, float $lineExtension
 
     $service->addAccountingSupplierParty(
         '0999000197', '0208', 'SUPP-1',
-        'Test Company', 'Teststraat 1', '1000', 'Brussel', 'BE', 'BE0999000197'
+        'Test Company', 'Teststraat 1', '1000', 'Brussel', $supplierCountry, 'BE0999000197'
     );
     $service->addAccountingCustomerParty(
         '0888000188', '0208', 'CUST-1',
@@ -443,3 +443,26 @@ function beCreditNoteWithTotals(bool $withBillingReference, float $lineExtension
 
     return $service;
 }
+
+describe('NL-R-001 follows the supplier, not the builder', function () {
+    it('refuses a credit note from a Dutch supplier without BillingReference, also in the Belgian builder', function () {
+        $service = beCreditNoteWithTotals(withBillingReference: false, supplierCountry: 'NL');
+
+        try {
+            $service->generateXml();
+            throw new Exception('Expected exception was not thrown');
+        } catch (CreditNoteValidationException $e) {
+            expect($e->getRuleIds())->toBe(['NL-R-001']);
+        }
+
+        expect($service->validate()->getErrorsAsString())->toContain('[NL-R-001]');
+    });
+
+    it('only warns for a Belgian supplier', function () {
+        $service = beCreditNoteWithTotals(withBillingReference: false, supplierCountry: 'BE');
+
+        expect($service->generateXml())->toContain('<CreditNote');
+        expect($service->validate()->getErrorsAsString())->not->toContain('NL-R-001');
+        expect($service->validate()->getWarningsAsString())->toContain('[UBL-PEPPOL-CN-05]');
+    });
+});

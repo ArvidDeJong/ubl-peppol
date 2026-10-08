@@ -16,6 +16,45 @@ class UblValidator
 
     private const NS_CBC = 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2';
 
+    private const BILLING_REFERENCE_SOLUTION = 'Store the credited invoice on the credit note when you create it and pass its number and issue date to '
+        .'addBillingReference($originalInvoiceNumber, $originalIssueDate); do not parse the number from a line description.';
+
+    /**
+     * What a credit note without a reference to the credited invoice (BG-3) breaks, if anything.
+     *
+     * NL-R-001 requires the reference when the supplier in the document is in the Netherlands,
+     * whichever builder wrote it: a Dutch company invoicing a Belgian customer uses the Belgian
+     * builder and is still bound by it. For any other supplier PEPPOL does not require it (BR-55
+     * only demands the number once a reference exists), so it is warning UBL-PEPPOL-CN-05 of this
+     * package: the receiver cannot match the credit to an invoice.
+     *
+     * @param  bool  $isCreditNote  Whether the document is a credit note
+     * @param  bool  $hasBillingReference  Whether addBillingReference() was called
+     * @param  string|null  $supplierCountryCode  Country of AccountingSupplierParty, null when not added yet
+     * @return array{rule: string, message: string, isError: bool}|null Null when nothing is missing
+     */
+    public static function missingBillingReference(bool $isCreditNote, bool $hasBillingReference, ?string $supplierCountryCode): ?array
+    {
+        if (! $isCreditNote || $hasBillingReference) {
+            return null;
+        }
+
+        if (strtoupper((string) $supplierCountryCode) === 'NL') {
+            return [
+                'rule' => 'NL-R-001',
+                'message' => 'The supplier is in the Netherlands, so the credit note must reference the invoice it credits (BG-3). '.self::BILLING_REFERENCE_SOLUTION,
+                'isError' => true,
+            ];
+        }
+
+        return [
+            'rule' => 'UBL-PEPPOL-CN-05',
+            'message' => 'The credit note does not reference the invoice it credits (BG-3). PEPPOL only requires it from a supplier in the '
+                .'Netherlands (NL-R-001), but the receiver cannot match the credit to an invoice. '.self::BILLING_REFERENCE_SOLUTION,
+            'isError' => false,
+        ];
+    }
+
     /**
      * Validates if the given unit code is a valid UN/ECE Recommendation 20 with Rec 21 extension unit code.
      *

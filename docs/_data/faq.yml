@@ -35,9 +35,9 @@
   a: >
     Yes, with both builders; the Dutch builder has credit notes since 1.10.0. Start with
     `createCreditNoteDocument()`, add `addBillingReference()` for the invoice you correct, and add lines with
-    `addCreditNoteLine()`. All amounts are positive. The Dutch `generateXml()` throws when the billing
-    reference is missing (NL-R-001); the Belgian one writes the credit note, `validate()` warns, and it
-    throws when a total is negative.
+    `addCreditNoteLine()`. All amounts are positive. Without a billing reference `generateXml()` throws
+    when the supplier is in the Netherlands (NL-R-001) and otherwise writes the credit note while
+    `validate()` warns. The Belgian builder also throws when a total is negative.
 
 - q: Does validate() fix my invoice, and is a valid result enough?
   a: >
