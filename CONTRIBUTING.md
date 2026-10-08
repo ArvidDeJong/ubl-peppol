@@ -68,4 +68,4 @@ Then check that `docs/assets/validator/samples/valid-dutch-invoice.xml` is still
 
 ## Code of conduct
 
-This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
+This project follows the [Contributor Covenant](https://github.com/ArvidDeJong/.github/blob/main/CODE_OF_CONDUCT.md).
